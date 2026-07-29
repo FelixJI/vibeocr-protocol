@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+pythonpath = ["packages/vibeocr-contracts-py/src", "packages/vibeocr-runtime-client-py/src"]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+asyncio_mode = "auto"
+markers = ["slow: long-running integration or performance test"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
