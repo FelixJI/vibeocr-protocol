@@ -1,7 +1,21 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$Version
+)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$projectFile = Join-Path $root 'packages/vibeocr-contracts-py/pyproject.toml'
+$projectVersion = (
+    python -c "import pathlib,tomllib; print(tomllib.loads(pathlib.Path(r'$projectFile').read_text(encoding='utf-8'))['project']['version'])"
+).Trim()
+if (-not $Version) {
+    $Version = $projectVersion
+} else {
+    $Version = $Version.TrimStart('v')
+}
+if ($Version -ne $projectVersion) {
+    throw "Release version '$Version' does not match project version '$projectVersion'"
+}
 $artifacts = Join-Path $root 'artifacts'
 $build = Join-Path $root '.release-build'
 if (Test-Path -LiteralPath $artifacts) {
@@ -24,21 +38,21 @@ dotnet pack (Join-Path $root 'src/dotnet/VibeOCR.Runtime.Client/VibeOCR.Runtime.
 if ($LASTEXITCODE -ne 0) { throw 'client NuGet pack failed' }
 python (Join-Path $root 'scripts/build_protocol_release_assets.py') `
   --contracts-root (Join-Path $root 'packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts') `
-  --version 2.0.0 --output-dir $artifacts
+  --version $Version --output-dir $artifacts
 if ($LASTEXITCODE -ne 0) { throw 'Protocol archive build failed' }
-Copy-Item -LiteralPath (Join-Path $build 'vibeocr_runtime_contracts-2.0.0-py3-none-any.whl') -Destination $artifacts
-Copy-Item -LiteralPath (Join-Path $build 'vibeocr_runtime_client-2.0.0-py3-none-any.whl') -Destination $artifacts
-Copy-Item -LiteralPath (Join-Path $build 'VibeOCR.Runtime.Contracts.2.0.0.nupkg') -Destination $artifacts
-Copy-Item -LiteralPath (Join-Path $build 'VibeOCR.Runtime.Client.2.0.0.nupkg') -Destination $artifacts
+Copy-Item -LiteralPath (Join-Path $build "vibeocr_runtime_contracts-$Version-py3-none-any.whl") -Destination $artifacts
+Copy-Item -LiteralPath (Join-Path $build "vibeocr_runtime_client-$Version-py3-none-any.whl") -Destination $artifacts
+Copy-Item -LiteralPath (Join-Path $build "VibeOCR.Runtime.Contracts.$Version.nupkg") -Destination $artifacts
+Copy-Item -LiteralPath (Join-Path $build "VibeOCR.Runtime.Client.$Version.nupkg") -Destination $artifacts
 python (Join-Path $root 'scripts/build_spdx_sbom.py') --artifacts-dir $artifacts `
-  --repository-name FelixJI/vibeocr-protocol --version 2.0.0
+  --repository-name FelixJI/vibeocr-protocol --version $Version
 if ($LASTEXITCODE -ne 0) { throw 'SBOM build failed' }
 $inputs = Get-ChildItem -LiteralPath $artifacts -File | ForEach-Object {
     @('--artifact', $_.FullName)
 }
 $arguments = @(
     (Join-Path $root 'scripts/build_protocol_release_manifest.py'),
-    '--protocol-version', '2.0.0',
+    '--protocol-version', $Version,
     '--source-commit', (git -C $root rev-parse HEAD).Trim(),
     '--build-workflow', 'github.com/FelixJI/vibeocr-protocol/.github/workflows/release.yml',
     '--output-dir', $artifacts

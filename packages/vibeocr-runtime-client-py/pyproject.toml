@@ -4,7 +4,7 @@ version = "2.0.0"
 description = "Python transport client and mock server for the VibeOCR Runtime Protocol"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "vibeocr-runtime-contracts==2.0.0",
+    "vibeocr-runtime-contracts==2.0.0", # x-release-please-version
     "httpx>=0.28.1",
     "jsonschema>=4.25.0",
 ]
