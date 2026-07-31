@@ -24,10 +24,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest jsonschema httpx pyyaml ./packages/vibeocr-contracts-py ./packages/vibeocr-runtime-client-py
-          python scripts/generate_runtime_protocol.py --check
-          python scripts/check_openapi_quality.py --baseline packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/baselines/openapi-2.0.0.yaml --current packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/openapi.yaml
-          python -m pytest tests/contracts
-          python -m pytest tests/runtime/test_build_protocol_release_manifest.py tests/runtime/test_build_protocol_release_assets.py tests/runtime/test_build_spdx_sbom.py tests/runtime/test_build_release_checksums.py
+          python -m pip install --group dev ./packages/vibeocr-contracts-py ./packages/vibeocr-runtime-client-py
+          ./scripts/check-quality.ps1
           dotnet test tests/dotnet/VibeOCR.Contracts.Tests/VibeOCR.Contracts.Tests.csproj -c Release
           dotnet test tests/dotnet/VibeOCR.Runtime.Client.Tests/VibeOCR.Runtime.Client.Tests.csproj -c Release

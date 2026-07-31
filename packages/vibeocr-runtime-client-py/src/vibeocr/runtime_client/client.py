@@ -18,7 +18,6 @@ from urllib.request import Request, urlopen
 import httpx
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
-
 from vibeocr.runtime_contracts import (
     CancelMode,
     JobCommand,

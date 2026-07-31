@@ -48,9 +48,7 @@ class JobHandle:
         return list((await self.observe(after_sequence=after_sequence)).events)
 
     async def observe(self, *, after_sequence: int = 0) -> JobUpdate:
-        return await self.client.observe(
-            self.job_id, after_sequence=after_sequence
-        )
+        return await self.client.observe(self.job_id, after_sequence=after_sequence)
 
     async def result(self) -> list[ResultEntry]:
         update = await self.observe()
@@ -88,6 +86,7 @@ class JobHandle:
 
     async def wait_for_terminal(self, *, timeout: float | None = None) -> JobSnapshot:
         """Poll status until terminal. Raises asyncio.TimeoutError on timeout."""
+
         async def _wait() -> JobSnapshot:
             last_seq = 0
             while True:
@@ -97,6 +96,7 @@ class JobHandle:
                     return snap
                 last_seq = update.through_sequence
                 await asyncio.sleep(0.02)
+
         if timeout is None:
             return await _wait()
         return await asyncio.wait_for(_wait(), timeout=timeout)

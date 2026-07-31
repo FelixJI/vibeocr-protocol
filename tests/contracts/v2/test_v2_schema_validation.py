@@ -16,13 +16,17 @@ import pytest
 
 def _load(name: str) -> dict:
     return json.loads(
-        resources.files("vibeocr.runtime_contracts.schemas").joinpath(name).read_text(encoding="utf-8")
+        resources.files("vibeocr.runtime_contracts.schemas")
+        .joinpath(name)
+        .read_text(encoding="utf-8")
     )
 
 
 def _golden() -> dict:
     return json.loads(
-        resources.files("vibeocr.runtime_contracts.golden").joinpath("golden.json").read_text(encoding="utf-8")
+        resources.files("vibeocr.runtime_contracts.golden")
+        .joinpath("golden.json")
+        .read_text(encoding="utf-8")
     )
 
 
@@ -38,7 +42,11 @@ JOB_INTERFACE_SCHEMA = _load("job-interface.schema.json")
 
 @pytest.mark.parametrize(
     "key",
-    ["job_snapshot_running", "job_snapshot_completed_with_errors", "job_snapshot_cancelled"],
+    [
+        "job_snapshot_running",
+        "job_snapshot_completed_with_errors",
+        "job_snapshot_cancelled",
+    ],
 )
 def test_job_schema_accepts_golden(key: str) -> None:
     jsonschema.validate(_golden()[key], JOB_SCHEMA)
@@ -166,7 +174,9 @@ def test_job_interface_schema_rejects_empty_success_outcome() -> None:
 
 def test_errors_json_codes_match_schema_enum() -> None:
     registry = json.loads(
-        resources.files("vibeocr.runtime_contracts").joinpath("errors.json").read_text(encoding="utf-8")
+        resources.files("vibeocr.runtime_contracts")
+        .joinpath("errors.json")
+        .read_text(encoding="utf-8")
     )
     registry_codes = {row["code"] for row in registry["codes"]}
     schema_codes = set(ERROR_SCHEMA["properties"]["code"]["enum"])
@@ -177,7 +187,9 @@ def test_errors_json_codes_match_schema_enum() -> None:
 
 def test_errors_json_categories_match_schema_enum() -> None:
     registry = json.loads(
-        resources.files("vibeocr.runtime_contracts").joinpath("errors.json").read_text(encoding="utf-8")
+        resources.files("vibeocr.runtime_contracts")
+        .joinpath("errors.json")
+        .read_text(encoding="utf-8")
     )
     registry_categories = {row["category"] for row in registry["codes"]}
     schema_categories = set(ERROR_SCHEMA["properties"]["category"]["enum"])

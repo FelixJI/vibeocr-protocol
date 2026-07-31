@@ -65,9 +65,16 @@ class JobStateTransitionError(ContractError):
 # ---------------------------------------------------------------------------
 
 _JOB_TRANSITIONS: dict[JobState, frozenset[JobState]] = {
-    JobState.ACCEPTED: frozenset({JobState.QUEUED, JobState.FAILED, JobState.CANCELLED}),
+    JobState.ACCEPTED: frozenset(
+        {JobState.QUEUED, JobState.FAILED, JobState.CANCELLED}
+    ),
     JobState.QUEUED: frozenset(
-        {JobState.RUNNING, JobState.CANCELLED, JobState.FAILED, JobState.CANCEL_REQUESTED}
+        {
+            JobState.RUNNING,
+            JobState.CANCELLED,
+            JobState.FAILED,
+            JobState.CANCEL_REQUESTED,
+        }
     ),
     JobState.RUNNING: frozenset(
         {
@@ -87,8 +94,12 @@ _JOB_TRANSITIONS: dict[JobState, frozenset[JobState]] = {
 
 
 _ITEM_TRANSITIONS: dict[ItemState, frozenset[ItemState]] = {
-    ItemState.QUEUED: frozenset({ItemState.RUNNING, ItemState.CANCELLED, ItemState.FAILED}),
-    ItemState.RUNNING: frozenset({ItemState.SUCCEEDED, ItemState.FAILED, ItemState.CANCELLED}),
+    ItemState.QUEUED: frozenset(
+        {ItemState.RUNNING, ItemState.CANCELLED, ItemState.FAILED}
+    ),
+    ItemState.RUNNING: frozenset(
+        {ItemState.SUCCEEDED, ItemState.FAILED, ItemState.CANCELLED}
+    ),
     ItemState.SUCCEEDED: frozenset(),
     ItemState.FAILED: frozenset(),
     ItemState.CANCELLED: frozenset(),
@@ -142,7 +153,9 @@ def _require_enum(enum_cls: type, raw: Any, label: str) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def _require_fields(payload: dict[str, Any], fields: tuple[str, ...], label: str) -> None:
+def _require_fields(
+    payload: dict[str, Any], fields: tuple[str, ...], label: str
+) -> None:
     missing = [f for f in fields if f not in payload or payload[f] is None]
     if missing:
         raise ContractError(f"{label} missing required field(s): {', '.join(missing)}")
@@ -283,9 +296,15 @@ def parse_submit_request(payload: dict[str, Any]) -> SubmitRequest:
         raise ContractError(f"job kind is not submittable: {kind.value}")
     priority = _require_enum(JobPriority, payload["priority"], "job priority")
     pipeline = parse_pipeline_selection(payload["pipeline"])
-    if kind is JobKind.MINERU_PARSE and pipeline.pipeline_id != OCRPipeline.DOCUMENT_PARSING.value:
+    if (
+        kind is JobKind.MINERU_PARSE
+        and pipeline.pipeline_id != OCRPipeline.DOCUMENT_PARSING.value
+    ):
         raise ContractError("mineru_parse requires the MinerU pipeline")
-    if kind is JobKind.RECOGNITION and pipeline.pipeline_id == OCRPipeline.DOCUMENT_PARSING.value:
+    if (
+        kind is JobKind.RECOGNITION
+        and pipeline.pipeline_id == OCRPipeline.DOCUMENT_PARSING.value
+    ):
         raise ContractError("MinerU requires kind=mineru_parse")
     items_raw = payload["items"]
     if not isinstance(items_raw, list) or not items_raw:
@@ -296,7 +315,9 @@ def parse_submit_request(payload: dict[str, Any]) -> SubmitRequest:
         raise ContractError("client_item_key must be unique within a job")
     ordinals = [item.ordinal for item in items]
     if sorted(ordinals) != list(range(len(items))):
-        raise ContractError("submit item ordinals must be unique and contiguous from zero")
+        raise ContractError(
+            "submit item ordinals must be unique and contiguous from zero"
+        )
     parameters = payload.get("parameters", {})
     if not isinstance(parameters, dict):
         raise ContractError("submit request parameters must be a JSON object")
@@ -495,14 +516,14 @@ def parse_job_command(payload: dict[str, Any]) -> JobCommand:
         raise ContractError("job command must be a JSON object")
     _reject_unknown_fields(
         payload,
-        frozenset(
-            {"command_id", "kind", "job_id", "item_ids", "priority_override"}
-        ),
+        frozenset({"command_id", "kind", "job_id", "item_ids", "priority_override"}),
         "job command",
     )
     _require_fields(payload, ("command_id", "kind", "job_id"), "job command")
     item_ids = payload.get("item_ids", [])
-    if not isinstance(item_ids, list) or any(not isinstance(item, str) for item in item_ids):
+    if not isinstance(item_ids, list) or any(
+        not isinstance(item, str) for item in item_ids
+    ):
         raise ContractError("job command item_ids must be a list of strings")
     priority_raw = payload.get("priority_override")
     return JobCommand(
@@ -547,7 +568,9 @@ def parse_error_payload(payload: dict[str, Any]) -> ErrorPayload:
     # the ErrorCode enum (every member is registered), so a value that survived
     # the ErrorCode() construction above is always present here; the guard is
     # retained as a defensive invariant for future registry edits.
-    if code not in error_registry:  # pragma: no cover - registry is total over ErrorCode
+    if (
+        code not in error_registry
+    ):  # pragma: no cover - registry is total over ErrorCode
         raise ContractError(f"error code not in registry: {code.value}")
     registry_entry = error_registry[code]
     category_raw = payload["category"]
@@ -593,7 +616,9 @@ def parse_pipeline_spec(payload: dict[str, Any]) -> PipelineSpec:
     _require_fields(payload, ("name",), "pipeline spec")
     ttl = payload.get("ttl_seconds")
     if ttl is not None and (not isinstance(ttl, int) or ttl < 0):
-        raise ContractError(f"ttl_seconds must be null or non-negative int, got {ttl!r}")
+        raise ContractError(
+            f"ttl_seconds must be null or non-negative int, got {ttl!r}"
+        )
     return PipelineSpec(
         name=payload["name"],
         ttl_seconds=ttl,

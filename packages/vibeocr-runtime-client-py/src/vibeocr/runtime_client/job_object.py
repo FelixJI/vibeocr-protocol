@@ -112,9 +112,7 @@ class JobObjectGuard:
             if not process:
                 return False
             try:
-                return bool(
-                    kernel32.AssignProcessToJobObject(self._handle, process)
-                )
+                return bool(kernel32.AssignProcessToJobObject(self._handle, process))
             finally:
                 kernel32.CloseHandle(process)
         except Exception:
