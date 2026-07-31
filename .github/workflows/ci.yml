@@ -15,6 +15,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: '0.9.21'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          activate-environment: true
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -23,8 +29,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --group dev ./packages/vibeocr-contracts-py ./packages/vibeocr-runtime-client-py
+          uv sync --locked --group dev
           ./scripts/check-quality.ps1
           dotnet test tests/dotnet/VibeOCR.Contracts.Tests/VibeOCR.Contracts.Tests.csproj -c Release
           dotnet test tests/dotnet/VibeOCR.Runtime.Client.Tests/VibeOCR.Runtime.Client.Tests.csproj -c Release

@@ -5,6 +5,15 @@ dev = [
     "ruff==0.15.17",
 ]
 
+[tool.uv.workspace]
+members = [
+    "packages/vibeocr-contracts-py",
+    "packages/vibeocr-runtime-client-py",
+]
+
+[tool.uv.sources]
+vibeocr-runtime-contracts = { workspace = true }
+
 [tool.pytest.ini_options]
 pythonpath = ["packages/vibeocr-contracts-py/src", "packages/vibeocr-runtime-client-py/src"]
 testpaths = ["tests"]
