@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "pull-request-title-pattern": "chore(main): release ${version}",
+  "draft": true,
+  "force-tag-creation": true,
+  "packages": {
+    ".": {
+      "package-name": "vibeocr-protocol",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "packages/vibeocr-contracts-py/pyproject.toml",
+          "jsonpath": "$.project.version"
+        },
+        {
+          "type": "toml",
+          "path": "packages/vibeocr-runtime-client-py/pyproject.toml",
+          "jsonpath": "$.project.version"
+        },
+        {
+          "type": "generic",
+          "path": "packages/vibeocr-runtime-client-py/pyproject.toml"
+        },
+        {
+          "type": "xml",
+          "path": "src/dotnet/VibeOCR.Contracts/VibeOCR.Contracts.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
+        },
+        {
+          "type": "xml",
+          "path": "src/dotnet/VibeOCR.Runtime.Client/VibeOCR.Runtime.Client.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
+        },
+        {
+          "type": "json",
+          "path": "repository.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "version.txt"
+        }
+      ]
+    }
+  }
+}
