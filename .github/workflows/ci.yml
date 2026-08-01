@@ -15,6 +15,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: '0.9.21'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          activate-environment: true
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -23,11 +29,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest jsonschema httpx pyyaml ./packages/vibeocr-contracts-py ./packages/vibeocr-runtime-client-py
-          python scripts/generate_runtime_protocol.py --check
-          python scripts/check_openapi_quality.py --baseline packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/baselines/openapi-2.0.0.yaml --current packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/openapi.yaml
-          python -m pytest tests/contracts
-          python -m pytest tests/runtime/test_build_protocol_release_manifest.py tests/runtime/test_build_protocol_release_assets.py tests/runtime/test_build_spdx_sbom.py tests/runtime/test_build_release_checksums.py
+          uv sync --locked --group dev
+          ./scripts/check-quality.ps1
           dotnet test tests/dotnet/VibeOCR.Contracts.Tests/VibeOCR.Contracts.Tests.csproj -c Release
           dotnet test tests/dotnet/VibeOCR.Runtime.Client.Tests/VibeOCR.Runtime.Client.Tests.csproj -c Release

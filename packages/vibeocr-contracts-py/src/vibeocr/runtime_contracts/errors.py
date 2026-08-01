@@ -67,7 +67,9 @@ class ErrorPayload:
 def load_error_registry() -> dict[ErrorCode, ErrorEntry]:
     """Load and validate the bundled ``errors.json`` registry."""
 
-    raw = json.loads(resources.files(__package__).joinpath("errors.json").read_text(encoding="utf-8"))
+    raw = json.loads(
+        resources.files(__package__).joinpath("errors.json").read_text(encoding="utf-8")
+    )
     out: dict[ErrorCode, ErrorEntry] = {}
     for row in raw["codes"]:
         code = ErrorCode(row["code"])

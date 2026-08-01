@@ -7,7 +7,6 @@ from importlib import resources
 import pytest
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
-
 from vibeocr.runtime_contracts.contracts.tables import (
     MAX_TABLE_CELLS,
     CoordinateSpace,
@@ -446,8 +445,7 @@ def test_table_model_rejects_excessive_cell_coverage():
     """
     # Each cell spans 11 columns; ~91k cells gives coverage > 1_000_000.
     cells = tuple(
-        TableCellV1(cell_id=f"c{i}", row=0, column=0, colspan=11)
-        for i in range(91_000)
+        TableCellV1(cell_id=f"c{i}", row=0, column=0, colspan=11) for i in range(91_000)
     )
     with pytest.raises(ValueError, match="coverage exceeds"):
         TableModelV1(
@@ -486,5 +484,7 @@ def test_table_model_from_payload_rejects_non_object_provenance():
     """Line 366: provenance must be an object or null in from_payload."""
     payload = _valid_payload()
     payload["provenance"] = ["not", "a", "dict"]
-    with pytest.raises(ValueError, match="provenance payload must be an object or null"):
+    with pytest.raises(
+        ValueError, match="provenance payload must be an object or null"
+    ):
         TableModelV1.from_payload(payload)

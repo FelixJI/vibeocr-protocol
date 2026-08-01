@@ -12,7 +12,6 @@ import json
 from importlib import resources
 
 import pytest
-
 from vibeocr.runtime_contracts import (
     SCHEMA_VERSION,
     CancelMode,
@@ -51,7 +50,11 @@ from vibeocr.runtime_contracts.parser import SchemaValidator
 
 @pytest.fixture(scope="module")
 def golden() -> dict:
-    raw = resources.files("vibeocr.runtime_contracts.golden").joinpath("golden.json").read_text(encoding="utf-8")
+    raw = (
+        resources.files("vibeocr.runtime_contracts.golden")
+        .joinpath("golden.json")
+        .read_text(encoding="utf-8")
+    )
     return json.loads(raw)
 
 
@@ -83,7 +86,11 @@ def test_oom_and_cancelled_retryability() -> None:
 
 @pytest.mark.parametrize(
     "key",
-    ["job_snapshot_running", "job_snapshot_completed_with_errors", "job_snapshot_cancelled"],
+    [
+        "job_snapshot_running",
+        "job_snapshot_completed_with_errors",
+        "job_snapshot_cancelled",
+    ],
 )
 def test_golden_job_snapshots_parse(key: str, golden: dict) -> None:
     snap = parse_job_snapshot(golden[key])
@@ -133,11 +140,13 @@ def test_job_snapshot_roundtrip_preserves_order() -> None:
         state=JobState.COMPLETED_WITH_ERRORS,
         items=(
             JobItem(item_id="it-0", display_name="a", state=ItemState.SUCCEEDED),
-            JobItem(item_id="it-1", display_name="b", state=ItemState.FAILED, error="boom"),
+            JobItem(
+                item_id="it-1", display_name="b", state=ItemState.FAILED, error="boom"
+            ),
         ),
-        summary=__import__("vibeocr.runtime_contracts", fromlist=["JobSummary"]).JobSummary(
-            succeeded=1, failed=1, total=2
-        ),
+        summary=__import__(
+            "vibeocr.runtime_contracts", fromlist=["JobSummary"]
+        ).JobSummary(succeeded=1, failed=1, total=2),
         degraded=True,
         cancel_mode=CancelMode.COOPERATIVE,
     )
@@ -537,7 +546,9 @@ def test_parse_submit_item_rejects_negative_pdf_page_index() -> None:
         "session_revision": 3,
         "page_index": -1,
     }
-    with pytest.raises(ContractError, match="page_index must be a non-negative integer"):
+    with pytest.raises(
+        ContractError, match="page_index must be a non-negative integer"
+    ):
         parse_submit_request(payload)
 
 
@@ -561,7 +572,9 @@ def test_parse_submit_item_rejects_empty_client_item_key() -> None:
     """Line 239: client_item_key must be a non-empty string."""
     payload = _submit_request_payload()
     payload["items"][0]["client_item_key"] = ""
-    with pytest.raises(ContractError, match="client_item_key must be a non-empty string"):
+    with pytest.raises(
+        ContractError, match="client_item_key must be a non-empty string"
+    ):
         parse_submit_request(payload)
 
 
@@ -608,7 +621,9 @@ def test_parse_submit_request_rejects_mineru_kind_without_mineru_pipeline() -> N
     payload = _submit_request_payload()
     payload["kind"] = "mineru_parse"
     # pipeline stays as OCR
-    with pytest.raises(ContractError, match="mineru_parse requires the MinerU pipeline"):
+    with pytest.raises(
+        ContractError, match="mineru_parse requires the MinerU pipeline"
+    ):
         parse_submit_request(payload)
 
 
@@ -743,9 +758,7 @@ def test_parse_item_outcome_rejects_non_dict() -> None:
 def test_parse_item_outcome_rejects_non_terminal_state() -> None:
     """Line 429: item outcome state must be terminal."""
     payload = _job_update_payload()
-    payload["outcomes"] = [
-        {"item_id": "it-1", "state": "running", "attempt": 0}
-    ]
+    payload["outcomes"] = [{"item_id": "it-1", "state": "running", "attempt": 0}]
     with pytest.raises(ContractError, match="state must be terminal"):
         parse_job_update(payload)
 
@@ -753,9 +766,7 @@ def test_parse_item_outcome_rejects_non_terminal_state() -> None:
 def test_parse_item_outcome_rejects_failed_without_error() -> None:
     """Lines 438-439: failed/cancelled outcome requires an error code."""
     payload = _job_update_payload()
-    payload["outcomes"] = [
-        {"item_id": "it-1", "state": "failed", "attempt": 0}
-    ]
+    payload["outcomes"] = [{"item_id": "it-1", "state": "failed", "attempt": 0}]
     with pytest.raises(ContractError, match="requires error and no result"):
         parse_job_update(payload)
 
@@ -779,9 +790,7 @@ def test_parse_item_outcome_rejects_failed_with_result_payload() -> None:
 def test_parse_item_outcome_rejects_succeeded_without_payload() -> None:
     """Lines 434-435: succeeded outcome requires a dict payload + payload_type."""
     payload = _job_update_payload()
-    payload["outcomes"] = [
-        {"item_id": "it-1", "state": "succeeded", "attempt": 0}
-    ]
+    payload["outcomes"] = [{"item_id": "it-1", "state": "succeeded", "attempt": 0}]
     with pytest.raises(ContractError, match="requires payload_type/payload"):
         parse_job_update(payload)
 
@@ -865,9 +874,7 @@ def test_parse_job_update_rejects_non_list_events_or_outcomes() -> None:
 def test_parse_job_update_rejects_inconsistent_through_sequence() -> None:
     """Line 484: through_sequence must be >= 0 and >= event sequences."""
     payload = _job_update_payload()
-    payload["events"] = [
-        {"sequence": 5, "stage": "x", "timestamp": "t", "detail": {}}
-    ]
+    payload["events"] = [{"sequence": 5, "stage": "x", "timestamp": "t", "detail": {}}]
     payload["through_sequence"] = 3
     with pytest.raises(ContractError, match="through_sequence is inconsistent"):
         parse_job_update(payload)

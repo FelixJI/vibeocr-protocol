@@ -237,9 +237,7 @@ def _python_server_contracts(openapi: dict) -> str:
             request_schemas[schema_name] = _resolve_local_refs(json_schema, openapi)
         success = operation["responses"].get("200", {})
         success_schema = (
-            success.get("content", {})
-            .get("application/json", {})
-            .get("schema")
+            success.get("content", {}).get("application/json", {}).get("schema")
         )
         if success_schema is not None:
             response_schemas[operation_id] = _resolve_local_refs(

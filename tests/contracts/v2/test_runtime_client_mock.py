@@ -6,7 +6,6 @@ import json
 from importlib import resources
 
 import pytest
-
 from vibeocr.runtime_client.client import (
     MultipartAttachment,
     RuntimeClientError,

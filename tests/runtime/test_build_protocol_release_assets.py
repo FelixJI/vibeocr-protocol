@@ -39,7 +39,9 @@ def test_protocol_release_archives_are_deterministic(tmp_path: Path) -> None:
     assert [_digest(path) for path in first] == [_digest(path) for path in second]
     with zipfile.ZipFile(first[1]) as archive:
         assert archive.namelist() == ["schemas/a.json", "schemas/z.json"]
-        assert all(item.date_time == (1980, 1, 1, 0, 0, 0) for item in archive.infolist())
+        assert all(
+            item.date_time == (1980, 1, 1, 0, 0, 0) for item in archive.infolist()
+        )
 
 
 def test_protocol_release_requires_nonempty_schema_directory(tmp_path: Path) -> None:

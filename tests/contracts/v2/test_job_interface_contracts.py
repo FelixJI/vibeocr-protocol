@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from vibeocr.runtime_contracts import (
     ContractError,
     ItemOutcome,
@@ -136,9 +135,7 @@ def test_job_update_roundtrip_is_atomic_and_keyed() -> None:
     )
     update = JobUpdate(
         snapshot=snapshot,
-        events=(
-            StageEvent(sequence=3, stage="item_succeeded", item_id="it-1"),
-        ),
+        events=(StageEvent(sequence=3, stage="item_succeeded", item_id="it-1"),),
         outcomes=(
             ItemOutcome(
                 item_id="it-1",

@@ -10,7 +10,9 @@ from urllib.parse import parse_qsl, quote_plus, urlsplit
 if TYPE_CHECKING:
     import logging
 
-if not hasattr(HTTPStatus, "__members__"):  # pragma: no cover - HTTPStatus always has __members__
+if not hasattr(
+    HTTPStatus, "__members__"
+):  # pragma: no cover - HTTPStatus always has __members__
     HTTPStatus = HTTPStatus  # type: ignore[assignment]
 
 
@@ -173,7 +175,9 @@ def log_http_response(
         logger.debug("%s", message)
 
 
-def guess_response_size(headers: dict[str, str] | None, content: bytes | str | None) -> int | None:
+def guess_response_size(
+    headers: dict[str, str] | None, content: bytes | str | None
+) -> int | None:
     """从 headers/content 里取返回体字节数。"""
     if content is not None:
         try:

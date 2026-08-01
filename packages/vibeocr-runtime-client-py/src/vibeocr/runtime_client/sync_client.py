@@ -70,15 +70,11 @@ class SyncSupervisorClient:
         request: SubmitRequest,
         attachments: dict[str, tuple[str | None, bytes]],
     ) -> JobRef:
-        return _get_bg_loop().run(
-            self._ensure_entered().submit(request, attachments)
-        )
+        return _get_bg_loop().run(self._ensure_entered().submit(request, attachments))
 
     def observe(self, job_id: str, *, after_sequence: int = 0) -> JobUpdate:
         return _get_bg_loop().run(
-            self._ensure_entered().observe(
-                job_id, after_sequence=after_sequence
-            )
+            self._ensure_entered().observe(job_id, after_sequence=after_sequence)
         )
 
     def command(self, command: JobCommand) -> JobRef | CancelMode | None:
@@ -108,9 +104,7 @@ class SyncSupervisorClient:
         )
 
     def decode_qrcode(self, image_bytes: bytes) -> list[dict]:
-        return _get_bg_loop().run(
-            self._ensure_entered().decode_qrcode(image_bytes)
-        )
+        return _get_bg_loop().run(self._ensure_entered().decode_qrcode(image_bytes))
 
     def generate_qrcode(
         self,
