@@ -52,3 +52,22 @@ def test_release_please_updates_the_formal_openapi_version() -> None:
         "path": "packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/openapi.yaml",
         "jsonpath": "$.info.version",
     } in extra_files
+
+
+def test_manual_release_syncs_lock_and_generated_files_to_the_release_pr() -> None:
+    workflow = (ROOT / ".github/workflows/release-please.yml").read_text(
+        encoding="utf-8"
+    )
+    manual_job = workflow.split("  draft-release:", maxsplit=1)[0]
+
+    create_release_pr = "release-please@17.6.0 release-pr"
+    synchronize = "Synchronize Release PR lock and generated files"
+
+    assert manual_job.index(create_release_pr) < manual_job.index(synchronize)
+    assert 'label "autorelease: pending"' in manual_job
+    assert "uv lock" in manual_job
+    assert "uv sync --locked --group dev" in manual_job
+    assert "python scripts/generate_runtime_protocol.py" in manual_job
+    assert "git diff --name-only" in manual_job
+    assert "Unexpected generated file" in manual_job
+    assert 'git push origin "HEAD:refs/heads/${release_branch}"' in manual_job
