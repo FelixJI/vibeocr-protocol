@@ -178,18 +178,25 @@ public sealed class HttpV2JobInterfaceContractTests
 
     [Theory]
     [InlineData(
-        """{"pipeline_id":"OCR","options_version":1,"options":{},"unexpected":true}""",
-        typeof(PipelineSelection))]
-    [InlineData(
         """{"command_id":"cmd-1","kind":"cancel","job_id":"job-1","item_ids":[],"priority_override":null,"unexpected":true}""",
         typeof(JobCommand))]
-    [InlineData(
-        """{"item_id":"it-1","state":"failed","attempt":1,"payload_type":null,"payload":null,"error_code":"BAD_INPUT","error_detail":{},"unexpected":true}""",
-        typeof(ItemOutcome))]
-    public void NewRecordsRejectUnknownMembers(string json, Type type)
+    public void RequestRecordsRejectUnknownMembers(string json, Type type)
     {
         Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize(json, HttpV2JsonContext.Default.GetTypeInfo(type)!));
+    }
+
+    [Fact]
+    public void ResponseRecordsIgnoreUnknownMembers()
+    {
+        const string json =
+            """{"item_id":"it-1","state":"failed","attempt":1,"payload_type":null,"payload":null,"error_code":"BAD_INPUT","error_detail":{},"future_optional_field":true}""";
+
+        object? value = JsonSerializer.Deserialize(
+            json,
+            HttpV2JsonContext.Default.GetTypeInfo(typeof(ItemOutcome))!);
+
+        Assert.NotNull(value);
     }
 
     [Fact]

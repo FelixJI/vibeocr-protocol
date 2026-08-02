@@ -161,6 +161,14 @@ def _require_fields(
         raise ContractError(f"{label} missing required field(s): {', '.join(missing)}")
 
 
+def _require_present_fields(
+    payload: dict[str, Any], fields: tuple[str, ...], label: str
+) -> None:
+    missing = [field for field in fields if field not in payload]
+    if missing:
+        raise ContractError(f"{label} missing required field(s): {', '.join(missing)}")
+
+
 def _reject_unknown_fields(
     payload: dict[str, Any], allowed: frozenset[str], label: str
 ) -> None:
@@ -555,9 +563,25 @@ def _parse_summary(payload: Any) -> JobSummary:
 def parse_error_payload(payload: dict[str, Any]) -> ErrorPayload:
     if not isinstance(payload, dict):
         raise ContractError("error payload must be a JSON object")
-    _require_fields(
-        payload, ("schema_version", "code", "message", "category"), "error payload"
+    _require_present_fields(
+        payload,
+        (
+            "schema_version",
+            "instance_id",
+            "code",
+            "message",
+            "category",
+            "retryable",
+            "detail",
+            "job_id",
+        ),
+        "error payload",
     )
+    if payload["schema_version"] != SCHEMA_VERSION:
+        raise ContractError(
+            f"schema_version mismatch: expected {SCHEMA_VERSION}, "
+            f"got {payload['schema_version']}"
+        )
     code_raw = payload["code"]
     try:
         code = code_raw if isinstance(code_raw, ErrorCode) else ErrorCode(code_raw)
@@ -579,15 +603,33 @@ def parse_error_payload(payload: dict[str, Any]) -> ErrorPayload:
             f"category mismatch for {code.value}: payload={category_raw!r} "
             f"registry={registry_entry.category.value}"
         )
+    retryable_raw = payload["retryable"]
+    if not isinstance(retryable_raw, bool) or retryable_raw != registry_entry.retryable:
+        raise ContractError(
+            f"retryable mismatch for {code.value}: payload={retryable_raw!r} "
+            f"registry={registry_entry.retryable!r}"
+        )
+    instance_id = payload["instance_id"]
+    if instance_id is not None and not isinstance(instance_id, str):
+        raise ContractError("instance_id must be null or a string")
+    message = payload["message"]
+    if not isinstance(message, str):
+        raise ContractError("message must be a string")
+    detail = payload["detail"]
+    if not isinstance(detail, dict):
+        raise ContractError("detail must be a JSON object")
+    job_id = payload["job_id"]
+    if job_id is not None and not isinstance(job_id, str):
+        raise ContractError("job_id must be null or a string")
     return ErrorPayload(
         schema_version=int(payload["schema_version"]),
-        instance_id=payload.get("instance_id"),
+        instance_id=instance_id,
         code=code,
-        message=payload["message"],
+        message=message,
         category=registry_entry.category,
-        retryable=registry_entry.retryable,
-        detail=payload.get("detail") or {},
-        job_id=payload.get("job_id"),
+        retryable=retryable_raw,
+        detail=dict(detail),
+        job_id=job_id,
     )
 
 

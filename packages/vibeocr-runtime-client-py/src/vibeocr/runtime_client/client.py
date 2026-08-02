@@ -77,6 +77,20 @@ if TYPE_CHECKING:
 JsonObject = dict[str, Any]
 
 
+def _forward_compatible_response_schema(value: Any) -> Any:
+    if isinstance(value, dict):
+        schema = {
+            key: _forward_compatible_response_schema(item)
+            for key, item in value.items()
+        }
+        if schema.get("additionalProperties") is False:
+            schema["additionalProperties"] = True
+        return schema
+    if isinstance(value, list):
+        return [_forward_compatible_response_schema(item) for item in value]
+    return value
+
+
 @cache
 def _response_validator(operation_id: str) -> Draft202012Validator:
     try:
@@ -87,8 +101,9 @@ def _response_validator(operation_id: str) -> Draft202012Validator:
             f"no JSON response schema is generated for {operation_id}",
             detail={"operation_id": operation_id},
         ) from exc
-    Draft202012Validator.check_schema(schema)
-    return Draft202012Validator(schema)
+    compatible_schema = _forward_compatible_response_schema(schema)
+    Draft202012Validator.check_schema(compatible_schema)
+    return Draft202012Validator(compatible_schema)
 
 
 def _validate_response_object(

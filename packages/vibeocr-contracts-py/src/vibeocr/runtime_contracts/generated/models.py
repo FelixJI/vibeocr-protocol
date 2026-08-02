@@ -13,12 +13,11 @@ _HEALTH_KEYS = frozenset({
     "draining",
     "capabilities",
 })
-_KNOWN_CAPABILITIES = frozenset(('ocr.recognition.v2', 'pdf.edit.v2', 'qrcode.v2', 'export.document.v1', 'runtime.settings.v2'))
 
 
-def _exact_object(payload: Any, keys: frozenset[str], name: str) -> dict[str, Any]:
-    if not isinstance(payload, dict) or set(payload) != keys:
-        raise ValueError(f"{name} fields do not match Protocol v2")
+def _required_object(payload: Any, keys: frozenset[str], name: str) -> dict[str, Any]:
+    if not isinstance(payload, dict) or not keys.issubset(payload):
+        raise ValueError(f"{name} is missing required Protocol v2 fields")
     return payload
 
 
@@ -44,8 +43,8 @@ def _capabilities(value: Any) -> tuple[str, ...]:
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ValueError("capabilities must be a string array")
     result = tuple(value)
-    if len(result) != len(set(result)) or set(result) - _KNOWN_CAPABILITIES:
-        raise ValueError("capabilities contain duplicates or unknown values")
+    if len(result) != len(set(result)):
+        raise ValueError("capabilities contain duplicates")
     return result
 
 
@@ -62,7 +61,7 @@ class RuntimeReadyEnvelope:
 
     @classmethod
     def from_payload(cls, payload: Any) -> RuntimeReadyEnvelope:
-        data = _exact_object(payload, _READY_KEYS, "ready envelope")
+        data = _required_object(payload, _READY_KEYS, "ready envelope")
         return cls(
             ready=_boolean(data["ready"], "ready"),
             pid=_integer(data["pid"], "pid"),
@@ -86,7 +85,7 @@ class RuntimeHealthEnvelope:
 
     @classmethod
     def from_payload(cls, payload: Any) -> RuntimeHealthEnvelope:
-        data = _exact_object(payload, _HEALTH_KEYS, "health envelope")
+        data = _required_object(payload, _HEALTH_KEYS, "health envelope")
         return cls(
             schema_version=_integer(data["schema_version"], "schema_version"),
             instance_id=_string(data["instance_id"], "instance_id"),

@@ -1493,6 +1493,7 @@
         ],
         "properties": {
           "schema_version": {
+            "type": "integer",
             "const": 2
           },
           "instance_id": {
@@ -1594,6 +1595,7 @@
         ],
         "properties": {
           "schema_version": {
+            "type": "integer",
             "const": 2
           },
           "instance_id": {
@@ -1603,6 +1605,7 @@
             ]
           },
           "code": {
+            "type": "string",
             "enum": [
               "VALIDATION_ERROR",
               "QUOTA_EXCEEDED",
@@ -1628,6 +1631,7 @@
             "type": "string"
           },
           "category": {
+            "type": "string",
             "enum": [
               "validation",
               "auth",

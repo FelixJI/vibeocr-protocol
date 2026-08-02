@@ -3,7 +3,7 @@
 // PySide (Python) and, eventually, the WinUI front-end. They MUST stay in
 // lock-step with packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/.
 //
-// Wire conventions (see specs/2026-07-24-inference-supervisor-adr.md):
+// Wire conventions (see docs/protocol-v2-design.md in the repository):
 //   * schema_version is always 2 on the wire.
 //   * Field names are snake_case; the HttpV2JsonContext applies
 //     JsonKnownNamingPolicy.SnakeCaseLower so PascalCase C# properties map

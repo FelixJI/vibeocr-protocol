@@ -191,26 +191,24 @@ def test_parse_rejects_unknown_job_state() -> None:
 
 
 def test_parse_rejects_unknown_error_code() -> None:
-    payload = {
-        "schema_version": 2,
-        "code": "NOT_A_REAL_CODE",
-        "message": "x",
-        "category": "validation",
-        "retryable": False,
-    }
+    payload = _error_payload()
+    payload["code"] = "NOT_A_REAL_CODE"
     with pytest.raises(ContractError, match="unknown error code"):
         parse_error_payload(payload)
 
 
 def test_parse_rejects_error_category_mismatch() -> None:
-    payload = {
-        "schema_version": 2,
-        "code": "CANCELLED",
-        "message": "x",
-        "category": "validation",  # registry says "cancelled"
-        "retryable": False,
-    }
+    payload = _error_payload()
+    payload["code"] = "CANCELLED"
     with pytest.raises(ContractError, match="category mismatch"):
+        parse_error_payload(payload)
+
+
+def test_parse_rejects_error_retryable_mismatch() -> None:
+    payload = _error_payload()
+    payload["retryable"] = True
+
+    with pytest.raises(ContractError, match="retryable mismatch"):
         parse_error_payload(payload)
 
 
@@ -421,9 +419,13 @@ def _job_command_payload() -> dict:
 def _error_payload() -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
+        "instance_id": None,
         "code": "VALIDATION_ERROR",
         "message": "bad",
         "category": "validation",
+        "retryable": False,
+        "detail": {},
+        "job_id": None,
     }
 
 
@@ -943,6 +945,35 @@ def test_parse_error_payload_rejects_non_dict() -> None:
         parse_error_payload(["nope"])  # type: ignore[arg-type]
 
 
+def test_parse_error_payload_rejects_wrong_schema_version() -> None:
+    payload = _error_payload()
+    payload["schema_version"] = 1
+
+    with pytest.raises(ContractError, match="schema_version mismatch"):
+        parse_error_payload(payload)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "schema_version",
+        "instance_id",
+        "code",
+        "message",
+        "category",
+        "retryable",
+        "detail",
+        "job_id",
+    ],
+)
+def test_parse_error_payload_requires_the_formal_wire_shape(field: str) -> None:
+    payload = _error_payload()
+    del payload[field]
+
+    with pytest.raises(ContractError, match="missing required field"):
+        parse_error_payload(payload)
+
+
 def test_parse_error_payload_rejects_error_code_not_in_registry() -> None:
     """Lines 543, 548-549: error code cross-checked against the registry.
 
@@ -959,6 +990,25 @@ def test_parse_error_payload_rejects_error_code_not_in_registry() -> None:
     payload["code"] = ErrorCode.VALIDATION_ERROR
     parsed = parse_error_payload(payload)
     assert parsed.code is ErrorCode.VALIDATION_ERROR
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("instance_id", 7, "instance_id must be null or a string"),
+        ("message", ["bad"], "message must be a string"),
+        ("detail", ["bad"], "detail must be a JSON object"),
+        ("job_id", 7, "job_id must be null or a string"),
+    ],
+)
+def test_parse_error_payload_rejects_invalid_field_types(
+    field: str, value: object, message: str
+) -> None:
+    payload = _error_payload()
+    payload[field] = value
+
+    with pytest.raises(ContractError, match=message):
+        parse_error_payload(payload)
 
 
 def test_parse_residency_entry_rejects_non_dict() -> None:

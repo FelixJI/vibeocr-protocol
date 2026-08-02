@@ -3,11 +3,27 @@
   "$id": "https://vibeocr/protocol/v2/errors.schema.json",
   "title": "VibeOCR v2 Error Response",
   "type": "object",
-  "required": ["schema_version", "code", "message", "category", "retryable"],
-  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "instance_id",
+    "code",
+    "message",
+    "category",
+    "retryable",
+    "detail",
+    "job_id"
+  ],
   "properties": {
-    "schema_version": {"type": "integer", "const": 2},
-    "instance_id": {"type": ["string", "null"]},
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "instance_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "code": {
       "type": "string",
       "enum": [
@@ -31,7 +47,9 @@
         "INTERNAL_ERROR"
       ]
     },
-    "message": {"type": "string"},
+    "message": {
+      "type": "string"
+    },
     "category": {
       "type": "string",
       "enum": [
@@ -46,8 +64,19 @@
         "internal"
       ]
     },
-    "retryable": {"type": "boolean"},
-    "detail": {"type": "object"},
-    "job_id": {"type": ["string", "null"]}
-  }
+    "retryable": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "job_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
 }

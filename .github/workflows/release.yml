@@ -119,6 +119,10 @@ jobs:
             --require-one 'vibeocr_runtime_client-*.whl' `
             --require-one 'VibeOCR.Runtime.Contracts.*.nupkg' `
             --require-one 'VibeOCR.Runtime.Client.*.nupkg'
+      - name: Smoke-test installable packages
+        if: env.RELEASE_TAG != ''
+        shell: pwsh
+        run: ./scripts/smoke_release_packages.ps1 -ArtifactsDir artifacts
       - name: Upload release candidate artifact
         if: env.RELEASE_TAG != ''
         uses: actions/upload-artifact@v4
