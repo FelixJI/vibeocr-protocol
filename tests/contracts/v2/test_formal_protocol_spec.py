@@ -135,6 +135,45 @@ def test_multipart_binary_ndjson_and_ready_schema_are_explicit() -> None:
     )
 
 
+def test_runtime_host_control_protocol_is_formal_and_strict() -> None:
+    host = json.loads((V2 / "runtime-host.schema.json").read_text(encoding="utf-8"))
+    bootstrap = json.loads((V2 / "bootstrap.schema.json").read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator.check_schema(host)
+    assert (
+        host["$defs"]["RuntimeHostRequest"]["properties"]["protocol_version"]["const"]
+        == bootstrap["properties"]["protocol_version"]["const"]
+    )
+    request = {
+        "protocol_version": 2,
+        "operation": "ensure",
+        "product_root": "C:/VibeOCR",
+        "component_lock": "C:/VibeOCR/component-lock.json",
+        "runtime_manifest": "C:/VibeOCR/backend/runtime-manifest.json",
+        "accelerator": "nvidia_cuda",
+    }
+    jsonschema.validate(request, host)
+    jsonschema.validate(
+        {
+            "protocol_version": 2,
+            "ok": True,
+            "operation": "inspect",
+            "state": {
+                "runtime_root": "C:/VibeOCR/data/runtime",
+                "accelerator": "cpu",
+                "status": "missing",
+                "integrity": "not-installed",
+                "manifest_sha256": "a" * 64,
+                "backend_version": "0.8.0",
+            },
+            "launch": None,
+        },
+        host,
+    )
+    invalid = dict(request, profile="win-x64-cu126")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(invalid, host)
+
+
 def test_capabilities_are_versioned_and_generated_bindings_are_current() -> None:
     registry = json.loads((V2 / "capabilities.json").read_text(encoding="utf-8"))
     capabilities = registry["capabilities"]

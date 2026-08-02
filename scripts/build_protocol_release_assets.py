@@ -62,6 +62,7 @@ def build_protocol_release_assets(
         (name, path)
         for name in (
             "bootstrap.schema.json",
+            "runtime-host.schema.json",
             "capabilities.json",
             "errors.json",
         )

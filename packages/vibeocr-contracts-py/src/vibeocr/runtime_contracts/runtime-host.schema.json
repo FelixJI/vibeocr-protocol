@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibeocr/protocol/v2/runtime-host.schema.json",
+  "title": "VibeOCR Runtime Host Control Protocol v2",
+  "description": "Authoritative request and response envelopes for the one-shot Runtime Host JSON CLI.",
+  "oneOf": [
+    { "$ref": "#/$defs/RuntimeHostRequest" },
+    { "$ref": "#/$defs/RuntimeHostSuccess" },
+    { "$ref": "#/$defs/RuntimeHostFailure" }
+  ],
+  "$defs": {
+    "Accelerator": {
+      "type": "string",
+      "enum": ["cpu", "nvidia_cuda"]
+    },
+    "RuntimeHostOperation": {
+      "type": "string",
+      "enum": ["inspect", "ensure", "repair"]
+    },
+    "RuntimeStatus": {
+      "type": "string",
+      "enum": ["ready", "missing"]
+    },
+    "IntegrityStatus": {
+      "type": "string",
+      "enum": ["verified", "not-installed"]
+    },
+    "RuntimeHostRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "operation",
+        "product_root",
+        "component_lock",
+        "runtime_manifest"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "operation": { "$ref": "#/$defs/RuntimeHostOperation" },
+        "product_root": { "type": "string", "minLength": 1 },
+        "component_lock": { "type": "string", "minLength": 1 },
+        "runtime_manifest": { "type": "string", "minLength": 1 },
+        "accelerator": {
+          "anyOf": [
+            { "$ref": "#/$defs/Accelerator" },
+            { "type": "null" }
+          ],
+          "default": null
+        },
+        "layout_manifest": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "default": null
+        },
+        "product_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "default": null
+        }
+      }
+    },
+    "RuntimeState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_root",
+        "accelerator",
+        "status",
+        "integrity",
+        "manifest_sha256",
+        "backend_version"
+      ],
+      "properties": {
+        "runtime_root": { "type": "string", "minLength": 1 },
+        "accelerator": { "$ref": "#/$defs/Accelerator" },
+        "status": { "$ref": "#/$defs/RuntimeStatus" },
+        "integrity": { "$ref": "#/$defs/IntegrityStatus" },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "backend_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "RuntimeLaunch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python_executable",
+        "supervisor_module",
+        "working_directory",
+        "model_root",
+        "environment"
+      ],
+      "properties": {
+        "python_executable": { "type": "string", "minLength": 1 },
+        "supervisor_module": { "type": "string", "minLength": 1 },
+        "working_directory": { "type": "string", "minLength": 1 },
+        "model_root": { "type": "string", "minLength": 1 },
+        "environment": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "RuntimeHostSuccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "ok", "operation", "state"],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "ok": { "const": true },
+        "operation": { "$ref": "#/$defs/RuntimeHostOperation" },
+        "state": { "$ref": "#/$defs/RuntimeState" },
+        "launch": {
+          "anyOf": [
+            { "$ref": "#/$defs/RuntimeLaunch" },
+            { "type": "null" }
+          ],
+          "default": null
+        }
+      }
+    },
+    "RuntimeHostErrorCode": {
+      "type": "string",
+      "enum": [
+        "invalid_request",
+        "invalid_binding",
+        "install_failed",
+        "lock_timeout",
+        "io_error"
+      ]
+    },
+    "RuntimeHostError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": { "$ref": "#/$defs/RuntimeHostErrorCode" },
+        "message": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "RuntimeHostFailure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "ok", "operation", "error"],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "ok": { "const": false },
+        "operation": {
+          "anyOf": [
+            { "$ref": "#/$defs/RuntimeHostOperation" },
+            { "type": "null" }
+          ]
+        },
+        "error": { "$ref": "#/$defs/RuntimeHostError" }
+      }
+    }
+  }
+}
