@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VibeOCR Local Runtime API",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "Authoritative Runtime API v2. The historical openapi.snapshot.json is non-authoritative."
   },
   "servers": [
@@ -141,13 +141,13 @@
               }
             }
           },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -180,13 +180,13 @@
           "400": {
             "$ref": "#/components/responses/Error"
           },
-          "404": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -368,13 +368,13 @@
           "400": {
             "$ref": "#/components/responses/Error"
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -507,13 +507,13 @@
               }
             }
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -538,13 +538,13 @@
               }
             }
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -562,13 +562,13 @@
           "200": {
             "$ref": "#/components/responses/Ndjson"
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -602,13 +602,13 @@
           "200": {
             "$ref": "#/components/responses/Png"
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1268,13 +1268,13 @@
               }
             }
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1299,13 +1299,13 @@
               }
             }
           },
-          "500": {
-            "$ref": "#/components/responses/Error"
-          },
           "401": {
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
             "$ref": "#/components/responses/Error"
           }
         }
@@ -1774,12 +1774,12 @@
             "type": "integer"
           },
           "width": {
-            "default": 612.0,
+            "default": 612,
             "title": "Width",
             "type": "number"
           },
           "height": {
-            "default": 792.0,
+            "default": 792,
             "title": "Height",
             "type": "number"
           }
@@ -2685,10 +2685,10 @@
           },
           "rect": {
             "default": [
-              0.0,
-              0.0,
-              0.0,
-              0.0
+              0,
+              0,
+              0,
+              0
             ],
             "maxItems": 4,
             "minItems": 4,

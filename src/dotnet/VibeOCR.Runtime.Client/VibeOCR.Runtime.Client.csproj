@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>VibeOCR.Runtime.Client</PackageId>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>VibeOCR.Runtime.Client</RootNamespace>
     <AssemblyName>VibeOCR.Runtime.Client</AssemblyName>
@@ -12,7 +12,7 @@
     <RepositoryUrl>https://github.com/FelixJI/vibeocr-protocol</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../VibeOCR.Contracts/VibeOCR.Contracts.csproj" />
-    <None Include="README.md" Pack="true" PackagePath="\" />
+    <ProjectReference Include="../VibeOCR.Contracts/VibeOCR.Contracts.csproj"/>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 </Project>
