@@ -14,6 +14,7 @@
   <ItemGroup>
     <Compile Include="..\..\..\packages\vibeocr-contracts-py\src\vibeocr\runtime_contracts\generated\RuntimeProtocol.g.cs" Link="Generated\RuntimeProtocol.g.cs"/>
     <Compile Include="..\..\..\packages\vibeocr-contracts-py\src\vibeocr\runtime_contracts\generated\RuntimeWireTypes.g.cs" Link="Generated\RuntimeWireTypes.g.cs"/>
+    <Compile Include="..\..\..\packages\vibeocr-contracts-py\src\vibeocr\runtime_contracts\generated\RuntimeHostWireTypes.g.cs" Link="Generated\RuntimeHostWireTypes.g.cs"/>
     <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 </Project>

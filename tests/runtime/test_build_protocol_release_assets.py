@@ -23,6 +23,7 @@ def test_protocol_release_archives_are_deterministic(tmp_path: Path) -> None:
     (source / "openapi.yaml").write_text("openapi: 3.1.0\n", encoding="utf-8")
     (source / "schemas" / "z.json").write_text("{}\n", encoding="utf-8")
     (source / "schemas" / "a.json").write_text("[]\n", encoding="utf-8")
+    (source / "runtime-host.schema.json").write_text("{}\n", encoding="utf-8")
     (source / "golden" / "sample.json").write_text("{}\n", encoding="utf-8")
 
     first = build_protocol_release_assets(
@@ -38,7 +39,11 @@ def test_protocol_release_archives_are_deterministic(tmp_path: Path) -> None:
 
     assert [_digest(path) for path in first] == [_digest(path) for path in second]
     with zipfile.ZipFile(first[1]) as archive:
-        assert archive.namelist() == ["schemas/a.json", "schemas/z.json"]
+        assert archive.namelist() == [
+            "runtime-host.schema.json",
+            "schemas/a.json",
+            "schemas/z.json",
+        ]
         assert all(
             item.date_time == (1980, 1, 1, 0, 0, 0) for item in archive.infolist()
         )
