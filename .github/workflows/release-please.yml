@@ -72,7 +72,35 @@ jobs:
       contents: write
       issues: write
     steps:
+      - uses: actions/checkout@v6
+      - name: Check for an existing release tag
+        id: release_state
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path(".release-please-manifest.json").read_text(encoding="utf-8"))["."])')"
+          tag="v${version}"
+
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null
+          status=$?
+          set -e
+
+          case "$status" in
+            0)
+              echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::Release tag ${tag} already exists; skipping duplicate release creation."
+              ;;
+            2)
+              echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Failed to query release tag ${tag} (git ls-remote exit ${status})."
+              exit "$status"
+              ;;
+          esac
       - name: Create tag and draft Release for a merged Release PR
+        if: steps.release_state.outputs.tag_exists != 'true'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ github.token }}
