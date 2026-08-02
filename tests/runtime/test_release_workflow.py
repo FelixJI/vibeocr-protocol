@@ -16,6 +16,19 @@ def test_release_please_draft_release_can_comment_on_merged_pr() -> None:
     assert "      issues: write" in job_header
 
 
+def test_release_please_draft_release_skips_an_existing_tag() -> None:
+    workflow = (ROOT / ".github/workflows/release-please.yml").read_text(
+        encoding="utf-8"
+    )
+
+    draft_release = workflow.split("  draft-release:", maxsplit=1)[1]
+
+    assert "id: release_state" in draft_release
+    assert "git ls-remote --exit-code --tags origin" in draft_release
+    assert "if: steps.release_state.outputs.tag_exists != 'true'" in draft_release
+    assert "Failed to query release tag" in draft_release
+
+
 def test_release_workflow_publishes_only_after_verified_uploads() -> None:
     workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 
