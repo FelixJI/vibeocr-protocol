@@ -5,6 +5,17 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 
 
+def test_release_please_draft_release_can_comment_on_merged_pr() -> None:
+    workflow = (ROOT / ".github/workflows/release-please.yml").read_text(
+        encoding="utf-8"
+    )
+
+    draft_release = workflow.split("  draft-release:", maxsplit=1)[1]
+    job_header = draft_release.split("    steps:", maxsplit=1)[0]
+
+    assert "      issues: write" in job_header
+
+
 def test_release_workflow_publishes_only_after_verified_uploads() -> None:
     workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 
