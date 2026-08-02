@@ -19,3 +19,36 @@ def test_pytest_pin_includes_the_first_patched_release() -> None:
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
     assert "pytest==9.0.3" in config["dependency-groups"]["dev"]
+
+
+def test_uv_lock_matches_workspace_project_versions() -> None:
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    locked_versions = {
+        package["name"]: package["version"]
+        for package in lock["package"]
+        if package["name"].startswith("vibeocr-runtime-")
+    }
+
+    for project in (
+        ROOT / "packages/vibeocr-contracts-py/pyproject.toml",
+        ROOT / "packages/vibeocr-runtime-client-py/pyproject.toml",
+    ):
+        config = tomllib.loads(project.read_text(encoding="utf-8"))
+        assert (
+            locked_versions[config["project"]["name"]] == config["project"]["version"]
+        )
+
+
+def test_ci_stops_after_a_failed_native_command() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    verify = workflow.split("      - name: Verify", maxsplit=1)[1]
+
+    error_action = '$ErrorActionPreference = "Stop"'
+    native_error_action = "$PSNativeCommandUseErrorActionPreference = $true"
+
+    assert error_action in verify
+    assert native_error_action in verify
+    assert verify.index(error_action) < verify.index("uv sync --locked --group dev")
+    assert verify.index(native_error_action) < verify.index(
+        "uv sync --locked --group dev"
+    )

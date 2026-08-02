@@ -28,6 +28,18 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.9.21"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          activate-environment: true
       - name: Compute requested version
         id: version
         shell: python
@@ -64,6 +76,63 @@ jobs:
             --config-file=release-please-config.json \
             --manifest-file=.release-please-manifest.json \
             --release-as="${{ steps.version.outputs.next }}"
+      - name: Synchronize Release PR lock and generated files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t release_branches < <(
+            gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --base main \
+              --label "autorelease: pending" \
+              --limit 20 \
+              --json headRefName,title \
+              --jq '.[] | select(.title | startswith("chore(main): release ")) | .headRefName'
+          )
+          if [[ ${#release_branches[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one open Release PR, found ${#release_branches[@]}."
+            exit 1
+          fi
+
+          release_branch="${release_branches[0]}"
+          git fetch origin "refs/heads/${release_branch}:refs/remotes/origin/${release_branch}"
+          git checkout --detach "refs/remotes/origin/${release_branch}"
+
+          uv lock
+          uv sync --locked --group dev
+          python scripts/generate_runtime_protocol.py
+
+          mapfile -t changed_files < <(git diff --name-only)
+          if [[ ${#changed_files[@]} -eq 0 ]]; then
+            echo "::notice::Release PR lock and generated files are already current."
+            exit 0
+          fi
+
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              uv.lock | \
+              packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/generated/* | \
+              packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/schemas/errors.schema.json)
+                ;;
+              *)
+                echo "::error::Unexpected generated file: ${file}"
+                exit 1
+                ;;
+            esac
+          done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            uv.lock \
+            packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/generated \
+            packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/schemas/errors.schema.json
+          git commit -m "chore(release): 同步锁文件与生成物"
+          git push origin "HEAD:refs/heads/${release_branch}"
 
   draft-release:
     if: github.event_name == 'push'
@@ -72,7 +141,35 @@ jobs:
       contents: write
       issues: write
     steps:
+      - uses: actions/checkout@v6
+      - name: Check for an existing release tag
+        id: release_state
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path(".release-please-manifest.json").read_text(encoding="utf-8"))["."])')"
+          tag="v${version}"
+
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null
+          status=$?
+          set -e
+
+          case "$status" in
+            0)
+              echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::Release tag ${tag} already exists; skipping duplicate release creation."
+              ;;
+            2)
+              echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Failed to query release tag ${tag} (git ls-remote exit ${status})."
+              exit "$status"
+              ;;
+          esac
       - name: Create tag and draft Release for a merged Release PR
+        if: steps.release_state.outputs.tag_exists != 'true'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ github.token }}
