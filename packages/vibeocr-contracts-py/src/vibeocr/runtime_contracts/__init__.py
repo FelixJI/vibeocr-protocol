@@ -4,13 +4,13 @@ This package is the single source of truth for the supervisor ↔ frontend
 contract. It is dependency-free (stdlib only) so Runtime Client, Backend and
 both frontends can consume it without creating a cycle.
 
-Design rules (see specs/2026-07-24-inference-supervisor-adr.md):
+Design rules (see ``docs/protocol-v2-design.md`` in the repository):
 
 * DTOs only carry JSON-native types or lists/dicts of JSON-native types plus
   ``enum.Enum``/``datetime``/``uuid.UUID`` helpers exposed as ISO strings.
 * ``schema_version`` is always present on the wire (currently 2).
-* The parser rejects unknown required fields, illegal state transitions and
-  unknown error codes — fake compatibility with v1 is treated as a failure.
+* Request parsers reject unknown fields, illegal state transitions and unknown
+  error codes; response readers retain unknown optional fields.
 """
 
 from __future__ import annotations

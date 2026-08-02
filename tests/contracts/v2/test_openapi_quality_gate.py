@@ -100,6 +100,19 @@ def test_formal_openapi_passes_dependency_free_lint() -> None:
     assert lint_document(document) == []
 
 
+def test_cli_without_paths_lints_the_formal_protocol() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/check_openapi_quality.py"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "OpenAPI quality gate: OK" in result.stdout
+
+
 def test_formal_openapi_is_compatible_with_immutable_release_baseline() -> None:
     result = subprocess.run(
         [
@@ -170,6 +183,95 @@ def test_breaking_gate_detects_new_required_request_field_and_type_change() -> N
     assert any(
         "request application/json.name: type changed" in issue for issue in issues
     )
+
+
+def test_breaking_gate_detects_new_required_operation_parameter() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    current["paths"]["/v2/items"]["post"]["parameters"] = [
+        {
+            "name": "tenant",
+            "in": "header",
+            "required": True,
+            "schema": {"type": "string"},
+        }
+    ]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert "POST /v2/items: required header parameter 'tenant' was added" in issues
+
+
+def test_breaking_gate_detects_tightened_request_constraints() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    baseline_name = baseline["components"]["schemas"]["CreateItem"]["properties"][
+        "name"
+    ]
+    current_name = current["components"]["schemas"]["CreateItem"]["properties"]["name"]
+    baseline_name["minLength"] = 1
+    current_name["minLength"] = 3
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "request application/json.name: minLength tightened" in issue
+        for issue in issues
+    )
+
+
+def test_breaking_gate_detects_removed_request_union_branch() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    baseline["components"]["schemas"]["CreateItem"]["properties"]["name"] = {
+        "oneOf": [{"type": "string"}, {"type": "integer"}]
+    }
+    current["components"]["schemas"]["CreateItem"]["properties"]["name"] = {
+        "oneOf": [{"type": "string"}]
+    }
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "request application/json.name: oneOf branch was removed" in issue
+        for issue in issues
+    )
+
+
+def test_breaking_gate_detects_added_request_all_of_constraint() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["CreateItem"]["properties"]["name"] = {
+        "allOf": [{"type": "string"}, {"minLength": 3}]
+    }
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "request application/json.name: allOf constraint was added" in issue
+        for issue in issues
+    )
+
+
+def test_breaking_gate_detects_stricter_operation_security() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    current["paths"]["/v2/items"]["post"]["security"] = [{"SessionToken": []}]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert "POST /v2/items: security requirements became stricter" in issues
+
+
+def test_breaking_gate_accepts_explicit_anonymous_security_alternative() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    current["paths"]["/v2/items"]["post"]["security"] = [
+        {},
+        {"SessionToken": []},
+    ]
+
+    assert detect_breaking_changes(baseline, current) == []
 
 
 def test_breaking_gate_detects_removed_response_status_and_field() -> None:

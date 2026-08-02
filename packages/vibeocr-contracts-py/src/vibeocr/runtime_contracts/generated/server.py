@@ -1046,7 +1046,7 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                    'items'],
                                                       'type': 'object'}]},
                                'kind': {'enum': ['cancel', 'retry', 'forget']},
-                               'schema_version': {'const': 2}},
+                               'schema_version': {'const': 2, 'type': 'integer'}},
                 'required': ['schema_version',
                              'instance_id',
                              'command_id',

@@ -5,7 +5,6 @@ using System.Text.Json.Serialization;
 
 namespace VibeOCR.Contracts.HttpV2;
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record JobItem
 {
     public required string ItemId { get; init; }
@@ -18,7 +17,6 @@ public sealed record JobItem
     public string? SourceItemId { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record JobSummary
 {
     public int Succeeded { get; init; }
@@ -27,7 +25,6 @@ public sealed record JobSummary
     public int Total { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record StageEvent
 {
     public required int Sequence { get; init; }
@@ -38,7 +35,6 @@ public sealed record StageEvent
     public IDictionary<string, JsonElement>? Detail { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record JobRef
 {
     public required string JobId { get; init; }
@@ -48,7 +44,6 @@ public sealed record JobRef
     public IReadOnlyList<JobItem> Items { get; init; } = Array.Empty<JobItem>();
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record JobSnapshot
 {
     public required string JobId { get; init; }
@@ -75,7 +70,6 @@ public sealed record JobSnapshot
     public PipelineSelection? Pipeline { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record PipelineSelection
 {
     public required string PipelineId { get; init; }
@@ -106,7 +100,6 @@ public sealed record SubmitRequest
         new Dictionary<string, JsonElement>();
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ItemOutcome
 {
     public required string ItemId { get; init; }
@@ -119,7 +112,6 @@ public sealed record ItemOutcome
         new Dictionary<string, JsonElement>();
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record JobUpdate
 {
     public required JobSnapshot Snapshot { get; init; }
@@ -140,7 +132,6 @@ public sealed record JobCommand
     public JobPriority? PriorityOverride { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ResultEntry
 {
     public required string ItemId { get; init; }
@@ -150,7 +141,6 @@ public sealed record ResultEntry
     public string? ErrorCode { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record PipelineSpec
 {
     public required string Name { get; init; }
@@ -158,7 +148,6 @@ public sealed record PipelineSpec
     public bool Pinned { get; init; }
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ResidencyEntry
 {
     public required string Pipeline { get; init; }
@@ -169,7 +158,6 @@ public sealed record ResidencyEntry
     public EvictionReason EvictionReason { get; init; } = EvictionReason.None;
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ResidencyStatus
 {
     public int SchemaVersion { get; init; } = HttpV2Schema.Version;
@@ -184,14 +172,12 @@ public sealed record ResidencyStatus
 /// The nested ``residency`` object inside SettingsSnapshot. Kept as its own
 /// record so the wire shape exactly matches the Python to_payload() nesting.
 /// </summary>
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record SettingsResidency
 {
     public int DefaultTtlSeconds { get; init; } = 300;
     public IReadOnlyList<PipelineSpec> Pipelines { get; init; } = Array.Empty<PipelineSpec>();
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record SettingsSnapshot
 {
     public int SchemaVersion { get; init; } = HttpV2Schema.Version;
@@ -200,7 +186,6 @@ public sealed record SettingsSnapshot
     public IDictionary<string, JsonElement> Extra { get; init; } = new Dictionary<string, JsonElement>();
 }
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record HttpV2ErrorPayload
 {
     public required int SchemaVersion { get; init; }

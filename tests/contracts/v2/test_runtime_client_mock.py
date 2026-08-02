@@ -13,6 +13,7 @@ from vibeocr.runtime_client.client import (
     SupervisorClient,
 )
 from vibeocr.runtime_client.mock_server import MockRuntimeServer
+from vibeocr.runtime_client.process import ReadyEnvelope
 from vibeocr.runtime_contracts import (
     CancelMode,
     JobCommand,
@@ -72,9 +73,8 @@ def test_mock_serves_golden_health_and_typed_auth_error() -> None:
     [
         lambda health: health.pop("protocol_version"),
         lambda health: health.__setitem__("ready", "yes"),
-        lambda health: health.__setitem__("unexpected", True),
     ],
-    ids=("missing-required", "wrong-type", "unknown-field"),
+    ids=("missing-required", "wrong-type"),
 )
 def test_runtime_client_rejects_response_schema_violations(mutation) -> None:
     with MockRuntimeServer() as server:
@@ -88,6 +88,33 @@ def test_runtime_client_rejects_response_schema_violations(mutation) -> None:
     assert raised.value.status_code == 200
     assert raised.value.detail["operation_id"] == "getRuntimeHealth"
     assert raised.value.detail["reason"]
+
+
+def test_runtime_client_preserves_unknown_response_fields() -> None:
+    with MockRuntimeServer() as server:
+        server._golden["health"]["future_optional_field"] = {"version": 3}
+        client = RuntimeHttpClient(base_url=server.base_url)
+
+        health = client.health()
+
+    assert health["future_optional_field"] == {"version": 3}
+
+
+def test_ready_envelope_preserves_future_capabilities() -> None:
+    payload = {
+        "ready": True,
+        "pid": 1,
+        "port": 2,
+        "instance_id": "instance",
+        "protocol_version": 2,
+        "schema_version": 2,
+        "ready_version": 1,
+        "capabilities": ["ocr.recognition.v2", "future.feature.v3"],
+    }
+
+    ready = ReadyEnvelope.from_line(json.dumps(payload))
+
+    assert ready.capabilities == ("ocr.recognition.v2", "future.feature.v3")
 
 
 def test_multipart_submit_is_recorded_and_matches_manifest() -> None:

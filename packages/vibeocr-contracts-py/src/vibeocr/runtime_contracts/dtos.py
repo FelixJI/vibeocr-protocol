@@ -1,8 +1,9 @@
 """DTOs for the HTTP v2 supervisor protocol.
 
-All DTOs are ``@dataclass(frozen=True, slots=True)`` so they are hashable and
-immutable; serialisation helpers convert to/from JSON-native payloads. The
-serialised form is the wire contract — the dataclasses are a typed view.
+All DTOs are ``@dataclass(frozen=True, slots=True)`` so attributes cannot be
+rebound and instances stay compact. Some fields contain mutable JSON objects,
+so DTOs are not promised to be deeply immutable or hashable. Serialisation
+helpers convert to JSON-native payloads; that form is the wire contract.
 """
 
 from __future__ import annotations

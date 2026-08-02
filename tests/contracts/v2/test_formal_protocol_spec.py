@@ -32,6 +32,21 @@ def _operations(spec: dict) -> list[tuple[str, str, dict]]:
     ]
 
 
+def test_error_json_schema_matches_the_formal_openapi_component() -> None:
+    formal = _spec()["components"]["schemas"]["Error"]
+    standalone = json.loads(
+        (V2 / "schemas/errors.schema.json").read_text(encoding="utf-8")
+    )
+
+    assert {
+        key: standalone[key]
+        for key in ("type", "required", "properties", "additionalProperties")
+    } == {
+        key: formal[key]
+        for key in ("type", "required", "properties", "additionalProperties")
+    }
+
+
 def test_formal_spec_is_openapi_31_with_real_35_operation_surface() -> None:
     spec = _spec()
     operations = _operations(spec)
@@ -233,6 +248,26 @@ def test_generated_python_wire_models_are_strict() -> None:
         )
 
 
+def test_generated_envelopes_accept_future_capabilities_and_fields() -> None:
+    from vibeocr.runtime_contracts.generated import RuntimeReadyEnvelope
+
+    ready = RuntimeReadyEnvelope.from_payload(
+        {
+            "ready": True,
+            "pid": 1,
+            "port": 2,
+            "instance_id": "instance",
+            "protocol_version": 2,
+            "schema_version": 2,
+            "ready_version": 1,
+            "capabilities": ["ocr.recognition.v2", "future.feature.v3"],
+            "future_optional_field": {"version": 3},
+        }
+    )
+
+    assert ready.capabilities == ("ocr.recognition.v2", "future.feature.v3")
+
+
 def test_codegen_covers_wire_dtos_errors_and_operation_signatures() -> None:
     from vibeocr.runtime_contracts.generated import (
         ERROR_REGISTRY,
@@ -264,6 +299,23 @@ def test_codegen_covers_wire_dtos_errors_and_operation_signatures() -> None:
     assert "RuntimeErrorCode" in csharp_protocol
     assert "RuntimeOperation" in csharp_protocol
     assert all(f"record {name}" in csharp_wire for name in object_schemas)
+
+
+def test_generated_csharp_preserves_const_enum_and_nullable_field_types() -> None:
+    csharp_wire = (V2 / "generated/RuntimeWireTypes.g.cs").read_text(encoding="utf-8")
+    command_result = csharp_wire.split("public sealed record CommandResult", 1)[
+        1
+    ].split("\n}", 1)[0]
+    error = csharp_wire.split("public sealed record Error", 1)[1].split("\n}", 1)[0]
+
+    assert "public required int SchemaVersion { get; init; }" in command_result
+    assert "public required string Kind { get; init; }" in command_result
+    assert "public required string? CancelMode { get; init; }" in command_result
+    assert "public required int SchemaVersion { get; init; }" in error
+    assert "public required string? InstanceId { get; init; }" in error
+    assert "public required string Code { get; init; }" in error
+    assert "public required string Category { get; init; }" in error
+    assert "public required string? JobId { get; init; }" in error
 
 
 def test_runtime_multipart_ndjson_binary_and_error_goldens_validate() -> None:

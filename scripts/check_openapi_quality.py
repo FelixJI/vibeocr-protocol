@@ -21,8 +21,7 @@ FORMAL_OPENAPI = (
     / "vibeocr-contracts-py"
     / "src"
     / "vibeocr"
-    / "protocol"
-    / "v2"
+    / "runtime_contracts"
     / "openapi.yaml"
 )
 HTTP_METHODS = frozenset(
@@ -286,6 +285,50 @@ def _required(schema: Mapping[str, Any]) -> set[str]:
     return set(value) if isinstance(value, list) else set()
 
 
+def _compare_request_constraints(
+    baseline: Mapping[str, Any],
+    current: Mapping[str, Any],
+    location: str,
+    issues: list[str],
+) -> None:
+    for keyword in (
+        "minimum",
+        "exclusiveMinimum",
+        "minLength",
+        "minItems",
+        "minProperties",
+    ):
+        old = baseline.get(keyword)
+        new = current.get(keyword)
+        if isinstance(new, (int, float)) and (
+            not isinstance(old, (int, float)) or new > old
+        ):
+            issues.append(f"{location}: {keyword} tightened")
+    for keyword in (
+        "maximum",
+        "exclusiveMaximum",
+        "maxLength",
+        "maxItems",
+        "maxProperties",
+    ):
+        old = baseline.get(keyword)
+        new = current.get(keyword)
+        if isinstance(new, (int, float)) and (
+            not isinstance(old, (int, float)) or new < old
+        ):
+            issues.append(f"{location}: {keyword} tightened")
+    for keyword in ("pattern", "format", "const"):
+        if keyword in current and current.get(keyword) != baseline.get(keyword):
+            issues.append(f"{location}: {keyword} changed")
+    if (
+        baseline.get("additionalProperties") is not False
+        and current.get("additionalProperties") is False
+    ):
+        issues.append(f"{location}: additionalProperties was disabled")
+    if baseline.get("uniqueItems") is not True and current.get("uniqueItems") is True:
+        issues.append(f"{location}: uniqueItems was enabled")
+
+
 def _compare_schema(
     baseline_document: Document,
     current_document: Document,
@@ -316,12 +359,67 @@ def _compare_schema(
 
     baseline_types = _schema_types(baseline_schema)
     current_types = _schema_types(current_schema)
-    if baseline_types != current_types:
+    if direction == "request":
+        incompatible_types = (
+            bool(current_types)
+            if not baseline_types
+            else bool(current_types) and not baseline_types <= current_types
+        )
+    else:
+        incompatible_types = (
+            False
+            if not baseline_types
+            else not current_types or not current_types <= baseline_types
+        )
+    if incompatible_types:
         issues.append(
             f"{location}: type changed from "
             f"{sorted(baseline_types) or ['any']} to "
             f"{sorted(current_types) or ['any']}"
         )
+    if direction == "request":
+        _compare_request_constraints(baseline_schema, current_schema, location, issues)
+    for keyword in ("oneOf", "anyOf"):
+        baseline_value = baseline_schema.get(keyword)
+        current_value = current_schema.get(keyword)
+        baseline_choices = baseline_value if isinstance(baseline_value, list) else []
+        current_choices = current_value if isinstance(current_value, list) else []
+        baseline_fingerprints = {
+            json.dumps(choice, sort_keys=True, separators=(",", ":"))
+            for choice in baseline_choices
+        }
+        current_fingerprints = {
+            json.dumps(choice, sort_keys=True, separators=(",", ":"))
+            for choice in current_choices
+        }
+        incompatible = (
+            baseline_fingerprints - current_fingerprints
+            if direction == "request"
+            else current_fingerprints - baseline_fingerprints
+        )
+        if incompatible:
+            change = "removed" if direction == "request" else "added"
+            issues.append(f"{location}: {keyword} branch was {change}")
+    baseline_all_of = baseline_schema.get("allOf")
+    current_all_of = current_schema.get("allOf")
+    baseline_constraints = baseline_all_of if isinstance(baseline_all_of, list) else []
+    current_constraints = current_all_of if isinstance(current_all_of, list) else []
+    baseline_fingerprints = {
+        json.dumps(choice, sort_keys=True, separators=(",", ":"))
+        for choice in baseline_constraints
+    }
+    current_fingerprints = {
+        json.dumps(choice, sort_keys=True, separators=(",", ":"))
+        for choice in current_constraints
+    }
+    incompatible_constraints = (
+        current_fingerprints - baseline_fingerprints
+        if direction == "request"
+        else baseline_fingerprints - current_fingerprints
+    )
+    if incompatible_constraints:
+        change = "added" if direction == "request" else "removed"
+        issues.append(f"{location}: allOf constraint was {change}")
 
     baseline_properties = _mapping(baseline_schema.get("properties"))
     current_properties = _mapping(current_schema.get("properties"))
@@ -394,6 +492,61 @@ def _content_schemas(document: Document, container: object) -> dict[str, object]
     }
 
 
+def _operation_parameters(
+    document: Document, path: str, operation: Mapping[str, Any]
+) -> dict[tuple[str, str], Mapping[str, Any]]:
+    path_item = _mapping(_mapping(document.get("paths")).get(path))
+    parameters: dict[tuple[str, str], Mapping[str, Any]] = {}
+    for raw in list(path_item.get("parameters", [])) + list(
+        operation.get("parameters", [])
+    ):
+        try:
+            parameter = _resolve(document, raw)
+        except ValueError:
+            continue
+        if not isinstance(parameter, Mapping):
+            continue
+        location = parameter.get("in")
+        name = parameter.get("name")
+        if isinstance(location, str) and isinstance(name, str):
+            parameters[(location, name)] = parameter
+    return parameters
+
+
+def _effective_security(
+    document: Document, operation: Mapping[str, Any]
+) -> list[object]:
+    value = (
+        operation["security"]
+        if "security" in operation
+        else document.get("security", [])
+    )
+    return value if isinstance(value, list) else []
+
+
+def _allows_anonymous(security: list[object]) -> bool:
+    return not security or any(
+        isinstance(requirement, Mapping) and not requirement for requirement in security
+    )
+
+
+def _security_fingerprints(security: list[object]) -> set[str]:
+    normalized = []
+    for requirement in security:
+        if isinstance(requirement, Mapping):
+            normalized.append(
+                {
+                    name: sorted(scopes) if isinstance(scopes, list) else scopes
+                    for name, scopes in requirement.items()
+                }
+            )
+        else:
+            normalized.append(requirement)
+    return {
+        json.dumps(item, sort_keys=True, separators=(",", ":")) for item in normalized
+    }
+
+
 def detect_breaking_changes(
     baseline_document: Document, current_document: Document
 ) -> list[str]:
@@ -414,6 +567,56 @@ def detect_breaking_changes(
             "operationId"
         ):
             issues.append(f"{prefix}: operationId changed")
+
+        baseline_security = _effective_security(baseline_document, baseline_operation)
+        current_security = _effective_security(current_document, current_operation)
+        baseline_security_set = _security_fingerprints(baseline_security)
+        current_security_set = _security_fingerprints(current_security)
+        baseline_allows_anonymous = _allows_anonymous(baseline_security)
+        current_allows_anonymous = _allows_anonymous(current_security)
+        if (
+            baseline_allows_anonymous
+            and not current_allows_anonymous
+            or not current_allows_anonymous
+            and baseline_security_set - current_security_set
+        ):
+            issues.append(f"{prefix}: security requirements became stricter")
+
+        baseline_parameters = _operation_parameters(
+            baseline_document, path, baseline_operation
+        )
+        current_parameters = _operation_parameters(
+            current_document, path, current_operation
+        )
+        for location, name in sorted(
+            set(current_parameters) - set(baseline_parameters)
+        ):
+            if current_parameters[(location, name)].get("required") is True:
+                issues.append(
+                    f"{prefix}: required {location} parameter {name!r} was added"
+                )
+        for parameter_key in sorted(set(baseline_parameters) & set(current_parameters)):
+            old_parameter = baseline_parameters[parameter_key]
+            new_parameter = current_parameters[parameter_key]
+            location, name = parameter_key
+            if (
+                old_parameter.get("required") is not True
+                and new_parameter.get("required") is True
+            ):
+                issues.append(
+                    f"{prefix}: {location} parameter {name!r} became required"
+                )
+            if "schema" in old_parameter and "schema" in new_parameter:
+                _compare_schema(
+                    baseline_document,
+                    current_document,
+                    old_parameter["schema"],
+                    new_parameter["schema"],
+                    f"{prefix} {location} parameter {name!r}",
+                    "request",
+                    issues,
+                    set(),
+                )
 
         baseline_request = baseline_operation.get("requestBody")
         current_request = current_operation.get("requestBody")

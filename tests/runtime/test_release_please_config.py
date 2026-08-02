@@ -39,3 +39,16 @@ def test_manual_release_passes_requested_version_to_manifest_cli() -> None:
     assert "--config-file=release-please-config.json" in manual_job
     assert "--manifest-file=.release-please-manifest.json" in manual_job
     assert "googleapis/release-please-action" not in manual_job
+
+
+def test_release_please_updates_the_formal_openapi_version() -> None:
+    config = json.loads(
+        (ROOT / "release-please-config.json").read_text(encoding="utf-8")
+    )
+    extra_files = config["packages"]["."]["extra-files"]
+
+    assert {
+        "type": "json",
+        "path": "packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/openapi.yaml",
+        "jsonpath": "$.info.version",
+    } in extra_files

@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 
 from vibeocr.runtime_client.job_object import JobObjectGuard
 from vibeocr.runtime_contracts.generated import (
-    ALL_CAPABILITIES,
     PROTOCOL_VERSION,
     READY_ENVELOPE_VERSION,
     SCHEMA_VERSION,
@@ -100,11 +99,6 @@ class ReadyEnvelope:
             raise SupervisorLaunchError("incompatible supervisor protocol")
         if len(envelope.capabilities) != len(set(envelope.capabilities)):
             raise SupervisorLaunchError("duplicate supervisor capability")
-        unknown = set(envelope.capabilities) - set(ALL_CAPABILITIES)
-        if unknown:
-            raise SupervisorLaunchError(
-                f"unknown supervisor capabilities: {sorted(unknown)}"
-            )
         return envelope
 
     @property

@@ -80,7 +80,7 @@ public sealed record BatchAddTextLayerRequest
 public sealed record CommandResult
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -89,13 +89,13 @@ public sealed record CommandResult
     public required string CommandId { get; init; }
 
     [JsonPropertyName("kind")]
-    public required JsonElement Kind { get; init; }
+    public required string Kind { get; init; }
 
     [JsonPropertyName("cancel_mode")]
-    public required string CancelMode { get; init; }
+    public required string? CancelMode { get; init; }
 
     [JsonPropertyName("job_ref")]
-    public required JobRef JobRef { get; init; }
+    public required JobRef? JobRef { get; init; }
 }
 
 public sealed record DeletePagesRequest
@@ -119,19 +119,19 @@ public sealed record DetectTextLayersResponse
 public sealed record Error
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
-    public required string InstanceId { get; init; }
+    public required string? InstanceId { get; init; }
 
     [JsonPropertyName("code")]
-    public required JsonElement Code { get; init; }
+    public required string Code { get; init; }
 
     [JsonPropertyName("message")]
     public required string Message { get; init; }
 
     [JsonPropertyName("category")]
-    public required JsonElement Category { get; init; }
+    public required string Category { get; init; }
 
     [JsonPropertyName("retryable")]
     public required bool Retryable { get; init; }
@@ -140,7 +140,7 @@ public sealed record Error
     public required IReadOnlyDictionary<string, JsonElement> Detail { get; init; }
 
     [JsonPropertyName("job_id")]
-    public required string JobId { get; init; }
+    public required string? JobId { get; init; }
 }
 
 public sealed record ExportRequest
@@ -170,7 +170,7 @@ public sealed record ExportRequest
 public sealed record ExportResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -185,13 +185,13 @@ public sealed record ExportResponse
 public sealed record Health
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
 
     [JsonPropertyName("protocol_version")]
-    public required JsonElement ProtocolVersion { get; init; }
+    public required int ProtocolVersion { get; init; }
 
     [JsonPropertyName("ready")]
     public required bool Ready { get; init; }
@@ -200,7 +200,7 @@ public sealed record Health
     public required bool Draining { get; init; }
 
     [JsonPropertyName("capabilities")]
-    public required IReadOnlyList<JsonElement> Capabilities { get; init; }
+    public required IReadOnlyList<string> Capabilities { get; init; }
 }
 
 public sealed record InsertBlankRequest
@@ -236,13 +236,13 @@ public sealed record ItemOutcome
     public required int Attempt { get; init; }
 
     [JsonPropertyName("payload_type")]
-    public required string PayloadType { get; init; }
+    public required string? PayloadType { get; init; }
 
     [JsonPropertyName("payload")]
-    public required IReadOnlyDictionary<string, JsonElement> Payload { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement>? Payload { get; init; }
 
     [JsonPropertyName("error_code")]
-    public required string ErrorCode { get; init; }
+    public required string? ErrorCode { get; init; }
 
     [JsonPropertyName("error_detail")]
     public required IReadOnlyDictionary<string, JsonElement> ErrorDetail { get; init; }
@@ -263,7 +263,7 @@ public sealed record JobCommand
     public required IReadOnlyList<string> ItemIds { get; init; }
 
     [JsonPropertyName("priority_override")]
-    public required string PriorityOverride { get; init; }
+    public required string? PriorityOverride { get; init; }
 }
 
 public sealed record JobItem
@@ -305,13 +305,13 @@ public sealed record JobRef
     public required string JobId { get; init; }
 
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
-    public required string InstanceId { get; init; }
+    public required string? InstanceId { get; init; }
 
     [JsonPropertyName("state")]
-    public required JsonElement State { get; init; }
+    public required string State { get; init; }
 
     [JsonPropertyName("items")]
     public required IReadOnlyList<JobItem> Items { get; init; }
@@ -404,7 +404,7 @@ public sealed record JobSummary
 public sealed record JobUpdate
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("snapshot")]
     public required JobSnapshot Snapshot { get; init; }
@@ -485,31 +485,31 @@ public sealed record PageListRequest
 public sealed record PdfCancelledResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
 
     [JsonPropertyName("cancelled")]
-    public required JsonElement Cancelled { get; init; }
+    public required bool Cancelled { get; init; }
 }
 
 public sealed record PdfClosedResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
 
     [JsonPropertyName("closed")]
-    public required JsonElement Closed { get; init; }
+    public required bool Closed { get; init; }
 }
 
 public sealed record PdfDetectResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -542,7 +542,7 @@ public sealed record PdfDocumentMirror
 public sealed record PdfDocumentResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -569,7 +569,7 @@ public sealed record PdfDocumentResponse
 public sealed record PdfMutationResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -584,7 +584,7 @@ public sealed record PdfMutationResponse
 public sealed record PdfOpenResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -635,7 +635,7 @@ public sealed record PdfPathRequest
 public sealed record PdfPathResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -647,19 +647,19 @@ public sealed record PdfPathResponse
 public sealed record PdfResetResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
 
     [JsonPropertyName("reset")]
-    public required JsonElement Reset { get; init; }
+    public required bool Reset { get; init; }
 }
 
 public sealed record PdfSaveResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -689,7 +689,7 @@ public sealed record PipelineSpec
     public required string Name { get; init; }
 
     [JsonPropertyName("ttl_seconds")]
-    public required int TtlSeconds { get; init; }
+    public required int? TtlSeconds { get; init; }
 
     [JsonPropertyName("pinned")]
     public required bool Pinned { get; init; }
@@ -740,7 +740,7 @@ public sealed record QrDecodeRequest
 public sealed record QrDecodeResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -764,7 +764,7 @@ public sealed record QrGenerateRequest
 public sealed record QrGenerateResponse
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("instance_id")]
     public required string InstanceId { get; init; }
@@ -776,7 +776,7 @@ public sealed record QrGenerateResponse
     public required string Format { get; init; }
 
     [JsonPropertyName("media_type")]
-    public required JsonElement MediaType { get; init; }
+    public required string MediaType { get; init; }
 }
 
 public sealed record RenderPreviewRequest
@@ -809,25 +809,25 @@ public sealed record ResidencyEntry
     public required string Pipeline { get; init; }
 
     [JsonPropertyName("kind")]
-    public required JsonElement Kind { get; init; }
+    public required string Kind { get; init; }
 
     [JsonPropertyName("active_leases")]
     public required int ActiveLeases { get; init; }
 
     [JsonPropertyName("remaining_ttl_seconds")]
-    public required int RemainingTtlSeconds { get; init; }
+    public required int? RemainingTtlSeconds { get; init; }
 
     [JsonPropertyName("estimated_vram_mb")]
-    public required int EstimatedVramMb { get; init; }
+    public required int? EstimatedVramMb { get; init; }
 
     [JsonPropertyName("eviction_reason")]
-    public required JsonElement EvictionReason { get; init; }
+    public required string EvictionReason { get; init; }
 }
 
 public sealed record ResidencyStatus
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("default_ttl_seconds")]
     public required int DefaultTtlSeconds { get; init; }
@@ -839,10 +839,10 @@ public sealed record ResidencyStatus
     public required IReadOnlyList<PipelineSpec> Pipelines { get; init; }
 
     [JsonPropertyName("vram_total_mb")]
-    public required int VramTotalMb { get; init; }
+    public required int? VramTotalMb { get; init; }
 
     [JsonPropertyName("vram_used_mb")]
-    public required int VramUsedMb { get; init; }
+    public required int? VramUsedMb { get; init; }
 }
 
 public sealed record RewriteTextLayerRequest
@@ -914,7 +914,7 @@ public sealed record SettingsResidency
 public sealed record SettingsSnapshot
 {
     [JsonPropertyName("schema_version")]
-    public required JsonElement SchemaVersion { get; init; }
+    public required int SchemaVersion { get; init; }
 
     [JsonPropertyName("residency")]
     public required SettingsResidency Residency { get; init; }
@@ -932,7 +932,7 @@ public sealed record StageEvent
     public required string Stage { get; init; }
 
     [JsonPropertyName("item_id")]
-    public required string ItemId { get; init; }
+    public required string? ItemId { get; init; }
 
     [JsonPropertyName("timestamp")]
     public required string Timestamp { get; init; }
