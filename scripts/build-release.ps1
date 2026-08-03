@@ -30,10 +30,9 @@ if (Test-Path -LiteralPath $build) {
     Remove-Item -LiteralPath $build -Recurse -Force
 }
 New-Item -ItemType Directory -Path $artifacts, $build -Force | Out-Null
-python -m pip install build==1.5.0 hatchling==1.27.0
-python -m build --wheel --no-isolation (Join-Path $root 'packages/vibeocr-contracts-py') --outdir $build
+uv build --wheel (Join-Path $root 'packages/vibeocr-contracts-py') --out-dir $build
 if ($LASTEXITCODE -ne 0) { throw 'contracts wheel build failed' }
-python -m build --wheel --no-isolation (Join-Path $root 'packages/vibeocr-runtime-client-py') --outdir $build
+uv build --wheel (Join-Path $root 'packages/vibeocr-runtime-client-py') --out-dir $build
 if ($LASTEXITCODE -ne 0) { throw 'client wheel build failed' }
 dotnet restore (Join-Path $root 'src/dotnet/VibeOCR.Runtime.Client/VibeOCR.Runtime.Client.csproj')
 if ($LASTEXITCODE -ne 0) { throw 'NuGet restore failed' }
