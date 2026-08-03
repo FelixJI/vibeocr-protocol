@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.0
+
+### Features
+
+- **ci:** 统一 CI/CD 自动化 (#12) (d29ae20)
+- **protocol:** 统一 Runtime Host 与 HTTP 契约 (#11) (ad612a2)
+
+### Bug Fixes
+
+- **protocol:** 统一协议契约与兼容门禁 (#5) (f3920d5)
+
+### Dependencies
+
+- **deps:** 升级 pytest 并固定 Python 版本 (#6) (f3e2f67)
+
 ## [2.0.1](https://github.com/FelixJI/vibeocr-protocol/compare/v2.0.0...v2.0.1) (2026-08-02)
 
 
