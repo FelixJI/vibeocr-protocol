@@ -28,6 +28,10 @@ jobs:
           version: "0.11.16"
           enable-cache: true
           cache-dependency-glob: uv.lock
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        if: hashFiles('global.json') != ''
+        with:
+          global-json-file: global.json
       - name: Verify repository
         env:
           GH_TOKEN: ${{ github.token }}
