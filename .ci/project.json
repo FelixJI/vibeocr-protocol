@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "project": {
+    "component": "protocol",
+    "repository": "FelixJI/vibeocr-protocol",
+    "protocol_compatibility": {
+      "supported_majors": [2],
+      "minor_compatible": true
+    }
+  },
+  "ci": {
+    "bootstrap": [
+      ["uv", "sync", "--frozen", "--group", "dev"]
+    ],
+    "quality": [
+      ["pwsh", "-NoProfile", "-File", "scripts/check-quality.ps1"]
+    ],
+    "e2e": [
+      ["dotnet", "test", "tests/dotnet/VibeOCR.Contracts.Tests/VibeOCR.Contracts.Tests.csproj", "-c", "Release"],
+      ["dotnet", "test", "tests/dotnet/VibeOCR.Runtime.Client.Tests/VibeOCR.Runtime.Client.Tests.csproj", "-c", "Release"]
+    ],
+    "release_build": [
+      ["pwsh", "-NoProfile", "-File", "scripts/build-release.ps1", "-Version", "{version}", "-ArtifactsDir", "{artifacts_dir}"]
+    ],
+    "release_smoke": [
+      ["pwsh", "-NoProfile", "-File", "scripts/smoke_release_packages.ps1", "-ArtifactsDir", "{artifacts_dir}"]
+    ]
+  },
+  "release": {
+    "version_sources": [
+      {"kind": "toml", "path": "packages/vibeocr-contracts-py/pyproject.toml", "key": "project.version"},
+      {"kind": "toml", "path": "packages/vibeocr-runtime-client-py/pyproject.toml", "key": "project.version"},
+      {"kind": "xml", "path": "src/dotnet/VibeOCR.Contracts/VibeOCR.Contracts.csproj", "key": "Version"},
+      {"kind": "xml", "path": "src/dotnet/VibeOCR.Runtime.Client/VibeOCR.Runtime.Client.csproj", "key": "Version"},
+      {"kind": "json", "path": "repository.json", "key": "version"},
+      {"kind": "yaml", "path": "packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/openapi.yaml", "key": "info.version"},
+      {"kind": "text", "path": "version.txt"}
+    ],
+    "dependency_versions": [
+      {
+        "path": "packages/vibeocr-runtime-client-py/pyproject.toml",
+        "pattern": "vibeocr-runtime-contracts==\\d+\\.\\d+\\.\\d+",
+        "replacement": "vibeocr-runtime-contracts=={version}"
+      }
+    ],
+    "generated_commands": [
+      ["uv", "lock"],
+      ["python", "scripts/generate_runtime_protocol.py"]
+    ],
+    "identity_asset": "build-identity.json",
+    "required_assets": [
+      "build-identity.json",
+      "SBOM.spdx.json",
+      "vibeocr-runtime-openapi-{version}.yaml",
+      "vibeocr-runtime-schemas-{version}.zip",
+      "vibeocr-runtime-golden-{version}.zip",
+      "vibeocr_runtime_contracts-{version}-py3-none-any.whl",
+      "vibeocr_runtime_client-{version}-py3-none-any.whl",
+      "VibeOCR.Runtime.Contracts.{version}.nupkg",
+      "VibeOCR.Runtime.Client.{version}.nupkg"
+    ],
+    "mirrors": [
+      {"name": "Gitee", "url_env": "GITEE_URL", "user_env": "GITEE_USER", "token_env": "GITEE_TOKEN"},
+      {"name": "CNB", "url_env": "CNB_URL", "user": "cnb", "token_env": "CNB_TOKEN"}
+    ]
+  }
+}
