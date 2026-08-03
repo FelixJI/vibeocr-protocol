@@ -225,6 +225,34 @@ def test_stage_rejects_tampering_and_writes_multiline_paths(
         automation.stage(candidate_dir=str(candidate), source_sha=runner.sha)
 
 
+def test_publish_refuses_to_move_an_existing_stable_tag(tmp_path: Path) -> None:
+    automation, runner = _automation(tmp_path)
+    (tmp_path / ".release").mkdir()
+    (tmp_path / ".release/plan.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "state": "pending",
+                "version": "1.2.3",
+                "tag": "v1.2.3",
+            }
+        ),
+        encoding="utf-8",
+    )
+    automation.ci(event="push", source_sha=runner.sha)
+    candidate = tmp_path / "build/automation/release-candidate"
+    automation._tag_sha = lambda _tag: "b" * 40  # type: ignore[method-assign]
+
+    with pytest.raises(
+        AutomationError,
+        match="stable tags are immutable and this tag has another source",
+    ):
+        automation.publish(candidate_dir=str(candidate), source_sha=runner.sha)
+
+    assert all(call[:2] != ["git", "tag"] for call in runner.calls)
+    assert all(call[:2] != ["git", "push"] for call in runner.calls)
+
+
 def test_prepare_uses_orphan_stable_tag_for_version_but_release_for_changelog(
     tmp_path: Path,
 ) -> None:

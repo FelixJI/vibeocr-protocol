@@ -32,6 +32,13 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
 
 def test_cd_contract_downloads_exact_run_then_stages_attests_and_publishes() -> None:
     workflow = (ROOT / ".github/workflows/cd.yml").read_text(encoding="utf-8")
+    publish_job = workflow.split("\n  publish:\n", maxsplit=1)[1]
+    publish_permissions = publish_job.split("\n    permissions:\n", maxsplit=1)[
+        1
+    ].split("\n    steps:\n", maxsplit=1)[0]
+    publish_checkout = publish_job.split("- uses: actions/checkout@", maxsplit=1)[
+        1
+    ].split("- uses: actions/setup-python@", maxsplit=1)[0]
     download = workflow.index("name: Download exact CI candidate")
     stage = workflow.index("name: Stage release")
     attest = workflow.index("name: Attest release provenance")
@@ -40,6 +47,19 @@ def test_cd_contract_downloads_exact_run_then_stages_attests_and_publishes() -> 
     assert "run-id: ${{ github.event.workflow_run.id }}" in workflow
     assert "github.event.workflow_run.event == 'push'" in workflow
     assert "GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}" in workflow
+    assert {
+        line.strip() for line in publish_permissions.splitlines() if line.strip()
+    } == {
+        "actions: read",
+        "attestations: write",
+        "contents: write",
+        "id-token: write",
+    }
+    assert "ref: ${{ github.event.workflow_run.head_sha }}" in publish_checkout
+    assert "fetch-depth: 0" in publish_checkout
+    assert "persist-credentials: true" in publish_checkout
+    assert "persist-credentials: false" not in publish_checkout
+    assert "token:" not in publish_checkout
     assert "draft" not in workflow.lower()
     assert "concurrency:" not in workflow
     assert workflow.count("python scripts/automation.py") == 3
