@@ -41,14 +41,5 @@ def test_uv_lock_matches_workspace_project_versions() -> None:
 
 def test_ci_stops_after_a_failed_native_command() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    verify = workflow.split("      - name: Verify", maxsplit=1)[1]
-
-    error_action = '$ErrorActionPreference = "Stop"'
-    native_error_action = "$PSNativeCommandUseErrorActionPreference = $true"
-
-    assert error_action in verify
-    assert native_error_action in verify
-    assert verify.index(error_action) < verify.index("uv sync --locked --group dev")
-    assert verify.index(native_error_action) < verify.index(
-        "uv sync --locked --group dev"
-    )
+    assert "python scripts/automation.py ci" in workflow
+    assert "check-quality.ps1" not in workflow

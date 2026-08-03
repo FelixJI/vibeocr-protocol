@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$Version
+    [string]$Version,
+    [string]$ArtifactsDir = 'artifacts'
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -16,7 +17,11 @@ if (-not $Version) {
 if ($Version -ne $projectVersion) {
     throw "Release version '$Version' does not match project version '$projectVersion'"
 }
-$artifacts = Join-Path $root 'artifacts'
+$artifacts = if ([IO.Path]::IsPathRooted($ArtifactsDir)) {
+    [IO.Path]::GetFullPath($ArtifactsDir)
+} else {
+    [IO.Path]::GetFullPath((Join-Path $root $ArtifactsDir))
+}
 $build = Join-Path $root '.release-build'
 if (Test-Path -LiteralPath $artifacts) {
     Remove-Item -LiteralPath $artifacts -Recurse -Force
@@ -25,10 +30,9 @@ if (Test-Path -LiteralPath $build) {
     Remove-Item -LiteralPath $build -Recurse -Force
 }
 New-Item -ItemType Directory -Path $artifacts, $build -Force | Out-Null
-python -m pip install build==1.5.0 hatchling==1.27.0
-python -m build --wheel --no-isolation (Join-Path $root 'packages/vibeocr-contracts-py') --outdir $build
+uv build --wheel (Join-Path $root 'packages/vibeocr-contracts-py') --out-dir $build
 if ($LASTEXITCODE -ne 0) { throw 'contracts wheel build failed' }
-python -m build --wheel --no-isolation (Join-Path $root 'packages/vibeocr-runtime-client-py') --outdir $build
+uv build --wheel (Join-Path $root 'packages/vibeocr-runtime-client-py') --out-dir $build
 if ($LASTEXITCODE -ne 0) { throw 'client wheel build failed' }
 dotnet restore (Join-Path $root 'src/dotnet/VibeOCR.Runtime.Client/VibeOCR.Runtime.Client.csproj')
 if ($LASTEXITCODE -ne 0) { throw 'NuGet restore failed' }
@@ -44,20 +48,12 @@ Copy-Item -LiteralPath (Join-Path $build "vibeocr_runtime_contracts-$Version-py3
 Copy-Item -LiteralPath (Join-Path $build "vibeocr_runtime_client-$Version-py3-none-any.whl") -Destination $artifacts
 Copy-Item -LiteralPath (Join-Path $build "VibeOCR.Runtime.Contracts.$Version.nupkg") -Destination $artifacts
 Copy-Item -LiteralPath (Join-Path $build "VibeOCR.Runtime.Client.$Version.nupkg") -Destination $artifacts
+python (Join-Path $root 'scripts/build_release_identity.py') `
+  --output (Join-Path $artifacts 'build-identity.json') `
+  --version $Version `
+  --source-sha (git -C $root rev-parse HEAD).Trim() `
+  --openapi (Join-Path $artifacts "vibeocr-runtime-openapi-$Version.yaml")
+if ($LASTEXITCODE -ne 0) { throw 'Release identity build failed' }
 python (Join-Path $root 'scripts/build_spdx_sbom.py') --artifacts-dir $artifacts `
   --repository-name FelixJI/vibeocr-protocol --version $Version
 if ($LASTEXITCODE -ne 0) { throw 'SBOM build failed' }
-$inputs = Get-ChildItem -LiteralPath $artifacts -File | ForEach-Object {
-    @('--artifact', $_.FullName)
-}
-$arguments = @(
-    (Join-Path $root 'scripts/build_protocol_release_manifest.py'),
-    '--protocol-version', $Version,
-    '--source-commit', (git -C $root rev-parse HEAD).Trim(),
-    '--build-workflow', 'github.com/FelixJI/vibeocr-protocol/.github/workflows/release.yml',
-    '--output-dir', $artifacts
-) + $inputs
-python @arguments
-if ($LASTEXITCODE -ne 0) { throw 'Protocol manifest build failed' }
-python (Join-Path $root 'scripts/build_release_checksums.py') $artifacts
-if ($LASTEXITCODE -ne 0) { throw 'checksum build failed' }

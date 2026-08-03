@@ -88,6 +88,7 @@ try {
 </Project>
 "@ | Set-Content -LiteralPath $project -Encoding utf8
     @'
+using System;
 using VibeOCR.Contracts.HttpV2;
 using VibeOCR.Runtime.Client;
 

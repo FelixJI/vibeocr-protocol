@@ -38,3 +38,6 @@ def test_release_package_smoke_script_exposes_a_safe_dry_run() -> None:
     assert "VibeOCR.Runtime.Client.*.nupkg" in output
     assert "importlib.resources" in output
     assert "dotnet build" in output
+    assert "using System;" in (ROOT / "scripts/smoke_release_packages.ps1").read_text(
+        encoding="utf-8"
+    )
