@@ -11,6 +11,11 @@ import pytest
 from scripts.automation_core import Automation, AutomationError, SemVer
 
 
+@pytest.fixture(autouse=True)
+def _isolate_github_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+
+
 class FakeRunner:
     def __init__(self, root: Path, sha: str = "a" * 40) -> None:
         self.root = root
