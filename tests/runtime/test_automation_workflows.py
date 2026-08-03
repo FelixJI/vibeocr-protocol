@@ -22,6 +22,7 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
     assert "python-version-file: .python-version" in workflow
     assert 'version: "0.11.16"' in workflow
     assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in workflow
+    assert "format('ci-run-{0}', github.run_id)" in workflow
     assert "--source-sha '${{ github.sha }}'" in workflow
     assert workflow.count("python scripts/automation.py") == 1
     assert "name: release-candidate" in workflow
@@ -38,6 +39,7 @@ def test_cd_contract_downloads_exact_run_then_stages_attests_and_publishes() -> 
     assert "github.event.workflow_run.event == 'push'" in workflow
     assert "GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}" in workflow
     assert "draft" not in workflow.lower()
+    assert "concurrency:" not in workflow
     assert workflow.count("python scripts/automation.py") == 3
 
 

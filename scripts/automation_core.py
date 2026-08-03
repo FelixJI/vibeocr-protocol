@@ -280,6 +280,14 @@ class Automation:
                 [part.format(**substitutions) for part in template], env=env
             )
 
+    def _activate_project_environment(self, env: dict[str, str]) -> None:
+        venv = self.root / ".venv"
+        scripts = venv / ("Scripts" if os.name == "nt" else "bin")
+        if not scripts.is_dir():
+            return
+        env["VIRTUAL_ENV"] = str(venv)
+        env["PATH"] = os.pathsep.join((str(scripts), os.environ.get("PATH", "")))
+
     def ci(self, *, event: str, source_sha: str) -> None:
         if event not in {"pull_request", "push"}:
             raise AutomationError(f"unsupported event: {event}")
@@ -313,6 +321,8 @@ class Automation:
             ):
                 started = time.monotonic()
                 self._run_templates(self.config["ci"].get(lane, []), env)
+                if lane == "bootstrap":
+                    self._activate_project_environment(env)
                 stages.append(
                     {
                         "name": lane,
@@ -460,6 +470,16 @@ class Automation:
         actual = {path.name for path in artifacts_dir.iterdir() if path.is_file()}
         self._validate_asset_patterns(actual, version)
         candidate_names = actual | {"release-manifest.json", "SHA256SUMS"}
+        candidate_manifest = self._build_candidate_manifest(
+            artifacts_dir=artifacts_dir,
+            plan=plan,
+            source_sha=source_sha,
+            version=version,
+        )
+        candidate_identity = {
+            key: candidate_manifest[key]
+            for key in ("release", "source", "project", "build_identity", "protocol")
+        }
 
         release = self._published_release(plan["tag"])
         if release is not None:
@@ -468,27 +488,26 @@ class Automation:
                 raise AutomationError(
                     "published stable Release has no local stable tag"
                 )
-            manifest = self._remote_manifest(plan["tag"])
+            remote_manifest = self._remote_manifest(plan["tag"])
             remote_names = {asset["name"] for asset in release.get("assets", [])}
-            if manifest is not None:
-                identity = {
-                    "release": {"tag": plan["tag"], "version": str(version)},
+            if remote_manifest is not None:
+                tag_identity = {
+                    **candidate_identity,
                     "source": {"sha": tag_sha},
-                    "project": {
-                        "component": self.component,
-                        "repository": self.repository,
-                    },
                 }
-                if any(manifest.get(key) != value for key, value in identity.items()):
+                if any(
+                    remote_manifest.get(key) != value
+                    for key, value in tag_identity.items()
+                ):
                     raise AutomationError(
                         "published Release manifest identity mismatch"
                     )
-            if remote_names == candidate_names and manifest is None:
+            if remote_names == candidate_names and remote_manifest is None:
                 raise AutomationError(
                     "published Release cannot be complete without a verifiable manifest"
                 )
-            if remote_names == candidate_names and manifest is not None:
-                self._verify_remote_release_assets(plan["tag"], actual, identity)
+            if remote_names == candidate_names and remote_manifest is not None:
+                self._verify_remote_release_assets(plan["tag"], actual, tag_identity)
                 self._sentinel(candidate_dir, source_sha, "already-published")
                 return
             if tag_sha != source_sha:
@@ -503,9 +522,20 @@ class Automation:
                 "SHA256SUMS",
             }:
                 shutil.copyfile(path, candidate_dir / path.name)
+        _write_json(candidate_dir / "release-manifest.json", candidate_manifest)
+        self._write_checksums(candidate_dir)
+
+    def _build_candidate_manifest(
+        self,
+        *,
+        artifacts_dir: Path,
+        plan: dict[str, Any],
+        source_sha: str,
+        version: SemVer,
+    ) -> dict[str, Any]:
         artifact_records = {
             path.name: {"sha256": _sha256(path), "size": path.stat().st_size}
-            for path in sorted(candidate_dir.iterdir())
+            for path in sorted(artifacts_dir.iterdir())
             if path.is_file()
         }
         identity_pattern = self.config["release"].get("identity_asset")
@@ -514,7 +544,7 @@ class Automation:
         if identity_pattern:
             matches = sorted(
                 path
-                for path in candidate_dir.iterdir()
+                for path in artifacts_dir.iterdir()
                 if path.is_file()
                 and fnmatch.fnmatchcase(
                     path.name, identity_pattern.format(version=version)
@@ -540,7 +570,7 @@ class Automation:
                 "value": identity_value,
             }
             protocol = identity_value.get("protocol")
-        manifest = {
+        return {
             "schema_version": 2,
             "release": {"tag": plan["tag"], "version": str(version)},
             "source": {"sha": source_sha},
@@ -555,8 +585,6 @@ class Automation:
             "protocol": protocol,
             "artifacts": artifact_records,
         }
-        _write_json(candidate_dir / "release-manifest.json", manifest)
-        self._write_checksums(candidate_dir)
 
     def _write_checksums(self, root: Path) -> None:
         files = sorted(
@@ -1151,7 +1179,13 @@ class Automation:
             remote = {asset["name"]: asset for asset in release.get("assets", [])}
             remote_manifest = self._remote_manifest(tag)
             if remote_manifest is not None:
-                for key in ("release", "source", "project"):
+                for key in (
+                    "release",
+                    "source",
+                    "project",
+                    "build_identity",
+                    "protocol",
+                ):
                     if remote_manifest.get(key) != manifest.get(key):
                         raise AutomationError(
                             "existing Release manifest identity mismatch"

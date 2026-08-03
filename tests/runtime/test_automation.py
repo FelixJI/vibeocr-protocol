@@ -123,6 +123,19 @@ def test_ci_runs_all_lanes_in_order_and_builds_release_once(tmp_path: Path) -> N
     assert not (tmp_path / "build/automation/release-candidate").exists()
 
 
+def test_ci_activates_bootstrapped_project_environment(tmp_path: Path) -> None:
+    automation, runner = _automation(tmp_path)
+    scripts = tmp_path / ".venv" / ("Scripts" if os.name == "nt" else "bin")
+    scripts.mkdir(parents=True)
+
+    automation.ci(event="pull_request", source_sha=runner.sha)
+
+    quality_index = runner.calls.index(["quality"])
+    environment = runner.environments[quality_index]
+    assert environment["VIRTUAL_ENV"] == str(tmp_path / ".venv")
+    assert environment["PATH"].split(os.pathsep)[0] == str(scripts)
+
+
 def test_main_without_plan_emits_non_publishable_sentinel(tmp_path: Path) -> None:
     automation, runner = _automation(tmp_path)
 
@@ -270,6 +283,8 @@ def test_complete_published_release_turns_old_pending_plan_into_sentinel(
         "release": {"tag": "v1.2.3", "version": "1.2.3"},
         "source": {"sha": "b" * 40},
         "project": {"component": "sample", "repository": "owner/sample"},
+        "build_identity": None,
+        "protocol": None,
     }
     automation._verify_remote_release_assets = (  # type: ignore[method-assign]
         lambda _tag, _assets, _identity: None
@@ -281,6 +296,46 @@ def test_complete_published_release_turns_old_pending_plan_into_sentinel(
         (tmp_path / "build/automation/release-candidate/release-state.json").read_text()
     )
     assert state["reason"] == "already-published"
+
+
+def test_complete_release_rejects_different_build_or_protocol_identity(
+    tmp_path: Path,
+) -> None:
+    automation, runner = _automation(tmp_path)
+    (tmp_path / ".release").mkdir()
+    (tmp_path / ".release/plan.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "state": "pending",
+                "version": "1.2.3",
+                "tag": "v1.2.3",
+            }
+        ),
+        encoding="utf-8",
+    )
+    automation._published_release = lambda _tag: {  # type: ignore[method-assign]
+        "assets": [
+            {"name": name}
+            for name in (
+                "SBOM.spdx.json",
+                "package.zip",
+                "release-manifest.json",
+                "SHA256SUMS",
+            )
+        ]
+    }
+    automation._tag_sha = lambda _tag: runner.sha  # type: ignore[method-assign]
+    automation._remote_manifest = lambda _tag: {  # type: ignore[method-assign]
+        "release": {"tag": "v1.2.3", "version": "1.2.3"},
+        "source": {"sha": runner.sha},
+        "project": {"component": "sample", "repository": "owner/sample"},
+        "build_identity": {"asset": "other.json"},
+        "protocol": {"version": "9.0.0"},
+    }
+
+    with pytest.raises(AutomationError, match="manifest identity mismatch"):
+        automation.ci(event="push", source_sha=runner.sha)
 
 
 def test_incomplete_published_release_cannot_be_repaired_by_another_source(
