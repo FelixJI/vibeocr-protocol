@@ -13,7 +13,15 @@ from scripts.automation_core import Automation, AutomationError, SemVer
 
 @pytest.fixture(autouse=True)
 def _isolate_github_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("GH_TOKEN", raising=False)
+    for name in (
+        "GH_TOKEN",
+        "GITHUB_REPOSITORY",
+        "GITHUB_WORKFLOW",
+        "GITHUB_RUN_ID",
+        "GITHUB_RUN_ATTEMPT",
+        "GITHUB_OUTPUT",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 class FakeRunner:
