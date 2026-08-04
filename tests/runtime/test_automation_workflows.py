@@ -18,7 +18,9 @@ def test_only_canonical_workflows_remain() -> None:
 def test_ci_contract_uses_the_single_deep_interface() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     assert "pull_request:" in workflow and "branches: [main]" in workflow
+    assert "types: [opened, synchronize, reopened, closed]" in workflow
     assert "  required:" in workflow and "    name: required" in workflow
+    assert "  plan:" in workflow and "  prepare:" in workflow and "  shard:" in workflow
     assert "python-version-file: .python-version" in workflow
     assert 'version: "0.11.16"' in workflow
     assert "actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1" in workflow
@@ -26,7 +28,16 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
     assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in workflow
     assert "format('ci-run-{0}', github.run_id)" in workflow
     assert "--source-sha '${{ github.sha }}'" in workflow
-    assert workflow.count("python scripts/automation.py") == 1
+    assert "github.event.action != 'closed'" in workflow
+    assert "fromJSON(needs.plan.outputs.matrix)" in workflow
+    assert "--phase prepare" in workflow
+    assert "--phase shard" in workflow
+    assert "--phase finalize" in workflow
+    assert "Fail closed on orchestration errors" in workflow
+    assert "CI_SHARD_LANE: ${{ matrix.name }}" in workflow
+    assert "--lane $env:CI_SHARD_LANE" in workflow
+    assert "needs.prepare.result" in workflow
+    assert "needs.shard.result" in workflow
     assert "name: release-candidate" in workflow
 
 
