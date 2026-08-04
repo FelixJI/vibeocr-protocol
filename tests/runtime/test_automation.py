@@ -128,7 +128,9 @@ def _sharded_automation(tmp_path: Path) -> tuple[Automation, FakeRunner]:
     return Automation(tmp_path, config, runner), runner
 
 
-def test_ci_plan_keeps_unconfigured_repositories_on_the_serial_path(tmp_path: Path) -> None:
+def test_ci_plan_keeps_unconfigured_repositories_on_the_serial_path(
+    tmp_path: Path,
+) -> None:
     automation, runner = _automation(tmp_path)
 
     plan = automation.ci_plan(event="pull_request", source_sha=runner.sha)
@@ -140,7 +142,9 @@ def test_ci_plan_keeps_unconfigured_repositories_on_the_serial_path(tmp_path: Pa
     }
 
 
-def test_sharded_ci_prepares_once_runs_declared_lane_and_aggregates(tmp_path: Path) -> None:
+def test_sharded_ci_prepares_once_runs_declared_lane_and_aggregates(
+    tmp_path: Path,
+) -> None:
     automation, runner = _sharded_automation(tmp_path)
 
     plan = automation.ci_plan(event="pull_request", source_sha=runner.sha)
@@ -176,7 +180,9 @@ def test_sharded_ci_rejects_an_undeclared_lane(tmp_path: Path) -> None:
         automation.ci_shard(event="pull_request", source_sha=runner.sha, lane="unknown")
 
 
-def test_sharded_ci_rejects_handoff_paths_outside_the_repository(tmp_path: Path) -> None:
+def test_sharded_ci_rejects_handoff_paths_outside_the_repository(
+    tmp_path: Path,
+) -> None:
     automation, runner = _sharded_automation(tmp_path)
     automation.config["ci_shards"]["handoff_paths"] = ["../outside"]
 
