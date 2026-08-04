@@ -112,6 +112,78 @@ def _automation(tmp_path: Path) -> tuple[Automation, FakeRunner]:
     return Automation(tmp_path, _config(), runner), runner
 
 
+def _sharded_automation(tmp_path: Path) -> tuple[Automation, FakeRunner]:
+    config = _config()
+    config["ci_shards"] = {
+        "handoff_paths": ["build/automation/artifacts", "dist/package"],
+        "lanes": [
+            {"name": "core", "python": True},
+            {"name": "release"},
+        ],
+        "run": [["run-lane", "{lane}", "{lane_report}"]],
+        "aggregate": [["aggregate", "{reports_dir}"]],
+    }
+    (tmp_path / "version.txt").write_text("1.2.3\n", encoding="utf-8")
+    runner = FakeRunner(tmp_path)
+    return Automation(tmp_path, config, runner), runner
+
+
+def test_ci_plan_keeps_unconfigured_repositories_on_the_serial_path(tmp_path: Path) -> None:
+    automation, runner = _automation(tmp_path)
+
+    plan = automation.ci_plan(event="pull_request", source_sha=runner.sha)
+
+    assert plan == {
+        "sharded": "false",
+        "matrix": '{"include":[]}',
+        "handoff_paths": "",
+    }
+
+
+def test_sharded_ci_prepares_once_runs_declared_lane_and_aggregates(tmp_path: Path) -> None:
+    automation, runner = _sharded_automation(tmp_path)
+
+    plan = automation.ci_plan(event="pull_request", source_sha=runner.sha)
+    automation.ci_prepare(event="pull_request", source_sha=runner.sha)
+    automation.ci_shard(event="pull_request", source_sha=runner.sha, lane="core")
+    automation.ci_finalize(
+        event="pull_request",
+        source_sha=runner.sha,
+        reports_dir="build/automation/lane-reports",
+    )
+
+    assert json.loads(plan["matrix"]) == {
+        "include": [
+            {"name": "core", "python": True},
+            {"name": "release"},
+        ]
+    }
+    assert plan["handoff_paths"] == "build/automation/artifacts\ndist/package"
+    assert [call for call in runner.calls if call and call[0] not in {"git"}] == [
+        ["bootstrap"],
+        ["quality"],
+        ["e2e"],
+        ["release-build"],
+        ["run-lane", "core", "build/automation/lane-reports/core.json"],
+        ["aggregate", "build/automation/lane-reports"],
+    ]
+
+
+def test_sharded_ci_rejects_an_undeclared_lane(tmp_path: Path) -> None:
+    automation, runner = _sharded_automation(tmp_path)
+
+    with pytest.raises(AutomationError, match="undeclared CI shard"):
+        automation.ci_shard(event="pull_request", source_sha=runner.sha, lane="unknown")
+
+
+def test_sharded_ci_rejects_handoff_paths_outside_the_repository(tmp_path: Path) -> None:
+    automation, runner = _sharded_automation(tmp_path)
+    automation.config["ci_shards"]["handoff_paths"] = ["../outside"]
+
+    with pytest.raises(AutomationError, match="must stay inside"):
+        automation.ci_plan(event="pull_request", source_sha=runner.sha)
+
+
 def test_ci_runs_all_lanes_in_order_and_builds_release_once(tmp_path: Path) -> None:
     automation, runner = _automation(tmp_path)
 
