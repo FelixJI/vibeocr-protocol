@@ -35,6 +35,7 @@ class FakeRunner:
         self.prs: list[dict[str, Any]] = []
         self.cached_diff = 0
         self.plan_changed = True
+        self.emit_build_checksums = False
 
     def run(
         self,
@@ -67,6 +68,8 @@ class FakeRunner:
             output.mkdir(parents=True, exist_ok=True)
             for name in ("SBOM.spdx.json", "package.zip"):
                 (output / name).write_text(name, encoding="utf-8")
+            if self.emit_build_checksums:
+                (output / "SHA256SUMS").write_text("stale\n", encoding="utf-8")
         return subprocess.CompletedProcess(argv, returncode, stdout, "")
 
     def json(self, argv: list[str], *, env: dict[str, str] | None = None) -> Any:
@@ -191,6 +194,39 @@ def test_pending_main_wraps_the_smoke_tested_artifacts_without_rebuild(
     }
     assert manifest["protocol"] is None
     assert set(manifest["artifacts"]) == {"SBOM.spdx.json", "package.zip"}
+
+
+def test_pending_main_replaces_build_checksums_with_candidate_checksums(
+    tmp_path: Path,
+) -> None:
+    automation, runner = _automation(tmp_path)
+    runner.emit_build_checksums = True
+    (tmp_path / ".release").mkdir()
+    (tmp_path / ".release/plan.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "state": "pending",
+                "version": "1.2.3",
+                "tag": "v1.2.3",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    automation.ci(event="push", source_sha=runner.sha)
+
+    candidate = tmp_path / "build/automation/release-candidate"
+    manifest = json.loads((candidate / "release-manifest.json").read_text())
+    assert set(manifest["artifacts"]) == {"SBOM.spdx.json", "package.zip"}
+    checksums = (candidate / "SHA256SUMS").read_text(encoding="utf-8")
+    assert checksums != "stale\n"
+    assert {line.split("  ", 1)[1] for line in checksums.splitlines()} == {
+        "SBOM.spdx.json",
+        "package.zip",
+        "release-manifest.json",
+    }
+    automation.stage(candidate_dir=str(candidate), source_sha=runner.sha)
 
 
 def test_stage_rejects_tampering_and_writes_multiline_paths(
