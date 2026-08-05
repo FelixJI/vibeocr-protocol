@@ -26,9 +26,21 @@ from vibeocr.runtime_contracts import (
     JobState,
     JobStateTransitionError,
     PipelineSelection,
+    ProgressSnapshot,
+    ProgressUnit,
     ResidencyEntry,
     ResidencyKind,
     ResidencyStatus,
+    RuntimeAccelerator,
+    RuntimeComponentState,
+    RuntimeComponentStatus,
+    RuntimeMaintenanceOperation,
+    RuntimeMaintenancePhase,
+    RuntimeMaintenanceStatus,
+    RuntimeOperationState,
+    RuntimeProfileStatus,
+    RuntimeServiceState,
+    RuntimeStatusSnapshot,
     SubmitRequest,
     assert_item_transition,
     assert_job_transition,
@@ -43,6 +55,7 @@ from vibeocr.runtime_contracts import (
     parse_pipeline_selection,
     parse_pipeline_spec,
     parse_residency_entry,
+    parse_runtime_status,
     parse_submit_request,
 )
 from vibeocr.runtime_contracts.parser import SchemaValidator
@@ -341,6 +354,48 @@ def test_residency_status_payload_shape() -> None:
     assert payload["schema_version"] == SCHEMA_VERSION
     assert payload["vram_used_mb"] == 2000
     assert payload["entries"][1]["eviction_reason"] == "ttl_expired"
+
+
+def test_runtime_status_round_trips_typed_profile_and_progress() -> None:
+    status = RuntimeStatusSnapshot(
+        instance_id="runtime-1",
+        service_state=RuntimeServiceState.MAINTENANCE,
+        backend_version="0.9.0",
+        profile=RuntimeProfileStatus(
+            profile_id="win-x64-cpu",
+            accelerator=RuntimeAccelerator.CPU,
+            components=(
+                RuntimeComponentStatus(
+                    component_id="ocr_engine",
+                    display_name="OCR engine",
+                    state=RuntimeComponentState.INSTALLING,
+                    version="3.3.2",
+                ),
+            ),
+        ),
+        maintenance=RuntimeMaintenanceStatus(
+            operation_id="install-1",
+            sequence=2,
+            operation=RuntimeMaintenanceOperation.ENSURE,
+            operation_state=RuntimeOperationState.RUNNING,
+            phase=RuntimeMaintenancePhase.INSTALL_PROFILE,
+            profile_id="win-x64-cpu",
+            component_id="ocr_engine",
+            progress=ProgressSnapshot(
+                unit=ProgressUnit.STEPS,
+                current=2,
+                total=5,
+            ),
+            message_code="runtime.install.profile",
+        ),
+    )
+    payload = status.to_payload()
+    assert parse_runtime_status(payload) == status
+    assert payload["maintenance"]["progress"] == {
+        "unit": "steps",
+        "current": 2,
+        "total": 5,
+    }
 
 
 # ---------------------------------------------------------------------------

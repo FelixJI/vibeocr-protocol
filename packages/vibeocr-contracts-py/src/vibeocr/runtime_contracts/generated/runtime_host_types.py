@@ -5,9 +5,26 @@ from typing import Any, Literal, NotRequired, Required, TypedDict
 
 Accelerator = Literal['cpu', 'nvidia_cuda']
 IntegrityStatus = Literal['verified', 'not-installed']
+ProgressUnit = Literal['steps', 'items', 'bytes']
 RuntimeHostErrorCode = Literal['invalid_request', 'invalid_binding', 'install_failed', 'lock_timeout', 'io_error']
+RuntimeHostEventStream = Literal['ndjson.v1']
 RuntimeHostOperation = Literal['inspect', 'ensure', 'repair']
+RuntimeMaintenanceEventType = Literal['snapshot', 'progress', 'heartbeat']
+RuntimeMaintenancePhase = Literal['validate_binding', 'wait_for_lock', 'prepare_runtime', 'install_profile', 'install_backend', 'verify_runtime', 'commit_runtime']
+RuntimeOperationState = Literal['queued', 'running', 'succeeded', 'failed', 'cancelled']
 RuntimeStatus = Literal['ready', 'missing']
+
+
+class ProgressSnapshot(TypedDict, total=False):
+    unit: Required[ProgressUnit]
+    current: Required[int]
+    total: NotRequired[int]
+
+
+class RuntimeComponentDescriptor(TypedDict, total=False):
+    component_id: Required[str]
+    display_name: Required[str]
+    version: NotRequired[str]
 
 
 class RuntimeHostError(TypedDict, total=False):
@@ -21,6 +38,7 @@ class RuntimeHostFailure(TypedDict, total=False):
     ok: Required[Literal[False]]
     operation: Required[RuntimeHostOperation | None]
     error: Required[RuntimeHostError]
+    maintenance: NotRequired[RuntimeMaintenanceSnapshot | None]
 
 
 class RuntimeHostRequest(TypedDict, total=False):
@@ -32,6 +50,7 @@ class RuntimeHostRequest(TypedDict, total=False):
     accelerator: NotRequired[Accelerator | None]
     layout_manifest: NotRequired[str | None]
     product_id: NotRequired[str | None]
+    accepted_event_streams: NotRequired[list[RuntimeHostEventStream]]
 
 
 class RuntimeHostSuccess(TypedDict, total=False):
@@ -40,6 +59,8 @@ class RuntimeHostSuccess(TypedDict, total=False):
     operation: Required[RuntimeHostOperation]
     state: Required[RuntimeState]
     launch: NotRequired[RuntimeLaunch | None]
+    profile: NotRequired[RuntimeProfileDescriptor | None]
+    maintenance: NotRequired[RuntimeMaintenanceSnapshot | None]
 
 
 class RuntimeLaunch(TypedDict, total=False):
@@ -48,6 +69,35 @@ class RuntimeLaunch(TypedDict, total=False):
     working_directory: Required[str]
     model_root: Required[str]
     environment: Required[dict[str, Any]]
+
+
+class RuntimeMaintenanceEvent(TypedDict, total=False):
+    protocol_version: Required[Literal[2]]
+    event_version: Required[Literal[1]]
+    event_type: Required[RuntimeMaintenanceEventType]
+    operation: Required[RuntimeHostOperation]
+    snapshot: Required[RuntimeMaintenanceSnapshot]
+    message_code: Required[str]
+    message_args: NotRequired[dict[str, Any]]
+    fallback_message: NotRequired[str]
+
+
+class RuntimeMaintenanceSnapshot(TypedDict, total=False):
+    operation_id: Required[str]
+    sequence: Required[int]
+    operation: Required[RuntimeHostOperation]
+    operation_state: Required[RuntimeOperationState]
+    phase: Required[RuntimeMaintenancePhase]
+    profile_id: Required[str]
+    component_id: NotRequired[str | None]
+    updated_at: Required[str]
+    progress: NotRequired[ProgressSnapshot | None]
+
+
+class RuntimeProfileDescriptor(TypedDict, total=False):
+    profile_id: Required[str]
+    accelerator: Required[Accelerator]
+    components: Required[list[RuntimeComponentDescriptor]]
 
 
 class RuntimeState(TypedDict, total=False):

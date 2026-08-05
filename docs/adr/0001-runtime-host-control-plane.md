@@ -11,8 +11,8 @@ Classic 与 Next 分别拼装 Runtime Installer 参数、profile 名和返回 DT
 
 采用两个协议边界：
 
-1. Runtime Host 是 Protocol v2 的一次性 JSON CLI 控制面，负责 `inspect`、`ensure`、`repair`，管理唯一 `data/runtime`。
-2. Supervisor HTTP v2 是长生命周期数据面，继续由 OpenAPI 和生成客户端约束。
+1. Runtime Host 是 Protocol v2 的一次性 JSON/NDJSON CLI 控制面，负责 `inspect`、`ensure`、`repair`，管理唯一 `data/runtime`。旧请求仍只输出一个最终 JSON；调用方显式协商 `ndjson.v1` 后，Host 才在最终结果前输出进度、快照与 heartbeat 事件。
+2. Supervisor HTTP v2 是长生命周期数据面，继续由 OpenAPI 和生成客户端约束；启动后的 Runtime/service/profile/component/maintenance 快照由认证的 `GET /v2/runtime/status` 提供。
 
 CPU/GPU 对外建模为 Accelerator。具体 CUDA 版本、包索引和锁文件属于 Backend 发布实现，不进入 Frontend 契约。显式 Accelerator 在安装成功后成为 Host 偏好；请求未指定时先使用该偏好，再使用产品绑定默认值。
 
@@ -29,3 +29,4 @@ Runtime Host EXE 不携带完整 Python、推理框架和模型；这些内容�
 - 切换 Accelerator 会替换当前 Runtime，需要重新下载/安装不共享的框架。
 - 模型和下载缓存独立于 Runtime，可跨切换复用。
 - Runtime Host Schema 与 HTTP OpenAPI 使用同一个 Protocol v2 版本、发布清单和生成门禁；传输可以独立扩展，但不能分别发布出互不匹配的版本。
+- UI 只消费稳定的功能分组、阶段、message code 和 typed progress，不解析包管理器 stdout、requirements lock 或任意传递依赖。

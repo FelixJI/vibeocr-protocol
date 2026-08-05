@@ -39,6 +39,25 @@ public sealed class IntegrityStatusJsonConverter : JsonStringEnumConverter<Integ
     }
 }
 
+[JsonConverter(typeof(ProgressUnitJsonConverter))]
+public enum ProgressUnit
+{
+    [JsonStringEnumMemberName("steps")]
+    Steps,
+    [JsonStringEnumMemberName("items")]
+    Items,
+    [JsonStringEnumMemberName("bytes")]
+    Bytes
+}
+
+public sealed class ProgressUnitJsonConverter : JsonStringEnumConverter<ProgressUnit>
+{
+    public ProgressUnitJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(RuntimeHostErrorCodeJsonConverter))]
 public enum RuntimeHostErrorCode
 {
@@ -57,6 +76,21 @@ public enum RuntimeHostErrorCode
 public sealed class RuntimeHostErrorCodeJsonConverter : JsonStringEnumConverter<RuntimeHostErrorCode>
 {
     public RuntimeHostErrorCodeJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RuntimeHostEventStreamJsonConverter))]
+public enum RuntimeHostEventStream
+{
+    [JsonStringEnumMemberName("ndjson.v1")]
+    NdjsonV1
+}
+
+public sealed class RuntimeHostEventStreamJsonConverter : JsonStringEnumConverter<RuntimeHostEventStream>
+{
+    public RuntimeHostEventStreamJsonConverter()
         : base(namingPolicy: null, allowIntegerValues: false)
     {
     }
@@ -81,6 +115,75 @@ public sealed class RuntimeHostOperationJsonConverter : JsonStringEnumConverter<
     }
 }
 
+[JsonConverter(typeof(RuntimeMaintenanceEventTypeJsonConverter))]
+public enum RuntimeMaintenanceEventType
+{
+    [JsonStringEnumMemberName("snapshot")]
+    Snapshot,
+    [JsonStringEnumMemberName("progress")]
+    Progress,
+    [JsonStringEnumMemberName("heartbeat")]
+    Heartbeat
+}
+
+public sealed class RuntimeMaintenanceEventTypeJsonConverter : JsonStringEnumConverter<RuntimeMaintenanceEventType>
+{
+    public RuntimeMaintenanceEventTypeJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RuntimeMaintenancePhaseJsonConverter))]
+public enum RuntimeMaintenancePhase
+{
+    [JsonStringEnumMemberName("validate_binding")]
+    ValidateBinding,
+    [JsonStringEnumMemberName("wait_for_lock")]
+    WaitForLock,
+    [JsonStringEnumMemberName("prepare_runtime")]
+    PrepareRuntime,
+    [JsonStringEnumMemberName("install_profile")]
+    InstallProfile,
+    [JsonStringEnumMemberName("install_backend")]
+    InstallBackend,
+    [JsonStringEnumMemberName("verify_runtime")]
+    VerifyRuntime,
+    [JsonStringEnumMemberName("commit_runtime")]
+    CommitRuntime
+}
+
+public sealed class RuntimeMaintenancePhaseJsonConverter : JsonStringEnumConverter<RuntimeMaintenancePhase>
+{
+    public RuntimeMaintenancePhaseJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RuntimeOperationStateJsonConverter))]
+public enum RuntimeOperationState
+{
+    [JsonStringEnumMemberName("queued")]
+    Queued,
+    [JsonStringEnumMemberName("running")]
+    Running,
+    [JsonStringEnumMemberName("succeeded")]
+    Succeeded,
+    [JsonStringEnumMemberName("failed")]
+    Failed,
+    [JsonStringEnumMemberName("cancelled")]
+    Cancelled
+}
+
+public sealed class RuntimeOperationStateJsonConverter : JsonStringEnumConverter<RuntimeOperationState>
+{
+    public RuntimeOperationStateJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(RuntimeStatusJsonConverter))]
 public enum RuntimeStatus
 {
@@ -96,6 +199,30 @@ public sealed class RuntimeStatusJsonConverter : JsonStringEnumConverter<Runtime
         : base(namingPolicy: null, allowIntegerValues: false)
     {
     }
+}
+
+public sealed record ProgressSnapshot
+{
+    [JsonPropertyName("unit")]
+    public required ProgressUnit Unit { get; init; }
+
+    [JsonPropertyName("current")]
+    public required int Current { get; init; }
+
+    [JsonPropertyName("total")]
+    public int? Total { get; init; }
+}
+
+public sealed record RuntimeComponentDescriptor
+{
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
+
+    [JsonPropertyName("display_name")]
+    public required string DisplayName { get; init; }
+
+    [JsonPropertyName("version")]
+    public string? Version { get; init; }
 }
 
 public sealed record RuntimeHostError
@@ -123,6 +250,9 @@ public sealed record RuntimeHostFailure
 
     [JsonPropertyName("error")]
     public required RuntimeHostError Error { get; init; }
+
+    [JsonPropertyName("maintenance")]
+    public RuntimeMaintenanceSnapshot? Maintenance { get; init; }
 }
 
 public sealed record RuntimeHostRequest
@@ -150,6 +280,9 @@ public sealed record RuntimeHostRequest
 
     [JsonPropertyName("product_id")]
     public string? ProductId { get; init; }
+
+    [JsonPropertyName("accepted_event_streams")]
+    public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
 }
 
 public sealed record RuntimeHostSuccess
@@ -168,6 +301,12 @@ public sealed record RuntimeHostSuccess
 
     [JsonPropertyName("launch")]
     public RuntimeLaunch? Launch { get; init; }
+
+    [JsonPropertyName("profile")]
+    public RuntimeProfileDescriptor? Profile { get; init; }
+
+    [JsonPropertyName("maintenance")]
+    public RuntimeMaintenanceSnapshot? Maintenance { get; init; }
 }
 
 public sealed record RuntimeLaunch
@@ -186,6 +325,75 @@ public sealed record RuntimeLaunch
 
     [JsonPropertyName("environment")]
     public required IReadOnlyDictionary<string, JsonElement> Environment { get; init; }
+}
+
+public sealed record RuntimeMaintenanceEvent
+{
+    [JsonPropertyName("protocol_version")]
+    public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("event_version")]
+    public required int EventVersion { get; init; }
+
+    [JsonPropertyName("event_type")]
+    public required RuntimeMaintenanceEventType EventType { get; init; }
+
+    [JsonPropertyName("operation")]
+    public required RuntimeHostOperation Operation { get; init; }
+
+    [JsonPropertyName("snapshot")]
+    public required RuntimeMaintenanceSnapshot Snapshot { get; init; }
+
+    [JsonPropertyName("message_code")]
+    public required string MessageCode { get; init; }
+
+    [JsonPropertyName("message_args")]
+    public IReadOnlyDictionary<string, JsonElement>? MessageArgs { get; init; }
+
+    [JsonPropertyName("fallback_message")]
+    public string? FallbackMessage { get; init; }
+}
+
+public sealed record RuntimeMaintenanceSnapshot
+{
+    [JsonPropertyName("operation_id")]
+    public required string OperationId { get; init; }
+
+    [JsonPropertyName("sequence")]
+    public required int Sequence { get; init; }
+
+    [JsonPropertyName("operation")]
+    public required RuntimeHostOperation Operation { get; init; }
+
+    [JsonPropertyName("operation_state")]
+    public required RuntimeOperationState OperationState { get; init; }
+
+    [JsonPropertyName("phase")]
+    public required RuntimeMaintenancePhase Phase { get; init; }
+
+    [JsonPropertyName("profile_id")]
+    public required string ProfileId { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public string? ComponentId { get; init; }
+
+    [JsonPropertyName("updated_at")]
+    public required string UpdatedAt { get; init; }
+
+    [JsonPropertyName("progress")]
+    public ProgressSnapshot? Progress { get; init; }
+}
+
+public sealed record RuntimeProfileDescriptor
+{
+    [JsonPropertyName("profile_id")]
+    public required string ProfileId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required Accelerator Accelerator { get; init; }
+
+    [JsonPropertyName("components")]
+    public required IReadOnlyList<RuntimeComponentDescriptor> Components { get; init; }
 }
 
 public sealed record RuntimeState

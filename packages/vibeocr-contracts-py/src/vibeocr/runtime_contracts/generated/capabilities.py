@@ -6,6 +6,8 @@ PDF_EDIT_V2 = "pdf.edit.v2"
 QRCODE_V2 = "qrcode.v2"
 EXPORT_DOCUMENT_V1 = "export.document.v1"
 RUNTIME_SETTINGS_V2 = "runtime.settings.v2"
+RUNTIME_MAINTENANCE_V1 = "runtime.maintenance.v1"
+TASK_PROGRESS_V1 = "task.progress.v1"
 
 ALL_CAPABILITIES: tuple[str, ...] = (
     'ocr.recognition.v2',
@@ -13,6 +15,8 @@ ALL_CAPABILITIES: tuple[str, ...] = (
     'qrcode.v2',
     'export.document.v1',
     'runtime.settings.v2',
+    'runtime.maintenance.v1',
+    'task.progress.v1',
 )
 READY_ENVELOPE_VERSION = 1
 PROTOCOL_VERSION = 2

@@ -38,6 +38,52 @@ public sealed class ProgressPhaseJsonConverter : JsonStringEnumConverter<Progres
     }
 }
 
+[JsonConverter(typeof(RuntimeComponentStateJsonConverter))]
+public enum RuntimeComponentState
+{
+    [JsonStringEnumMemberName("not_required")]
+    NotRequired,
+    [JsonStringEnumMemberName("pending")]
+    Pending,
+    [JsonStringEnumMemberName("installing")]
+    Installing,
+    [JsonStringEnumMemberName("verifying")]
+    Verifying,
+    [JsonStringEnumMemberName("ready")]
+    Ready,
+    [JsonStringEnumMemberName("failed")]
+    Failed,
+    [JsonStringEnumMemberName("cancelled")]
+    Cancelled
+}
+
+public sealed class RuntimeComponentStateJsonConverter : JsonStringEnumConverter<RuntimeComponentState>
+{
+    public RuntimeComponentStateJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RuntimeServiceStateJsonConverter))]
+public enum RuntimeServiceState
+{
+    [JsonStringEnumMemberName("ready")]
+    Ready,
+    [JsonStringEnumMemberName("degraded")]
+    Degraded,
+    [JsonStringEnumMemberName("maintenance")]
+    Maintenance
+}
+
+public sealed class RuntimeServiceStateJsonConverter : JsonStringEnumConverter<RuntimeServiceState>
+{
+    public RuntimeServiceStateJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 public sealed record AddTextLayerRequest
 {
     [JsonPropertyName("page")]
@@ -354,6 +400,9 @@ public sealed record JobSnapshot
 
     [JsonPropertyName("progress_total")]
     public int? ProgressTotal { get; init; }
+
+    [JsonPropertyName("progress")]
+    public ProgressSnapshot? Progress { get; init; }
 
     [JsonPropertyName("items")]
     public required IReadOnlyList<JobItem> Items { get; init; }
@@ -716,6 +765,18 @@ public sealed record ProgressEvent
     public JsonElement? PagePayload { get; init; }
 }
 
+public sealed record ProgressSnapshot
+{
+    [JsonPropertyName("unit")]
+    public required string Unit { get; init; }
+
+    [JsonPropertyName("current")]
+    public required int Current { get; init; }
+
+    [JsonPropertyName("total")]
+    public int? Total { get; init; }
+}
+
 public sealed record QrCodeValue
 {
     [JsonPropertyName("data")]
@@ -869,16 +930,97 @@ public sealed record RotateRequest
     public required int Angle { get; init; }
 }
 
+public sealed record RuntimeComponentStatus
+{
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
+
+    [JsonPropertyName("display_name")]
+    public required string DisplayName { get; init; }
+
+    [JsonPropertyName("state")]
+    public required RuntimeComponentState State { get; init; }
+
+    [JsonPropertyName("version")]
+    public string? Version { get; init; }
+}
+
+public sealed record RuntimeMaintenanceStatus
+{
+    [JsonPropertyName("operation_id")]
+    public required string OperationId { get; init; }
+
+    [JsonPropertyName("sequence")]
+    public required int Sequence { get; init; }
+
+    [JsonPropertyName("operation")]
+    public required string Operation { get; init; }
+
+    [JsonPropertyName("operation_state")]
+    public required string OperationState { get; init; }
+
+    [JsonPropertyName("phase")]
+    public required string Phase { get; init; }
+
+    [JsonPropertyName("profile_id")]
+    public required string ProfileId { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public string? ComponentId { get; init; }
+
+    [JsonPropertyName("updated_at")]
+    public required string UpdatedAt { get; init; }
+
+    [JsonPropertyName("progress")]
+    public ProgressSnapshot? Progress { get; init; }
+
+    [JsonPropertyName("message_code")]
+    public string? MessageCode { get; init; }
+}
+
 public sealed record RuntimePreloadRequest
 {
     [JsonPropertyName("pipelines")]
     public required IReadOnlyList<string> Pipelines { get; init; }
 }
 
+public sealed record RuntimeProfileStatus
+{
+    [JsonPropertyName("profile_id")]
+    public required string ProfileId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required string Accelerator { get; init; }
+
+    [JsonPropertyName("components")]
+    public required IReadOnlyList<RuntimeComponentStatus> Components { get; init; }
+}
+
 public sealed record RuntimeReleaseRequest
 {
     [JsonPropertyName("pipeline")]
     public string? Pipeline { get; init; }
+}
+
+public sealed record RuntimeStatusSnapshot
+{
+    [JsonPropertyName("schema_version")]
+    public required int SchemaVersion { get; init; }
+
+    [JsonPropertyName("instance_id")]
+    public required string InstanceId { get; init; }
+
+    [JsonPropertyName("service_state")]
+    public required RuntimeServiceState ServiceState { get; init; }
+
+    [JsonPropertyName("backend_version")]
+    public required string BackendVersion { get; init; }
+
+    [JsonPropertyName("profile")]
+    public required RuntimeProfileStatus Profile { get; init; }
+
+    [JsonPropertyName("maintenance")]
+    public required RuntimeMaintenanceStatus? Maintenance { get; init; }
 }
 
 public sealed record SaveRequest
@@ -939,6 +1081,12 @@ public sealed record StageEvent
 
     [JsonPropertyName("detail")]
     public required IReadOnlyDictionary<string, JsonElement> Detail { get; init; }
+
+    [JsonPropertyName("progress")]
+    public ProgressSnapshot? Progress { get; init; }
+
+    [JsonPropertyName("message_code")]
+    public string? MessageCode { get; init; }
 }
 
 public sealed record SubmitItem

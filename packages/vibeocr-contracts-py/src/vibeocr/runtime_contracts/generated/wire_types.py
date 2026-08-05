@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
+RuntimeComponentState = Literal['not_required', 'pending', 'installing', 'verifying', 'ready', 'failed', 'cancelled']
+RuntimeServiceState = Literal['ready', 'degraded', 'maintenance']
 
 
 class AddTextLayerRequest(TypedDict, total=False):
@@ -148,6 +150,7 @@ class JobSnapshot(TypedDict, total=False):
     stage: NotRequired[str | None]
     progress_current: NotRequired[int]
     progress_total: NotRequired[int]
+    progress: NotRequired[ProgressSnapshot]
     items: Required[list[JobItem]]
     summary: Required[JobSummary]
     cancel_requested_at: NotRequired[str | None]
@@ -316,6 +319,12 @@ class ProgressEvent(TypedDict, total=False):
     page_payload: NotRequired[Any | None]
 
 
+class ProgressSnapshot(TypedDict, total=False):
+    unit: Required[Literal['steps', 'items', 'bytes']]
+    current: Required[int]
+    total: NotRequired[int]
+
+
 class QrCodeValue(TypedDict, total=False):
     data: Required[str]
     type: Required[str]
@@ -391,12 +400,47 @@ class RotateRequest(TypedDict, total=False):
     angle: Required[int]
 
 
+class RuntimeComponentStatus(TypedDict, total=False):
+    component_id: Required[str]
+    display_name: Required[str]
+    state: Required[RuntimeComponentState]
+    version: NotRequired[str | None]
+
+
+class RuntimeMaintenanceStatus(TypedDict, total=False):
+    operation_id: Required[str]
+    sequence: Required[int]
+    operation: Required[Literal['inspect', 'ensure', 'repair']]
+    operation_state: Required[Literal['queued', 'running', 'succeeded', 'failed', 'cancelled']]
+    phase: Required[Literal['validate_binding', 'wait_for_lock', 'prepare_runtime', 'install_profile', 'install_backend', 'verify_runtime', 'commit_runtime']]
+    profile_id: Required[str]
+    component_id: NotRequired[str | None]
+    updated_at: Required[str]
+    progress: NotRequired[ProgressSnapshot | None]
+    message_code: NotRequired[str | None]
+
+
 class RuntimePreloadRequest(TypedDict, total=False):
     pipelines: Required[list[str]]
 
 
+class RuntimeProfileStatus(TypedDict, total=False):
+    profile_id: Required[str]
+    accelerator: Required[Literal['cpu', 'nvidia_cuda']]
+    components: Required[list[RuntimeComponentStatus]]
+
+
 class RuntimeReleaseRequest(TypedDict, total=False):
     pipeline: NotRequired[str | None]
+
+
+class RuntimeStatusSnapshot(TypedDict, total=False):
+    schema_version: Required[Literal[2]]
+    instance_id: Required[str]
+    service_state: Required[RuntimeServiceState]
+    backend_version: Required[str]
+    profile: Required[RuntimeProfileStatus]
+    maintenance: Required[RuntimeMaintenanceStatus | None]
 
 
 class SaveRequest(TypedDict, total=False):
@@ -427,6 +471,8 @@ class StageEvent(TypedDict, total=False):
     item_id: Required[str | None]
     timestamp: Required[str]
     detail: Required[dict[str, Any]]
+    progress: NotRequired[ProgressSnapshot]
+    message_code: NotRequired[str | None]
 
 
 class SubmitItem(TypedDict, total=False):
