@@ -22,6 +22,8 @@ class ErrorCategories(StrEnum):
     AUTH = "auth"
     NOT_FOUND = "not_found"
     CONFLICT = "conflict"
+    CAPABILITY = "capability"
+    IDENTITY = "identity"
     CANCELLED = "cancelled"
     OOM = "oom"
     TRANSIENT = "transient"
@@ -48,11 +50,12 @@ class ErrorPayload:
     message: str
     category: ErrorCategories
     retryable: bool
+    retry_after: int | None = None
     detail: dict[str, Any] | None = None
     job_id: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "schema_version": self.schema_version,
             "instance_id": self.instance_id,
             "code": self.code.value,
@@ -62,6 +65,9 @@ class ErrorPayload:
             "detail": self.detail or {},
             "job_id": self.job_id,
         }
+        if self.retry_after is not None:
+            payload["retry_after"] = self.retry_after
+        return payload
 
 
 def load_error_registry() -> dict[ErrorCode, ErrorEntry]:

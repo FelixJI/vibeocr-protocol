@@ -215,6 +215,141 @@
         }
       }
     },
+    "/v2/runtime/maintenance": {
+      "post": {
+        "operationId": "startRuntimeMaintenance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeMaintenanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent Runtime maintenance receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeMaintenanceReceipt"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "426": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v2/runtime/maintenance/command": {
+      "post": {
+        "operationId": "commandRuntimeMaintenance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeMaintenanceCommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent Runtime maintenance command receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeMaintenanceReceipt"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v2/runtime/operations/{operation_id}/observe": {
+      "get": {
+        "operationId": "observeRuntimeMaintenance",
+        "parameters": [
+          { "$ref": "#/components/parameters/OperationId" },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "default": 0 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 512,
+              "default": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current snapshot and durable events after the cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeMaintenanceUpdate"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "410": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v2/runtime/operations/{operation_id}/events": {
+      "get": {
+        "operationId": "streamRuntimeMaintenanceEvents",
+        "parameters": [
+          { "$ref": "#/components/parameters/OperationId" },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "default": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replay followed by live Runtime maintenance events",
+            "content": {
+              "text/event-stream": { "schema": { "type": "string" } },
+              "application/x-ndjson": { "schema": { "type": "string" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "410": { "$ref": "#/components/responses/Error" },
+          "426": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/v2/runtime/residency": {
       "get": {
         "operationId": "getRuntimeResidency",
@@ -1358,6 +1493,15 @@
         "schema": {
           "type": "string"
         }
+      },
+      "OperationId": {
+        "name": "operation_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "requestBodies": {},
@@ -1406,6 +1550,54 @@
       }
     },
     "schemas": {
+      "CapabilityDescriptor": {
+        "type": "object",
+        "required": [
+          "name",
+          "lifecycle",
+          "introduced_in",
+          "deprecated_in",
+          "sunset_at",
+          "replacement"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "active",
+              "deprecated"
+            ]
+          },
+          "introduced_in": {
+            "type": "string",
+            "minLength": 1
+          },
+          "deprecated_in": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sunset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "replacement": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "AddTextLayerRequest": {
         "properties": {
           "page": {
@@ -1629,7 +1821,7 @@
           },
           "code": {
             "type": "string",
-            "enum": [
+            "x-vibeocr-known-values": [
               "VALIDATION_ERROR",
               "QUOTA_EXCEEDED",
               "UNAUTHORIZED",
@@ -1647,7 +1839,18 @@
               "BACKEND_UNAVAILABLE",
               "ADAPTER_PROTOCOL_VIOLATION",
               "PROTOCOL_MISMATCH",
-              "INTERNAL_ERROR"
+              "INTERNAL_ERROR",
+              "RUNTIME_OPERATION_NOT_FOUND",
+              "RUNTIME_OPERATION_ID_CONFLICT",
+              "RUNTIME_COMMAND_ID_CONFLICT",
+              "RUNTIME_OPERATION_NOT_CANCELLABLE",
+              "RUNTIME_OPERATION_NOT_RETRYABLE",
+              "RUNTIME_CURSOR_EXPIRED",
+              "RUNTIME_CAPABILITY_UNAVAILABLE",
+              "RUNTIME_IDENTITY_MISMATCH",
+              "RUNTIME_BUSY",
+              "RUNTIME_INSTALL_FAILED",
+              "RUNTIME_IO_ERROR"
             ]
           },
           "message": {
@@ -1655,11 +1858,13 @@
           },
           "category": {
             "type": "string",
-            "enum": [
+            "x-vibeocr-known-values": [
               "validation",
               "auth",
               "not_found",
               "conflict",
+              "capability",
+              "identity",
               "cancelled",
               "oom",
               "transient",
@@ -1669,6 +1874,13 @@
           },
           "retryable": {
             "type": "boolean"
+          },
+          "retry_after": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
           },
           "detail": {
             "type": "object",
@@ -1778,13 +1990,27 @@
             "type": "array",
             "uniqueItems": true,
             "items": {
-              "enum": [
+              "type": "string",
+              "x-vibeocr-known-values": [
                 "ocr.recognition.v2",
                 "pdf.edit.v2",
                 "qrcode.v2",
                 "export.document.v1",
-                "runtime.settings.v2"
+                "runtime.settings.v2",
+                "runtime.maintenance.v1",
+                "task.progress.v1",
+                "runtime.maintenance.v2",
+                "runtime.component-repair.v1",
+                "runtime.capability-metadata.v1",
+                "runtime.events.sse.v1",
+                "runtime.events.ndjson.v1"
               ]
+            }
+          },
+          "capability_descriptors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CapabilityDescriptor"
             }
           }
         },
@@ -3209,8 +3435,38 @@
           "total": {
             "type": "integer",
             "minimum": 0
+          },
+          "estimated_remaining_seconds": {
+            "type": "number",
+            "minimum": 0
           }
         },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "estimated_remaining_seconds"
+              ]
+            },
+            "then": {
+              "required": [
+                "total"
+              ],
+              "properties": {
+                "unit": {
+                  "enum": [
+                    "items",
+                    "bytes"
+                  ]
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        ],
         "additionalProperties": false
       },
       "ResidencyStatus": {
@@ -3320,6 +3576,267 @@
         "type": "object",
         "additionalProperties": false
       },
+      "RuntimeMaintenanceRequest": {
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "inspect",
+              "ensure",
+              "repair"
+            ]
+          },
+          "profile_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "component_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required_capabilities": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeMaintenanceCommandRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "command",
+          "target_operation_id"
+        ],
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "command": {
+            "type": "string",
+            "enum": [
+              "cancel",
+              "retry"
+            ]
+          },
+          "target_operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "new_operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_sequence": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "command": {
+                  "const": "retry"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            },
+            "then": {
+              "required": [
+                "new_operation_id"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "RuntimeMaintenanceReceipt": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "operation_id",
+          "snapshot",
+          "negotiated_capabilities"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 2
+          },
+          "operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/RuntimeMaintenanceStatus"
+          },
+          "negotiated_capabilities": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeMaintenanceEvent": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "event_type",
+          "sequence",
+          "operation",
+          "snapshot",
+          "message_code"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 2
+          },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "snapshot",
+              "progress",
+              "heartbeat"
+            ]
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "inspect",
+              "ensure",
+              "repair"
+            ]
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/RuntimeMaintenanceStatus"
+          },
+          "message_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message_args": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "fallback_message": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeMaintenanceUpdate": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "operation_id",
+          "snapshot",
+          "events",
+          "oldest_sequence",
+          "through_sequence",
+          "more",
+          "replay_expires_at"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 2
+          },
+          "operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/RuntimeMaintenanceStatus"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeMaintenanceEvent"
+            }
+          },
+          "oldest_sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "through_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "replay_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeSourceIdentity": {
+        "type": "object",
+        "required": [
+          "backend_version",
+          "backend_source_sha",
+          "runtime_manifest_sha256",
+          "protocol_version",
+          "protocol_manifest_sha256"
+        ],
+        "properties": {
+          "backend_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "backend_source_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "runtime_manifest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "protocol_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "protocol_manifest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
       "RuntimeComponentState": {
         "type": "string",
         "enum": [
@@ -3356,6 +3873,48 @@
               "string",
               "null"
             ]
+          },
+          "desired_state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_required"
+            ]
+          },
+          "desired_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actual_state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "missing",
+              "drifted",
+              "unknown"
+            ]
+          },
+          "actual_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "drift_reason": {
+            "type": "string",
+            "enum": [
+              "none",
+              "missing",
+              "version_mismatch",
+              "identity_mismatch",
+              "integrity_failed",
+              "unexpected"
+            ]
+          },
+          "repairable": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -3374,6 +3933,13 @@
         "properties": {
           "operation_id": {
             "type": "string",
+            "minLength": 1
+          },
+          "source_operation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
             "minLength": 1
           },
           "sequence": {
@@ -3439,6 +4005,25 @@
               "string",
               "null"
             ]
+          },
+          "requested_component_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "effective_component_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "source": {
+            "$ref": "#/components/schemas/RuntimeSourceIdentity"
           }
         },
         "additionalProperties": false
@@ -3503,6 +4088,9 @@
           "backend_version": {
             "type": "string",
             "minLength": 1
+          },
+          "source": {
+            "$ref": "#/components/schemas/RuntimeSourceIdentity"
           },
           "profile": {
             "$ref": "#/components/schemas/RuntimeProfileStatus"

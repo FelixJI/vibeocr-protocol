@@ -12,6 +12,11 @@ public static class RuntimeProtocol
     public const string RUNTIME_SETTINGS_V2 = "runtime.settings.v2";
     public const string RUNTIME_MAINTENANCE_V1 = "runtime.maintenance.v1";
     public const string TASK_PROGRESS_V1 = "task.progress.v1";
+    public const string RUNTIME_MAINTENANCE_V2 = "runtime.maintenance.v2";
+    public const string RUNTIME_COMPONENT_REPAIR_V1 = "runtime.component-repair.v1";
+    public const string RUNTIME_CAPABILITY_METADATA_V1 = "runtime.capability-metadata.v1";
+    public const string RUNTIME_EVENTS_SSE_V1 = "runtime.events.sse.v1";
+    public const string RUNTIME_EVENTS_NDJSON_V1 = "runtime.events.ndjson.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -24,7 +29,12 @@ public static class RuntimeProtocol
         "export.document.v1",
         "runtime.settings.v2",
         "runtime.maintenance.v1",
-        "task.progress.v1"
+        "task.progress.v1",
+        "runtime.maintenance.v2",
+        "runtime.component-repair.v1",
+        "runtime.capability-metadata.v1",
+        "runtime.events.sse.v1",
+        "runtime.events.ndjson.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
@@ -32,6 +42,8 @@ public static class RuntimeProtocol
         new("GET", "/v2/health", "getRuntimeHealth"),
         new("GET", "/v2/jobs/{job_id}/observe", "observeJob"),
         new("GET", "/v2/pdf/sessions/{session_id}/render", "renderPdfPage"),
+        new("GET", "/v2/runtime/operations/{operation_id}/events", "streamRuntimeMaintenanceEvents"),
+        new("GET", "/v2/runtime/operations/{operation_id}/observe", "observeRuntimeMaintenance"),
         new("GET", "/v2/runtime/residency", "getRuntimeResidency"),
         new("GET", "/v2/runtime/status", "getRuntimeStatus"),
         new("GET", "/v2/settings", "getSettings"),
@@ -62,6 +74,8 @@ public static class RuntimeProtocol
         new("POST", "/v2/pdf/sessions/{session_id}/update_block_text", "updatePdfBlockText"),
         new("POST", "/v2/qrcode/decode", "decodeQrCode"),
         new("POST", "/v2/qrcode/generate", "generateQrCode"),
+        new("POST", "/v2/runtime/maintenance", "startRuntimeMaintenance"),
+        new("POST", "/v2/runtime/maintenance/command", "commandRuntimeMaintenance"),
         new("POST", "/v2/runtime/preload", "preloadRuntime"),
         new("POST", "/v2/runtime/release", "releaseRuntime"),
         new("PUT", "/v2/settings", "putSettings")
@@ -75,6 +89,8 @@ public static class RuntimeOperationPaths
     public const string GetRuntimeHealth = "/v2/health";
     public const string ObserveJob = "/v2/jobs/{job_id}/observe";
     public const string RenderPdfPage = "/v2/pdf/sessions/{session_id}/render";
+    public const string StreamRuntimeMaintenanceEvents = "/v2/runtime/operations/{operation_id}/events";
+    public const string ObserveRuntimeMaintenance = "/v2/runtime/operations/{operation_id}/observe";
     public const string GetRuntimeResidency = "/v2/runtime/residency";
     public const string GetRuntimeStatus = "/v2/runtime/status";
     public const string GetSettings = "/v2/settings";
@@ -105,6 +121,8 @@ public static class RuntimeOperationPaths
     public const string UpdatePdfBlockText = "/v2/pdf/sessions/{session_id}/update_block_text";
     public const string DecodeQrCode = "/v2/qrcode/decode";
     public const string GenerateQrCode = "/v2/qrcode/generate";
+    public const string StartRuntimeMaintenance = "/v2/runtime/maintenance";
+    public const string CommandRuntimeMaintenance = "/v2/runtime/maintenance/command";
     public const string PreloadRuntime = "/v2/runtime/preload";
     public const string ReleaseRuntime = "/v2/runtime/release";
     public const string PutSettings = "/v2/settings";
@@ -129,7 +147,18 @@ public enum RuntimeErrorCode
     BACKEND_UNAVAILABLE,
     ADAPTER_PROTOCOL_VIOLATION,
     PROTOCOL_MISMATCH,
-    INTERNAL_ERROR
+    INTERNAL_ERROR,
+    RUNTIME_OPERATION_NOT_FOUND,
+    RUNTIME_OPERATION_ID_CONFLICT,
+    RUNTIME_COMMAND_ID_CONFLICT,
+    RUNTIME_OPERATION_NOT_CANCELLABLE,
+    RUNTIME_OPERATION_NOT_RETRYABLE,
+    RUNTIME_CURSOR_EXPIRED,
+    RUNTIME_CAPABILITY_UNAVAILABLE,
+    RUNTIME_IDENTITY_MISMATCH,
+    RUNTIME_BUSY,
+    RUNTIME_INSTALL_FAILED,
+    RUNTIME_IO_ERROR
 }
 
 public sealed record RuntimeReadyEnvelope(

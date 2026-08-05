@@ -166,15 +166,17 @@ public enum RuntimeAccelerator
 [JsonConverter(typeof(JsonStringEnumConverter<ErrorCategory>))]
 public enum ErrorCategory
 {
-    [JsonStringEnumMemberName("validation")] Validation,
-    [JsonStringEnumMemberName("auth")] Auth,
-    [JsonStringEnumMemberName("not_found")] NotFound,
-    [JsonStringEnumMemberName("conflict")] Conflict,
-    [JsonStringEnumMemberName("cancelled")] Cancelled,
-    [JsonStringEnumMemberName("oom")] Oom,
-    [JsonStringEnumMemberName("transient")] Transient,
-    [JsonStringEnumMemberName("backend_unavailable")] BackendUnavailable,
-    [JsonStringEnumMemberName("internal")] Internal,
+    [JsonStringEnumMemberName("validation")] Validation = 0,
+    [JsonStringEnumMemberName("auth")] Auth = 1,
+    [JsonStringEnumMemberName("not_found")] NotFound = 2,
+    [JsonStringEnumMemberName("conflict")] Conflict = 3,
+    [JsonStringEnumMemberName("cancelled")] Cancelled = 4,
+    [JsonStringEnumMemberName("oom")] Oom = 5,
+    [JsonStringEnumMemberName("transient")] Transient = 6,
+    [JsonStringEnumMemberName("backend_unavailable")] BackendUnavailable = 7,
+    [JsonStringEnumMemberName("internal")] Internal = 8,
+    [JsonStringEnumMemberName("capability")] Capability = 9,
+    [JsonStringEnumMemberName("identity")] Identity = 10,
 }
 
 /// <summary>
@@ -203,4 +205,57 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("ADAPTER_PROTOCOL_VIOLATION")] AdapterProtocolViolation,
     [JsonStringEnumMemberName("PROTOCOL_MISMATCH")] ProtocolMismatch,
     [JsonStringEnumMemberName("INTERNAL_ERROR")] InternalError,
+    [JsonStringEnumMemberName("RUNTIME_OPERATION_NOT_FOUND")] RuntimeOperationNotFound,
+    [JsonStringEnumMemberName("RUNTIME_OPERATION_ID_CONFLICT")] RuntimeOperationIdConflict,
+    [JsonStringEnumMemberName("RUNTIME_COMMAND_ID_CONFLICT")] RuntimeCommandIdConflict,
+    [JsonStringEnumMemberName("RUNTIME_OPERATION_NOT_CANCELLABLE")] RuntimeOperationNotCancellable,
+    [JsonStringEnumMemberName("RUNTIME_OPERATION_NOT_RETRYABLE")] RuntimeOperationNotRetryable,
+    [JsonStringEnumMemberName("RUNTIME_CURSOR_EXPIRED")] RuntimeCursorExpired,
+    [JsonStringEnumMemberName("RUNTIME_CAPABILITY_UNAVAILABLE")] RuntimeCapabilityUnavailable,
+    [JsonStringEnumMemberName("RUNTIME_IDENTITY_MISMATCH")] RuntimeIdentityMismatch,
+    [JsonStringEnumMemberName("RUNTIME_BUSY")] RuntimeBusy,
+    [JsonStringEnumMemberName("RUNTIME_INSTALL_FAILED")] RuntimeInstallFailed,
+    [JsonStringEnumMemberName("RUNTIME_IO_ERROR")] RuntimeIoError,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceCommandKind>))]
+public enum RuntimeMaintenanceCommandKind
+{
+    [JsonStringEnumMemberName("cancel")] Cancel,
+    [JsonStringEnumMemberName("retry")] Retry,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceEventType>))]
+public enum RuntimeMaintenanceEventType
+{
+    [JsonStringEnumMemberName("snapshot")] Snapshot,
+    [JsonStringEnumMemberName("progress")] Progress,
+    [JsonStringEnumMemberName("heartbeat")] Heartbeat,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeComponentDesiredState>))]
+public enum RuntimeComponentDesiredState
+{
+    [JsonStringEnumMemberName("ready")] Ready,
+    [JsonStringEnumMemberName("not_required")] NotRequired,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeComponentActualState>))]
+public enum RuntimeComponentActualState
+{
+    [JsonStringEnumMemberName("ready")] Ready,
+    [JsonStringEnumMemberName("missing")] Missing,
+    [JsonStringEnumMemberName("drifted")] Drifted,
+    [JsonStringEnumMemberName("unknown")] Unknown,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeDriftReason>))]
+public enum RuntimeDriftReason
+{
+    [JsonStringEnumMemberName("none")] None,
+    [JsonStringEnumMemberName("missing")] Missing,
+    [JsonStringEnumMemberName("version_mismatch")] VersionMismatch,
+    [JsonStringEnumMemberName("identity_mismatch")] IdentityMismatch,
+    [JsonStringEnumMemberName("integrity_failed")] IntegrityFailed,
+    [JsonStringEnumMemberName("unexpected")] Unexpected,
 }

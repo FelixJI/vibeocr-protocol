@@ -5,7 +5,10 @@
   "description": "Authoritative request and response envelopes for the one-shot Runtime Host JSON CLI.",
   "oneOf": [
     { "$ref": "#/$defs/RuntimeHostRequest" },
+    { "$ref": "#/$defs/RuntimeMaintenanceCommandRequest" },
+    { "$ref": "#/$defs/RuntimeMaintenanceObserveRequest" },
     { "$ref": "#/$defs/RuntimeMaintenanceEvent" },
+    { "$ref": "#/$defs/RuntimeMaintenanceUpdate" },
     { "$ref": "#/$defs/RuntimeHostSuccess" },
     { "$ref": "#/$defs/RuntimeHostFailure" }
   ],
@@ -14,9 +17,32 @@
       "type": "string",
       "enum": ["cpu", "nvidia_cuda"]
     },
+    "CapabilityDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "lifecycle",
+        "introduced_in",
+        "deprecated_in",
+        "sunset_at",
+        "replacement"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["active", "deprecated"]
+        },
+        "introduced_in": { "type": "string", "minLength": 1 },
+        "deprecated_in": { "type": ["string", "null"] },
+        "sunset_at": { "type": ["string", "null"], "format": "date-time" },
+        "replacement": { "type": ["string", "null"] }
+      }
+    },
     "RuntimeHostEventStream": {
       "type": "string",
-      "enum": ["ndjson.v1"]
+      "enum": ["ndjson.v1", "ndjson.v2"]
     },
     "RuntimeHostOperation": {
       "type": "string",
@@ -63,12 +89,97 @@
           "minLength": 1,
           "default": null
         },
+        "operation_id": { "type": "string", "minLength": 1 },
+        "component_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "required_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
         "accepted_event_streams": {
           "type": "array",
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/RuntimeHostEventStream" },
           "default": []
         }
+      }
+    },
+    "RuntimeMaintenanceCommandKind": {
+      "type": "string",
+      "enum": ["cancel", "retry"]
+    },
+    "RuntimeMaintenanceCommandRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "request_kind",
+        "command",
+        "command_id",
+        "target_operation_id",
+        "product_root",
+        "component_lock",
+        "runtime_manifest"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "request_kind": { "const": "command" },
+        "command": { "$ref": "#/$defs/RuntimeMaintenanceCommandKind" },
+        "command_id": { "type": "string", "minLength": 1 },
+        "target_operation_id": { "type": "string", "minLength": 1 },
+        "new_operation_id": { "type": "string", "minLength": 1 },
+        "expected_sequence": { "type": "integer", "minimum": 0 },
+        "product_root": { "type": "string", "minLength": 1 },
+        "component_lock": { "type": "string", "minLength": 1 },
+        "runtime_manifest": { "type": "string", "minLength": 1 },
+        "accelerator": { "$ref": "#/$defs/Accelerator" },
+        "layout_manifest": { "type": "string", "minLength": 1 },
+        "product_id": { "type": "string", "minLength": 1 },
+        "accepted_event_streams": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RuntimeHostEventStream" },
+          "default": []
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "command": { "const": "retry" } },
+            "required": ["command"]
+          },
+          "then": { "required": ["new_operation_id"] }
+        }
+      ]
+    },
+    "RuntimeMaintenanceObserveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "request_kind",
+        "operation_id",
+        "after_sequence",
+        "product_root",
+        "component_lock",
+        "runtime_manifest"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "request_kind": { "const": "observe" },
+        "operation_id": { "type": "string", "minLength": 1 },
+        "after_sequence": { "type": "integer", "minimum": 0 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 512 },
+        "product_root": { "type": "string", "minLength": 1 },
+        "component_lock": { "type": "string", "minLength": 1 },
+        "runtime_manifest": { "type": "string", "minLength": 1 },
+        "accelerator": { "$ref": "#/$defs/Accelerator" },
+        "layout_manifest": { "type": "string", "minLength": 1 },
+        "product_id": { "type": "string", "minLength": 1 }
       }
     },
     "ProgressUnit": {
@@ -82,8 +193,21 @@
       "properties": {
         "unit": { "$ref": "#/$defs/ProgressUnit" },
         "current": { "type": "integer", "minimum": 0 },
-        "total": { "type": "integer", "minimum": 0 }
-      }
+        "total": { "type": "integer", "minimum": 0 },
+        "estimated_remaining_seconds": { "type": "number", "minimum": 0 }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["estimated_remaining_seconds"] },
+          "then": {
+            "required": ["total"],
+            "properties": {
+              "unit": { "enum": ["items", "bytes"] },
+              "total": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      ]
     },
     "RuntimeOperationState": {
       "type": "string",
@@ -108,7 +232,35 @@
       "properties": {
         "component_id": { "type": "string", "minLength": 1 },
         "display_name": { "type": "string", "minLength": 1 },
-        "version": { "type": "string", "minLength": 1 }
+        "version": { "type": "string", "minLength": 1 },
+        "state": {
+          "enum": [
+            "not_required",
+            "pending",
+            "installing",
+            "verifying",
+            "ready",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "desired_state": { "enum": ["ready", "not_required"] },
+        "desired_version": { "type": ["string", "null"] },
+        "actual_state": {
+          "enum": ["ready", "missing", "drifted", "unknown"]
+        },
+        "actual_version": { "type": ["string", "null"] },
+        "drift_reason": {
+          "enum": [
+            "none",
+            "missing",
+            "version_mismatch",
+            "identity_mismatch",
+            "integrity_failed",
+            "unexpected"
+          ]
+        },
+        "repairable": { "type": "boolean" }
       }
     },
     "RuntimeProfileDescriptor": {
@@ -121,6 +273,33 @@
         "components": {
           "type": "array",
           "items": { "$ref": "#/$defs/RuntimeComponentDescriptor" }
+        }
+      }
+    },
+    "RuntimeSourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend_version",
+        "backend_source_sha",
+        "runtime_manifest_sha256",
+        "protocol_version",
+        "protocol_manifest_sha256"
+      ],
+      "properties": {
+        "backend_version": { "type": "string", "minLength": 1 },
+        "backend_source_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "runtime_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "protocol_version": { "type": "string", "minLength": 1 },
+        "protocol_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     },
@@ -138,12 +317,27 @@
       ],
       "properties": {
         "operation_id": { "type": "string", "minLength": 1 },
+        "source_operation_id": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
         "sequence": { "type": "integer", "minimum": 0 },
         "operation": { "$ref": "#/$defs/RuntimeHostOperation" },
         "operation_state": { "$ref": "#/$defs/RuntimeOperationState" },
         "phase": { "$ref": "#/$defs/RuntimeMaintenancePhase" },
         "profile_id": { "type": "string", "minLength": 1 },
         "component_id": { "type": ["string", "null"], "minLength": 1 },
+        "requested_component_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "effective_component_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source": { "$ref": "#/$defs/RuntimeSourceIdentity" },
         "updated_at": { "type": "string", "format": "date-time" },
         "progress": {
           "anyOf": [
@@ -169,9 +363,11 @@
         "message_code"
       ],
       "properties": {
+        "schema_version": { "const": 2 },
         "protocol_version": { "const": 2 },
         "event_version": { "const": 1 },
         "event_type": { "$ref": "#/$defs/RuntimeMaintenanceEventType" },
+        "sequence": { "type": "integer", "minimum": 1 },
         "operation": { "$ref": "#/$defs/RuntimeHostOperation" },
         "snapshot": { "$ref": "#/$defs/RuntimeMaintenanceSnapshot" },
         "message_code": { "type": "string", "minLength": 1 },
@@ -180,6 +376,39 @@
           "additionalProperties": { "type": "string" }
         },
         "fallback_message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "RuntimeMaintenanceUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "ok",
+        "request_kind",
+        "operation_id",
+        "snapshot",
+        "events",
+        "oldest_sequence",
+        "through_sequence",
+        "more"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "ok": { "const": true },
+        "request_kind": { "const": "observe" },
+        "operation_id": { "type": "string", "minLength": 1 },
+        "snapshot": { "$ref": "#/$defs/RuntimeMaintenanceSnapshot" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RuntimeMaintenanceEvent" }
+        },
+        "oldest_sequence": { "type": "integer", "minimum": 1 },
+        "through_sequence": { "type": "integer", "minimum": 0 },
+        "more": { "type": "boolean" },
+        "replay_expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
       }
     },
     "RuntimeState": {
@@ -202,7 +431,8 @@
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         },
-        "backend_version": { "type": "string", "minLength": 1 }
+        "backend_version": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/RuntimeSourceIdentity" }
       }
     },
     "RuntimeLaunch": {
@@ -255,6 +485,15 @@
             { "type": "null" }
           ],
           "default": null
+        },
+        "negotiated_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "capability_descriptors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/CapabilityDescriptor" }
         }
       }
     },
@@ -275,7 +514,27 @@
       "properties": {
         "code": { "$ref": "#/$defs/RuntimeHostErrorCode" },
         "message": { "type": "string", "minLength": 1 },
-        "retryable": { "type": "boolean" }
+        "retryable": { "type": "boolean" },
+        "canonical_code": { "type": "string", "minLength": 1 },
+        "category": {
+          "type": "string",
+          "enum": [
+            "validation",
+            "auth",
+            "not_found",
+            "conflict",
+            "capability",
+            "identity",
+            "cancelled",
+            "oom",
+            "transient",
+            "backend_unavailable",
+            "internal"
+          ]
+        },
+        "retry_after": { "type": "integer", "minimum": 0 },
+        "message_code": { "type": "string", "minLength": 1 },
+        "detail": { "type": "object", "additionalProperties": true }
       }
     },
     "RuntimeHostFailure": {

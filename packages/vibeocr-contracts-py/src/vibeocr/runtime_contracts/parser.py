@@ -17,6 +17,7 @@ shape we actually put on the wire.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from .contracts.pipelines import (
@@ -48,14 +49,22 @@ from .dtos import (
     ResidencyEntry,
     ResidencyKind,
     RuntimeAccelerator,
+    RuntimeComponentActualState,
+    RuntimeComponentDesiredState,
     RuntimeComponentState,
     RuntimeComponentStatus,
+    RuntimeDriftReason,
+    RuntimeMaintenanceEvent,
+    RuntimeMaintenanceEventType,
     RuntimeMaintenanceOperation,
     RuntimeMaintenancePhase,
+    RuntimeMaintenanceReceipt,
     RuntimeMaintenanceStatus,
+    RuntimeMaintenanceUpdate,
     RuntimeOperationState,
     RuntimeProfileStatus,
     RuntimeServiceState,
+    RuntimeSourceIdentity,
     RuntimeStatusSnapshot,
     StageEvent,
     SubmitItem,
@@ -477,14 +486,32 @@ def _parse_progress_snapshot(payload: Any) -> ProgressSnapshot:
     _require_fields(payload, ("unit", "current"), "progress")
     current = payload["current"]
     total = payload.get("total")
+    estimated_remaining_seconds = payload.get("estimated_remaining_seconds")
     if not isinstance(current, int) or current < 0:
         raise ContractError("progress current must be a non-negative integer")
     if total is not None and (not isinstance(total, int) or total < 0):
         raise ContractError("progress total must be a non-negative integer")
+    unit = _require_enum(ProgressUnit, payload["unit"], "progress unit")
+    if estimated_remaining_seconds is not None:
+        if (
+            isinstance(estimated_remaining_seconds, bool)
+            or not isinstance(estimated_remaining_seconds, int | float)
+            or estimated_remaining_seconds < 0
+        ):
+            raise ContractError("progress ETA must be a non-negative number")
+        if unit not in {ProgressUnit.ITEMS, ProgressUnit.BYTES}:
+            raise ContractError("progress ETA requires items or bytes")
+        if total is None or total <= 0:
+            raise ContractError("progress ETA requires a positive real total")
     return ProgressSnapshot(
-        unit=_require_enum(ProgressUnit, payload["unit"], "progress unit"),
+        unit=unit,
         current=current,
         total=total,
+        estimated_remaining_seconds=(
+            float(estimated_remaining_seconds)
+            if estimated_remaining_seconds is not None
+            else None
+        ),
     )
 
 
@@ -649,6 +676,12 @@ def parse_error_payload(payload: dict[str, Any]) -> ErrorPayload:
             f"retryable mismatch for {code.value}: payload={retryable_raw!r} "
             f"registry={registry_entry.retryable!r}"
         )
+    retry_after = payload.get("retry_after")
+    if retry_after is not None:
+        if type(retry_after) is not int or retry_after < 0:
+            raise ContractError("retry_after must be null or a non-negative integer")
+        if not retryable_raw:
+            raise ContractError("retry_after requires a retryable error")
     instance_id = payload["instance_id"]
     if instance_id is not None and not isinstance(instance_id, str):
         raise ContractError("instance_id must be null or a string")
@@ -668,6 +701,7 @@ def parse_error_payload(payload: dict[str, Any]) -> ErrorPayload:
         message=message,
         category=registry_entry.category,
         retryable=retryable_raw,
+        retry_after=retry_after,
         detail=dict(detail),
         job_id=job_id,
     )
@@ -705,6 +739,105 @@ def parse_pipeline_spec(payload: dict[str, Any]) -> PipelineSpec:
         name=payload["name"],
         ttl_seconds=ttl,
         pinned=bool(payload.get("pinned", False)),
+    )
+
+
+def _parse_runtime_source_identity(payload: Any) -> RuntimeSourceIdentity:
+    if not isinstance(payload, dict):
+        raise ContractError("runtime source identity must be a JSON object")
+    fields = (
+        "backend_version",
+        "backend_source_sha",
+        "runtime_manifest_sha256",
+        "protocol_version",
+        "protocol_manifest_sha256",
+    )
+    _require_fields(payload, fields, "runtime source identity")
+    if any(not isinstance(payload[field], str) for field in fields):
+        raise ContractError("runtime source identity fields must be strings")
+    if len(payload["backend_source_sha"]) != 40 or any(
+        char not in "0123456789abcdef" for char in payload["backend_source_sha"]
+    ):
+        raise ContractError("backend_source_sha must be a full lowercase Git SHA")
+    for field in ("runtime_manifest_sha256", "protocol_manifest_sha256"):
+        value = payload[field]
+        if len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
+            raise ContractError(f"{field} must be a lowercase SHA-256 digest")
+    return RuntimeSourceIdentity(**{field: payload[field] for field in fields})
+
+
+def _parse_component_ids(payload: Any, field: str) -> tuple[str, ...]:
+    if payload is None:
+        return ()
+    if (
+        not isinstance(payload, list)
+        or any(not isinstance(item, str) or not item for item in payload)
+        or len(set(payload)) != len(payload)
+    ):
+        raise ContractError(f"{field} must contain unique non-empty strings")
+    return tuple(payload)
+
+
+def _parse_runtime_maintenance_status(payload: Any) -> RuntimeMaintenanceStatus:
+    if not isinstance(payload, dict):
+        raise ContractError("runtime maintenance must be a JSON object")
+    _require_fields(
+        payload,
+        (
+            "operation_id",
+            "sequence",
+            "operation",
+            "operation_state",
+            "phase",
+            "profile_id",
+            "updated_at",
+        ),
+        "runtime maintenance",
+    )
+    sequence = payload["sequence"]
+    if type(sequence) is not int or sequence < 1:
+        raise ContractError("runtime maintenance sequence must be a positive integer")
+    return RuntimeMaintenanceStatus(
+        operation_id=payload["operation_id"],
+        source_operation_id=payload.get("source_operation_id"),
+        sequence=sequence,
+        operation=_require_enum(
+            RuntimeMaintenanceOperation,
+            payload["operation"],
+            "runtime maintenance operation",
+        ),
+        operation_state=_require_enum(
+            RuntimeOperationState,
+            payload["operation_state"],
+            "runtime operation state",
+        ),
+        phase=_require_enum(
+            RuntimeMaintenancePhase,
+            payload["phase"],
+            "runtime maintenance phase",
+        ),
+        profile_id=payload["profile_id"],
+        component_id=payload.get("component_id"),
+        updated_at=payload["updated_at"],
+        progress=(
+            _parse_progress_snapshot(payload["progress"])
+            if payload.get("progress") is not None
+            else None
+        ),
+        message_code=payload.get("message_code"),
+        requested_component_ids=_parse_component_ids(
+            payload.get("requested_component_ids"),
+            "requested_component_ids",
+        ),
+        effective_component_ids=_parse_component_ids(
+            payload.get("effective_component_ids"),
+            "effective_component_ids",
+        ),
+        source=(
+            _parse_runtime_source_identity(payload["source"])
+            if payload.get("source") is not None
+            else None
+        ),
     )
 
 
@@ -756,54 +889,46 @@ def parse_runtime_status(payload: dict[str, Any]) -> RuntimeStatusSnapshot:
                     "runtime component state",
                 ),
                 version=component.get("version"),
+                desired_state=(
+                    _require_enum(
+                        RuntimeComponentDesiredState,
+                        component["desired_state"],
+                        "runtime component desired state",
+                    )
+                    if component.get("desired_state") is not None
+                    else None
+                ),
+                desired_version=component.get("desired_version"),
+                actual_state=(
+                    _require_enum(
+                        RuntimeComponentActualState,
+                        component["actual_state"],
+                        "runtime component actual state",
+                    )
+                    if component.get("actual_state") is not None
+                    else None
+                ),
+                actual_version=component.get("actual_version"),
+                drift_reason=(
+                    _require_enum(
+                        RuntimeDriftReason,
+                        component["drift_reason"],
+                        "runtime component drift reason",
+                    )
+                    if component.get("drift_reason") is not None
+                    else None
+                ),
+                repairable=(
+                    component["repairable"] if "repairable" in component else None
+                ),
             )
         )
+        if "repairable" in component and not isinstance(component["repairable"], bool):
+            raise ContractError("runtime component repairable must be a boolean")
     maintenance_raw = payload["maintenance"]
     maintenance = None
     if maintenance_raw is not None:
-        if not isinstance(maintenance_raw, dict):
-            raise ContractError("runtime maintenance must be null or a JSON object")
-        _require_fields(
-            maintenance_raw,
-            (
-                "operation_id",
-                "sequence",
-                "operation",
-                "operation_state",
-                "phase",
-                "profile_id",
-                "updated_at",
-            ),
-            "runtime maintenance",
-        )
-        maintenance = RuntimeMaintenanceStatus(
-            operation_id=maintenance_raw["operation_id"],
-            sequence=int(maintenance_raw["sequence"]),
-            operation=_require_enum(
-                RuntimeMaintenanceOperation,
-                maintenance_raw["operation"],
-                "runtime maintenance operation",
-            ),
-            operation_state=_require_enum(
-                RuntimeOperationState,
-                maintenance_raw["operation_state"],
-                "runtime operation state",
-            ),
-            phase=_require_enum(
-                RuntimeMaintenancePhase,
-                maintenance_raw["phase"],
-                "runtime maintenance phase",
-            ),
-            profile_id=maintenance_raw["profile_id"],
-            component_id=maintenance_raw.get("component_id"),
-            updated_at=maintenance_raw["updated_at"],
-            progress=(
-                _parse_progress_snapshot(maintenance_raw["progress"])
-                if maintenance_raw.get("progress") is not None
-                else None
-            ),
-            message_code=maintenance_raw.get("message_code"),
-        )
+        maintenance = _parse_runtime_maintenance_status(maintenance_raw)
     return RuntimeStatusSnapshot(
         schema_version=SCHEMA_VERSION,
         instance_id=payload["instance_id"],
@@ -823,6 +948,154 @@ def parse_runtime_status(payload: dict[str, Any]) -> RuntimeStatusSnapshot:
             components=tuple(parsed_components),
         ),
         maintenance=maintenance,
+        source=(
+            _parse_runtime_source_identity(payload["source"])
+            if payload.get("source") is not None
+            else None
+        ),
+    )
+
+
+def parse_runtime_maintenance_receipt(
+    payload: dict[str, Any],
+) -> RuntimeMaintenanceReceipt:
+    if not isinstance(payload, dict):
+        raise ContractError("runtime maintenance receipt must be a JSON object")
+    _require_fields(
+        payload,
+        ("schema_version", "operation_id", "snapshot", "negotiated_capabilities"),
+        "runtime maintenance receipt",
+    )
+    if payload["schema_version"] != SCHEMA_VERSION:
+        raise ContractError("runtime maintenance receipt schema_version mismatch")
+    negotiated = _parse_component_ids(
+        payload["negotiated_capabilities"], "negotiated_capabilities"
+    )
+    snapshot = _parse_runtime_maintenance_status(payload["snapshot"])
+    if snapshot.operation_id != payload["operation_id"]:
+        raise ContractError("runtime maintenance receipt operation_id mismatch")
+    return RuntimeMaintenanceReceipt(
+        operation_id=payload["operation_id"],
+        snapshot=snapshot,
+        negotiated_capabilities=negotiated,
+    )
+
+
+def parse_runtime_maintenance_event(payload: dict[str, Any]) -> RuntimeMaintenanceEvent:
+    if not isinstance(payload, dict):
+        raise ContractError("runtime maintenance event must be a JSON object")
+    _require_fields(
+        payload,
+        (
+            "schema_version",
+            "event_type",
+            "operation",
+            "snapshot",
+            "message_code",
+        ),
+        "runtime maintenance event",
+    )
+    if payload["schema_version"] != SCHEMA_VERSION:
+        raise ContractError("runtime maintenance event schema_version mismatch")
+    snapshot = _parse_runtime_maintenance_status(payload["snapshot"])
+    sequence = payload.get("sequence", snapshot.sequence)
+    if type(sequence) is not int or sequence < 1 or snapshot.sequence != sequence:
+        raise ContractError("runtime maintenance event sequence mismatch")
+    operation = _require_enum(
+        RuntimeMaintenanceOperation, payload["operation"], "runtime operation"
+    )
+    if operation != snapshot.operation:
+        raise ContractError("runtime maintenance event operation mismatch")
+    message_args = payload.get("message_args", {})
+    if not isinstance(message_args, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str)
+        for key, value in message_args.items()
+    ):
+        raise ContractError("runtime maintenance event message_args must be strings")
+    return RuntimeMaintenanceEvent(
+        sequence=sequence,
+        event_type=_require_enum(
+            RuntimeMaintenanceEventType, payload["event_type"], "runtime event type"
+        ),
+        operation=operation,
+        snapshot=snapshot,
+        message_code=payload["message_code"],
+        message_args=dict(message_args),
+        fallback_message=payload.get("fallback_message"),
+    )
+
+
+def parse_runtime_maintenance_update(
+    payload: dict[str, Any],
+) -> RuntimeMaintenanceUpdate:
+    if not isinstance(payload, dict):
+        raise ContractError("runtime maintenance update must be a JSON object")
+    _require_present_fields(
+        payload,
+        (
+            "schema_version",
+            "operation_id",
+            "snapshot",
+            "events",
+            "oldest_sequence",
+            "through_sequence",
+            "more",
+            "replay_expires_at",
+        ),
+        "runtime maintenance update",
+    )
+    if payload["schema_version"] != SCHEMA_VERSION:
+        raise ContractError("runtime maintenance update schema_version mismatch")
+    if not isinstance(payload["events"], list):
+        raise ContractError("runtime maintenance update events must be a list")
+    events = tuple(parse_runtime_maintenance_event(item) for item in payload["events"])
+    sequences = [event.sequence for event in events]
+    if any(right != left + 1 for left, right in zip(sequences, sequences[1:])):
+        raise ContractError("runtime maintenance event sequence gap")
+    through = payload["through_sequence"]
+    if (
+        type(through) is not int
+        or through < 0
+        or (sequences and sequences[-1] != through)
+    ):
+        raise ContractError("runtime maintenance through_sequence mismatch")
+    snapshot = _parse_runtime_maintenance_status(payload["snapshot"])
+    oldest = payload["oldest_sequence"]
+    if type(oldest) is not int or oldest < 1:
+        raise ContractError("runtime maintenance oldest_sequence mismatch")
+    if oldest > snapshot.sequence or (sequences and sequences[0] < oldest):
+        raise ContractError("runtime maintenance oldest_sequence mismatch")
+    if snapshot.sequence < through:
+        raise ContractError("runtime maintenance snapshot precedes cursor")
+    if snapshot.operation_id != payload["operation_id"]:
+        raise ContractError("runtime maintenance update operation_id mismatch")
+    if any(event.snapshot.operation_id != payload["operation_id"] for event in events):
+        raise ContractError("runtime maintenance update event operation_id mismatch")
+    more = payload["more"]
+    if type(more) is not bool:
+        raise ContractError("runtime maintenance update more must be a boolean")
+    replay_expires_at = payload["replay_expires_at"]
+    if replay_expires_at is not None:
+        if not isinstance(replay_expires_at, str):
+            raise ContractError("runtime maintenance replay_expires_at is invalid")
+        try:
+            expires_at = datetime.fromisoformat(
+                replay_expires_at.replace("Z", "+00:00")
+            )
+        except ValueError as exc:
+            raise ContractError(
+                "runtime maintenance replay_expires_at is invalid"
+            ) from exc
+        if expires_at.tzinfo is None:
+            raise ContractError("runtime maintenance replay_expires_at is invalid")
+    return RuntimeMaintenanceUpdate(
+        operation_id=payload["operation_id"],
+        snapshot=snapshot,
+        events=events,
+        oldest_sequence=oldest,
+        through_sequence=through,
+        more=more,
+        replay_expires_at=replay_expires_at,
     )
 
 
@@ -855,6 +1128,9 @@ __all__ = [
     "parse_pipeline_selection",
     "parse_pipeline_spec",
     "parse_residency_entry",
+    "parse_runtime_maintenance_event",
+    "parse_runtime_maintenance_receipt",
+    "parse_runtime_maintenance_update",
     "parse_runtime_status",
     "parse_submit_request",
 ]

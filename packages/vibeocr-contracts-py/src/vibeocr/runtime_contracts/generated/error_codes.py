@@ -24,6 +24,17 @@ class RuntimeErrorCode(StrEnum):
     ADAPTER_PROTOCOL_VIOLATION = "ADAPTER_PROTOCOL_VIOLATION"
     PROTOCOL_MISMATCH = "PROTOCOL_MISMATCH"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    RUNTIME_OPERATION_NOT_FOUND = "RUNTIME_OPERATION_NOT_FOUND"
+    RUNTIME_OPERATION_ID_CONFLICT = "RUNTIME_OPERATION_ID_CONFLICT"
+    RUNTIME_COMMAND_ID_CONFLICT = "RUNTIME_COMMAND_ID_CONFLICT"
+    RUNTIME_OPERATION_NOT_CANCELLABLE = "RUNTIME_OPERATION_NOT_CANCELLABLE"
+    RUNTIME_OPERATION_NOT_RETRYABLE = "RUNTIME_OPERATION_NOT_RETRYABLE"
+    RUNTIME_CURSOR_EXPIRED = "RUNTIME_CURSOR_EXPIRED"
+    RUNTIME_CAPABILITY_UNAVAILABLE = "RUNTIME_CAPABILITY_UNAVAILABLE"
+    RUNTIME_IDENTITY_MISMATCH = "RUNTIME_IDENTITY_MISMATCH"
+    RUNTIME_BUSY = "RUNTIME_BUSY"
+    RUNTIME_INSTALL_FAILED = "RUNTIME_INSTALL_FAILED"
+    RUNTIME_IO_ERROR = "RUNTIME_IO_ERROR"
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +65,17 @@ ERROR_DEFINITIONS: tuple[RuntimeErrorDefinition, ...] = (
     RuntimeErrorDefinition(RuntimeErrorCode.ADAPTER_PROTOCOL_VIOLATION, 'internal', 502, False, 'An inference adapter returned malformed, missing or mismatched item outcomes.'),
     RuntimeErrorDefinition(RuntimeErrorCode.PROTOCOL_MISMATCH, 'validation', 426, False, 'Protocol major version is incompatible; an update is required.'),
     RuntimeErrorDefinition(RuntimeErrorCode.INTERNAL_ERROR, 'internal', 500, True, 'An unexpected internal error occurred.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_OPERATION_NOT_FOUND, 'not_found', 404, False, 'The referenced Runtime maintenance operation does not exist or has expired.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_OPERATION_ID_CONFLICT, 'conflict', 409, False, 'The operation id is already bound to a different normalized intent.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_COMMAND_ID_CONFLICT, 'conflict', 409, False, 'The command id is already bound to a different command payload.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_OPERATION_NOT_CANCELLABLE, 'conflict', 409, False, 'The Runtime maintenance operation cannot be cancelled in its current state.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_OPERATION_NOT_RETRYABLE, 'conflict', 409, False, 'Only failed or cancelled Runtime maintenance operations can be retried.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_CURSOR_EXPIRED, 'not_found', 410, False, 'The Runtime maintenance event cursor predates the retained event window.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_CAPABILITY_UNAVAILABLE, 'capability', 426, False, 'A capability required by the Runtime maintenance request is unavailable.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_IDENTITY_MISMATCH, 'identity', 409, False, 'The requested Runtime source identity does not match the verified release binding.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_BUSY, 'transient', 423, True, 'Another Runtime maintenance operation owns the Runtime store lock.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_INSTALL_FAILED, 'backend_unavailable', 500, False, 'The Runtime maintenance installation or verification failed.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_IO_ERROR, 'transient', 500, True, 'A transient local I/O error interrupted Runtime maintenance.'),
 )
 ERROR_REGISTRY: dict[RuntimeErrorCode, RuntimeErrorDefinition] = {
     definition.code: definition for definition in ERROR_DEFINITIONS
