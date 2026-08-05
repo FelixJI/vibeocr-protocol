@@ -19,12 +19,16 @@ ROOT = Path(__file__).resolve().parents[1]
 V2 = ROOT / "packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts"
 
 
+def _constant_name(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]+", "_", value.upper()).strip("_")
+
+
 def _read(name: str) -> dict:
     return json.loads((V2 / name).read_text(encoding="utf-8"))
 
 
 def _python(capabilities: list[str], bootstrap: dict) -> str:
-    names = [item.upper().replace(".", "_") for item in capabilities]
+    names = [_constant_name(item) for item in capabilities]
     constants = "\n".join(
         f'{name} = "{value}"' for name, value in zip(names, capabilities, strict=True)
     )
@@ -53,7 +57,7 @@ def _csharp(
     openapi: dict,
 ) -> str:
     fields = "\n".join(
-        f'    public const string {item.upper().replace(".", "_")} = "{item}";'
+        f'    public const string {_constant_name(item)} = "{item}";'
         for item in capabilities
     )
     ready = bootstrap["properties"]["ready_version"]["const"]

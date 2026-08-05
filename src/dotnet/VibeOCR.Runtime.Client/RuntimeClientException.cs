@@ -11,16 +11,29 @@ public class RuntimeClientException : Exception
         string message,
         bool retryable,
         IDictionary<string, JsonElement>? detail = null)
+        : this(code, message, retryable, detail, retryAfter: null)
+    {
+    }
+
+    public RuntimeClientException(
+        HttpV2ErrorCode code,
+        string message,
+        bool retryable,
+        IDictionary<string, JsonElement>? detail,
+        int? retryAfter)
         : base(message)
     {
         Code = code;
         Retryable = retryable;
+        RetryAfter = retryAfter;
         Detail = detail ?? new Dictionary<string, JsonElement>();
     }
 
     public HttpV2ErrorCode Code { get; }
 
     public bool Retryable { get; }
+
+    public int? RetryAfter { get; }
 
     public IDictionary<string, JsonElement> Detail { get; }
 }

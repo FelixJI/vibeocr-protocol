@@ -85,7 +85,9 @@ public sealed class RuntimeHostErrorCodeJsonConverter : JsonStringEnumConverter<
 public enum RuntimeHostEventStream
 {
     [JsonStringEnumMemberName("ndjson.v1")]
-    NdjsonV1
+    NdjsonV1,
+    [JsonStringEnumMemberName("ndjson.v2")]
+    NdjsonV2
 }
 
 public sealed class RuntimeHostEventStreamJsonConverter : JsonStringEnumConverter<RuntimeHostEventStream>
@@ -110,6 +112,23 @@ public enum RuntimeHostOperation
 public sealed class RuntimeHostOperationJsonConverter : JsonStringEnumConverter<RuntimeHostOperation>
 {
     public RuntimeHostOperationJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RuntimeMaintenanceCommandKindJsonConverter))]
+public enum RuntimeMaintenanceCommandKind
+{
+    [JsonStringEnumMemberName("cancel")]
+    Cancel,
+    [JsonStringEnumMemberName("retry")]
+    Retry
+}
+
+public sealed class RuntimeMaintenanceCommandKindJsonConverter : JsonStringEnumConverter<RuntimeMaintenanceCommandKind>
+{
+    public RuntimeMaintenanceCommandKindJsonConverter()
         : base(namingPolicy: null, allowIntegerValues: false)
     {
     }
@@ -201,6 +220,27 @@ public sealed class RuntimeStatusJsonConverter : JsonStringEnumConverter<Runtime
     }
 }
 
+public sealed record CapabilityDescriptor
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("lifecycle")]
+    public required string Lifecycle { get; init; }
+
+    [JsonPropertyName("introduced_in")]
+    public required string IntroducedIn { get; init; }
+
+    [JsonPropertyName("deprecated_in")]
+    public required string? DeprecatedIn { get; init; }
+
+    [JsonPropertyName("sunset_at")]
+    public required string? SunsetAt { get; init; }
+
+    [JsonPropertyName("replacement")]
+    public required string? Replacement { get; init; }
+}
+
 public sealed record ProgressSnapshot
 {
     [JsonPropertyName("unit")]
@@ -211,6 +251,9 @@ public sealed record ProgressSnapshot
 
     [JsonPropertyName("total")]
     public int? Total { get; init; }
+
+    [JsonPropertyName("estimated_remaining_seconds")]
+    public double? EstimatedRemainingSeconds { get; init; }
 }
 
 public sealed record RuntimeComponentDescriptor
@@ -223,6 +266,27 @@ public sealed record RuntimeComponentDescriptor
 
     [JsonPropertyName("version")]
     public string? Version { get; init; }
+
+    [JsonPropertyName("state")]
+    public string? State { get; init; }
+
+    [JsonPropertyName("desired_state")]
+    public string? DesiredState { get; init; }
+
+    [JsonPropertyName("desired_version")]
+    public string? DesiredVersion { get; init; }
+
+    [JsonPropertyName("actual_state")]
+    public string? ActualState { get; init; }
+
+    [JsonPropertyName("actual_version")]
+    public string? ActualVersion { get; init; }
+
+    [JsonPropertyName("drift_reason")]
+    public string? DriftReason { get; init; }
+
+    [JsonPropertyName("repairable")]
+    public bool? Repairable { get; init; }
 }
 
 public sealed record RuntimeHostError
@@ -235,6 +299,21 @@ public sealed record RuntimeHostError
 
     [JsonPropertyName("retryable")]
     public required bool Retryable { get; init; }
+
+    [JsonPropertyName("canonical_code")]
+    public string? CanonicalCode { get; init; }
+
+    [JsonPropertyName("category")]
+    public string? Category { get; init; }
+
+    [JsonPropertyName("retry_after")]
+    public int? RetryAfter { get; init; }
+
+    [JsonPropertyName("message_code")]
+    public string? MessageCode { get; init; }
+
+    [JsonPropertyName("detail")]
+    public IReadOnlyDictionary<string, JsonElement>? Detail { get; init; }
 }
 
 public sealed record RuntimeHostFailure
@@ -281,6 +360,15 @@ public sealed record RuntimeHostRequest
     [JsonPropertyName("product_id")]
     public string? ProductId { get; init; }
 
+    [JsonPropertyName("operation_id")]
+    public string? OperationId { get; init; }
+
+    [JsonPropertyName("component_ids")]
+    public IReadOnlyList<string>? ComponentIds { get; init; }
+
+    [JsonPropertyName("required_capabilities")]
+    public IReadOnlyList<string>? RequiredCapabilities { get; init; }
+
     [JsonPropertyName("accepted_event_streams")]
     public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
 }
@@ -307,6 +395,12 @@ public sealed record RuntimeHostSuccess
 
     [JsonPropertyName("maintenance")]
     public RuntimeMaintenanceSnapshot? Maintenance { get; init; }
+
+    [JsonPropertyName("negotiated_capabilities")]
+    public IReadOnlyList<string>? NegotiatedCapabilities { get; init; }
+
+    [JsonPropertyName("capability_descriptors")]
+    public IReadOnlyList<CapabilityDescriptor>? CapabilityDescriptors { get; init; }
 }
 
 public sealed record RuntimeLaunch
@@ -327,8 +421,56 @@ public sealed record RuntimeLaunch
     public required IReadOnlyDictionary<string, JsonElement> Environment { get; init; }
 }
 
+public sealed record RuntimeMaintenanceCommandRequest
+{
+    [JsonPropertyName("protocol_version")]
+    public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("request_kind")]
+    public required string RequestKind { get; init; }
+
+    [JsonPropertyName("command")]
+    public required RuntimeMaintenanceCommandKind Command { get; init; }
+
+    [JsonPropertyName("command_id")]
+    public required string CommandId { get; init; }
+
+    [JsonPropertyName("target_operation_id")]
+    public required string TargetOperationId { get; init; }
+
+    [JsonPropertyName("new_operation_id")]
+    public string? NewOperationId { get; init; }
+
+    [JsonPropertyName("expected_sequence")]
+    public int? ExpectedSequence { get; init; }
+
+    [JsonPropertyName("product_root")]
+    public required string ProductRoot { get; init; }
+
+    [JsonPropertyName("component_lock")]
+    public required string ComponentLock { get; init; }
+
+    [JsonPropertyName("runtime_manifest")]
+    public required string RuntimeManifest { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public Accelerator? Accelerator { get; init; }
+
+    [JsonPropertyName("layout_manifest")]
+    public string? LayoutManifest { get; init; }
+
+    [JsonPropertyName("product_id")]
+    public string? ProductId { get; init; }
+
+    [JsonPropertyName("accepted_event_streams")]
+    public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
+}
+
 public sealed record RuntimeMaintenanceEvent
 {
+    [JsonPropertyName("schema_version")]
+    public int? SchemaVersion { get; init; }
+
     [JsonPropertyName("protocol_version")]
     public required int ProtocolVersion { get; init; }
 
@@ -337,6 +479,9 @@ public sealed record RuntimeMaintenanceEvent
 
     [JsonPropertyName("event_type")]
     public required RuntimeMaintenanceEventType EventType { get; init; }
+
+    [JsonPropertyName("sequence")]
+    public int? Sequence { get; init; }
 
     [JsonPropertyName("operation")]
     public required RuntimeHostOperation Operation { get; init; }
@@ -354,10 +499,49 @@ public sealed record RuntimeMaintenanceEvent
     public string? FallbackMessage { get; init; }
 }
 
+public sealed record RuntimeMaintenanceObserveRequest
+{
+    [JsonPropertyName("protocol_version")]
+    public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("request_kind")]
+    public required string RequestKind { get; init; }
+
+    [JsonPropertyName("operation_id")]
+    public required string OperationId { get; init; }
+
+    [JsonPropertyName("after_sequence")]
+    public required int AfterSequence { get; init; }
+
+    [JsonPropertyName("limit")]
+    public int? Limit { get; init; }
+
+    [JsonPropertyName("product_root")]
+    public required string ProductRoot { get; init; }
+
+    [JsonPropertyName("component_lock")]
+    public required string ComponentLock { get; init; }
+
+    [JsonPropertyName("runtime_manifest")]
+    public required string RuntimeManifest { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public Accelerator? Accelerator { get; init; }
+
+    [JsonPropertyName("layout_manifest")]
+    public string? LayoutManifest { get; init; }
+
+    [JsonPropertyName("product_id")]
+    public string? ProductId { get; init; }
+}
+
 public sealed record RuntimeMaintenanceSnapshot
 {
     [JsonPropertyName("operation_id")]
     public required string OperationId { get; init; }
+
+    [JsonPropertyName("source_operation_id")]
+    public string? SourceOperationId { get; init; }
 
     [JsonPropertyName("sequence")]
     public required int Sequence { get; init; }
@@ -377,11 +561,53 @@ public sealed record RuntimeMaintenanceSnapshot
     [JsonPropertyName("component_id")]
     public string? ComponentId { get; init; }
 
+    [JsonPropertyName("requested_component_ids")]
+    public IReadOnlyList<string>? RequestedComponentIds { get; init; }
+
+    [JsonPropertyName("effective_component_ids")]
+    public IReadOnlyList<string>? EffectiveComponentIds { get; init; }
+
+    [JsonPropertyName("source")]
+    public RuntimeSourceIdentity? Source { get; init; }
+
     [JsonPropertyName("updated_at")]
     public required string UpdatedAt { get; init; }
 
     [JsonPropertyName("progress")]
     public ProgressSnapshot? Progress { get; init; }
+}
+
+public sealed record RuntimeMaintenanceUpdate
+{
+    [JsonPropertyName("protocol_version")]
+    public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("ok")]
+    public required bool Ok { get; init; }
+
+    [JsonPropertyName("request_kind")]
+    public required string RequestKind { get; init; }
+
+    [JsonPropertyName("operation_id")]
+    public required string OperationId { get; init; }
+
+    [JsonPropertyName("snapshot")]
+    public required RuntimeMaintenanceSnapshot Snapshot { get; init; }
+
+    [JsonPropertyName("events")]
+    public required IReadOnlyList<RuntimeMaintenanceEvent> Events { get; init; }
+
+    [JsonPropertyName("oldest_sequence")]
+    public required int OldestSequence { get; init; }
+
+    [JsonPropertyName("through_sequence")]
+    public required int ThroughSequence { get; init; }
+
+    [JsonPropertyName("more")]
+    public required bool More { get; init; }
+
+    [JsonPropertyName("replay_expires_at")]
+    public string? ReplayExpiresAt { get; init; }
 }
 
 public sealed record RuntimeProfileDescriptor
@@ -394,6 +620,24 @@ public sealed record RuntimeProfileDescriptor
 
     [JsonPropertyName("components")]
     public required IReadOnlyList<RuntimeComponentDescriptor> Components { get; init; }
+}
+
+public sealed record RuntimeSourceIdentity
+{
+    [JsonPropertyName("backend_version")]
+    public required string BackendVersion { get; init; }
+
+    [JsonPropertyName("backend_source_sha")]
+    public required string BackendSourceSha { get; init; }
+
+    [JsonPropertyName("runtime_manifest_sha256")]
+    public required string RuntimeManifestSha256 { get; init; }
+
+    [JsonPropertyName("protocol_version")]
+    public required string ProtocolVersion { get; init; }
+
+    [JsonPropertyName("protocol_manifest_sha256")]
+    public required string ProtocolManifestSha256 { get; init; }
 }
 
 public sealed record RuntimeState
@@ -415,4 +659,7 @@ public sealed record RuntimeState
 
     [JsonPropertyName("backend_version")]
     public required string BackendVersion { get; init; }
+
+    [JsonPropertyName("source")]
+    public RuntimeSourceIdentity? Source { get; init; }
 }

@@ -83,6 +83,12 @@ public sealed class HttpV2GoldenContractTests
                         DisplayName = "OCR engine",
                         State = RuntimeComponentState.Installing,
                         Version = "3.3.2",
+                        DesiredState = RuntimeComponentDesiredState.Ready,
+                        DesiredVersion = "3.3.2",
+                        ActualState = RuntimeComponentActualState.Drifted,
+                        ActualVersion = "3.3.1",
+                        DriftReason = RuntimeDriftReason.VersionMismatch,
+                        Repairable = true,
                     },
                 ],
             },
@@ -95,21 +101,37 @@ public sealed class HttpV2GoldenContractTests
                 Phase = RuntimeMaintenancePhase.InstallProfile,
                 ProfileId = "win-x64-cpu",
                 ComponentId = "ocr_engine",
+                RequestedComponentIds = ["ocr_engine"],
+                EffectiveComponentIds = ["ocr_engine", "runtime_base"],
                 UpdatedAt = "2026-08-05T12:00:00Z",
                 Progress = new ProgressSnapshot
                 {
-                    Unit = ProgressUnit.Steps,
-                    Current = 2,
-                    Total = 5,
+                    Unit = ProgressUnit.Bytes,
+                    Current = 50,
+                    Total = 100,
+                    EstimatedRemainingSeconds = 2.5,
                 },
                 MessageCode = "runtime.install.profile",
+            },
+            Source = new RuntimeSourceIdentity
+            {
+                BackendVersion = "0.9.0",
+                BackendSourceSha = new string('a', 40),
+                RuntimeManifestSha256 = new string('b', 64),
+                ProtocolVersion = "2.3.0",
+                ProtocolManifestSha256 = new string('c', 64),
             },
         };
         string json = HttpV2Json.Serialize(status);
         RuntimeStatusSnapshot parsed =
             HttpV2Json.Deserialize<RuntimeStatusSnapshot>(json)!;
         Assert.Equal("ocr_engine", parsed.Profile.Components.Single().ComponentId);
-        Assert.Equal(5, parsed.Maintenance!.Progress!.Total);
+        Assert.Equal(100, parsed.Maintenance!.Progress!.Total);
+        Assert.Equal(2.5, parsed.Maintenance.Progress.EstimatedRemainingSeconds);
+        Assert.Equal(RuntimeDriftReason.VersionMismatch,
+            parsed.Profile.Components.Single().DriftReason);
+        Assert.Equal(2, parsed.Maintenance.EffectiveComponentIds!.Count);
+        Assert.Equal(new string('a', 40), parsed.Source!.BackendSourceSha);
     }
 
     [Fact]
@@ -146,7 +168,7 @@ public sealed class HttpV2GoldenContractTests
             .Select<HttpV2ErrorCode, string>(WireName)
             .ToArray();
         Assert.Equal(registered.Order(), declared.Order());
-        Assert.Equal(18, registered.Length);
+        Assert.Equal(29, registered.Length);
 
         foreach (JsonElement entry in entries)
         {
@@ -157,6 +179,22 @@ public sealed class HttpV2GoldenContractTests
             Assert.Equal(expectedCategory, WireName<ErrorCategory>(category));
             Assert.Equal(entry.GetProperty("retryable").GetBoolean(), IsRetryable(code));
         }
+    }
+
+    [Fact]
+    public void ExistingErrorCategoryNumericValuesRemainStable()
+    {
+        Assert.Equal(0, (int)ErrorCategory.Validation);
+        Assert.Equal(1, (int)ErrorCategory.Auth);
+        Assert.Equal(2, (int)ErrorCategory.NotFound);
+        Assert.Equal(3, (int)ErrorCategory.Conflict);
+        Assert.Equal(4, (int)ErrorCategory.Cancelled);
+        Assert.Equal(5, (int)ErrorCategory.Oom);
+        Assert.Equal(6, (int)ErrorCategory.Transient);
+        Assert.Equal(7, (int)ErrorCategory.BackendUnavailable);
+        Assert.Equal(8, (int)ErrorCategory.Internal);
+        Assert.Equal(9, (int)ErrorCategory.Capability);
+        Assert.Equal(10, (int)ErrorCategory.Identity);
     }
 
     [Fact]
@@ -208,6 +246,15 @@ public sealed class HttpV2GoldenContractTests
         HttpV2ErrorCode.Cancelled => false,
         HttpV2ErrorCode.AdapterProtocolViolation => false,
         HttpV2ErrorCode.ProtocolMismatch => false,
+        HttpV2ErrorCode.RuntimeOperationNotFound => false,
+        HttpV2ErrorCode.RuntimeOperationIdConflict => false,
+        HttpV2ErrorCode.RuntimeCommandIdConflict => false,
+        HttpV2ErrorCode.RuntimeOperationNotCancellable => false,
+        HttpV2ErrorCode.RuntimeOperationNotRetryable => false,
+        HttpV2ErrorCode.RuntimeCursorExpired => false,
+        HttpV2ErrorCode.RuntimeCapabilityUnavailable => false,
+        HttpV2ErrorCode.RuntimeIdentityMismatch => false,
+        HttpV2ErrorCode.RuntimeInstallFailed => false,
         // Retryable: OOM, transient, draining, backend unavailable, internal.
         _ => true,
     };

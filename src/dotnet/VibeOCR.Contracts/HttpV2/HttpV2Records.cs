@@ -31,6 +31,8 @@ public sealed record ProgressSnapshot
     public required int Current { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Total { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? EstimatedRemainingSeconds { get; init; }
 }
 
 public sealed record StageEvent
@@ -182,12 +184,57 @@ public sealed record ResidencyStatus
     public int? VramUsedMb { get; init; }
 }
 
+public sealed record RuntimeSourceIdentity
+{
+    public required string BackendVersion { get; init; }
+    public required string BackendSourceSha { get; init; }
+    public required string RuntimeManifestSha256 { get; init; }
+    public required string ProtocolVersion { get; init; }
+    public required string ProtocolManifestSha256 { get; init; }
+}
+
+public sealed record RuntimeMaintenanceRequest
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OperationId { get; init; }
+    public required RuntimeMaintenanceOperation Operation { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ProfileId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? ComponentIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RequiredCapabilities { get; init; }
+}
+
+public sealed record RuntimeMaintenanceCommand
+{
+    public required string CommandId { get; init; }
+    public required RuntimeMaintenanceCommandKind Command { get; init; }
+    public required string TargetOperationId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? NewOperationId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ExpectedSequence { get; init; }
+}
+
 public sealed record RuntimeComponentStatus
 {
     public required string ComponentId { get; init; }
     public required string DisplayName { get; init; }
     public required RuntimeComponentState State { get; init; }
     public string? Version { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RuntimeComponentDesiredState? DesiredState { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DesiredVersion { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RuntimeComponentActualState? ActualState { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ActualVersion { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RuntimeDriftReason? DriftReason { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Repairable { get; init; }
 }
 
 public sealed record RuntimeProfileStatus
@@ -201,6 +248,7 @@ public sealed record RuntimeProfileStatus
 public sealed record RuntimeMaintenanceStatus
 {
     public required string OperationId { get; init; }
+    public string? SourceOperationId { get; init; }
     public required int Sequence { get; init; }
     public required RuntimeMaintenanceOperation Operation { get; init; }
     public required RuntimeOperationState OperationState { get; init; }
@@ -210,6 +258,45 @@ public sealed record RuntimeMaintenanceStatus
     public required string UpdatedAt { get; init; }
     public ProgressSnapshot? Progress { get; init; }
     public string? MessageCode { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RequestedComponentIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? EffectiveComponentIds { get; init; }
+}
+
+public sealed record RuntimeMaintenanceReceipt
+{
+    public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    public required string OperationId { get; init; }
+    public required RuntimeMaintenanceStatus Snapshot { get; init; }
+    public IReadOnlyList<string> NegotiatedCapabilities { get; init; } = Array.Empty<string>();
+}
+
+public sealed record RuntimeMaintenanceEvent
+{
+    public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    public required RuntimeMaintenanceEventType EventType { get; init; }
+    public required int Sequence { get; init; }
+    public required RuntimeMaintenanceOperation Operation { get; init; }
+    public required RuntimeMaintenanceStatus Snapshot { get; init; }
+    public required string MessageCode { get; init; }
+    public IDictionary<string, string> MessageArgs { get; init; } =
+        new Dictionary<string, string>();
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FallbackMessage { get; init; }
+}
+
+public sealed record RuntimeMaintenanceUpdate
+{
+    public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    public required string OperationId { get; init; }
+    public required RuntimeMaintenanceStatus Snapshot { get; init; }
+    public IReadOnlyList<RuntimeMaintenanceEvent> Events { get; init; } =
+        Array.Empty<RuntimeMaintenanceEvent>();
+    public required int OldestSequence { get; init; }
+    public required int ThroughSequence { get; init; }
+    public required bool More { get; init; }
+    public string? ReplayExpiresAt { get; init; }
 }
 
 public sealed record RuntimeStatusSnapshot
@@ -220,6 +307,8 @@ public sealed record RuntimeStatusSnapshot
     public required string BackendVersion { get; init; }
     public required RuntimeProfileStatus Profile { get; init; }
     public RuntimeMaintenanceStatus? Maintenance { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RuntimeSourceIdentity? Source { get; init; }
 }
 
 /// <summary>
@@ -248,6 +337,8 @@ public sealed record HttpV2ErrorPayload
     public required string Message { get; init; }
     public required ErrorCategory Category { get; init; }
     public required bool Retryable { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RetryAfter { get; init; }
     /// <summary>Typed error detail. Defaults to an empty object on the wire.</summary>
     public IDictionary<string, JsonElement> Detail { get; init; } = new Dictionary<string, JsonElement>();
     public string? JobId { get; init; }

@@ -27,6 +27,15 @@ class BatchAddTextLayerRequest(TypedDict, total=False):
     save: NotRequired[bool]
 
 
+class CapabilityDescriptor(TypedDict, total=False):
+    name: Required[str]
+    lifecycle: Required[Literal['active', 'deprecated']]
+    introduced_in: Required[str]
+    deprecated_in: Required[str | None]
+    sunset_at: Required[str | None]
+    replacement: Required[str | None]
+
+
 class CommandResult(TypedDict, total=False):
     schema_version: Required[Literal[2]]
     instance_id: Required[str]
@@ -51,10 +60,11 @@ class DetectTextLayersResponse(TypedDict, total=False):
 class Error(TypedDict, total=False):
     schema_version: Required[Literal[2]]
     instance_id: Required[str | None]
-    code: Required[Literal['VALIDATION_ERROR', 'QUOTA_EXCEEDED', 'UNAUTHORIZED', 'FORBIDDEN_LOOPBACK', 'JOB_NOT_FOUND', 'RESOURCE_NOT_FOUND', 'JOB_NOT_CANCELLABLE', 'JOB_NOT_RETRYABLE', 'INPUT_EXPIRED', 'PIN_CAPACITY_CONFLICT', 'SUPERVISOR_DRAINING', 'CANCELLED', 'OUT_OF_MEMORY', 'TRANSIENT_BACKEND', 'BACKEND_UNAVAILABLE', 'ADAPTER_PROTOCOL_VIOLATION', 'PROTOCOL_MISMATCH', 'INTERNAL_ERROR']]
+    code: Required[str]
     message: Required[str]
-    category: Required[Literal['validation', 'auth', 'not_found', 'conflict', 'cancelled', 'oom', 'transient', 'backend_unavailable', 'internal']]
+    category: Required[str]
     retryable: Required[bool]
+    retry_after: NotRequired[int | None]
     detail: Required[dict[str, Any]]
     job_id: Required[str | None]
 
@@ -82,7 +92,8 @@ class Health(TypedDict, total=False):
     protocol_version: Required[Literal[2]]
     ready: Required[bool]
     draining: Required[bool]
-    capabilities: Required[list[Literal['ocr.recognition.v2', 'pdf.edit.v2', 'qrcode.v2', 'export.document.v1', 'runtime.settings.v2']]]
+    capabilities: Required[list[str]]
+    capability_descriptors: NotRequired[list[CapabilityDescriptor]]
 
 
 class InsertBlankRequest(TypedDict, total=False):
@@ -323,6 +334,7 @@ class ProgressSnapshot(TypedDict, total=False):
     unit: Required[Literal['steps', 'items', 'bytes']]
     current: Required[int]
     total: NotRequired[int]
+    estimated_remaining_seconds: NotRequired[float]
 
 
 class QrCodeValue(TypedDict, total=False):
@@ -405,10 +417,51 @@ class RuntimeComponentStatus(TypedDict, total=False):
     display_name: Required[str]
     state: Required[RuntimeComponentState]
     version: NotRequired[str | None]
+    desired_state: NotRequired[Literal['ready', 'not_required']]
+    desired_version: NotRequired[str | None]
+    actual_state: NotRequired[Literal['ready', 'missing', 'drifted', 'unknown']]
+    actual_version: NotRequired[str | None]
+    drift_reason: NotRequired[Literal['none', 'missing', 'version_mismatch', 'identity_mismatch', 'integrity_failed', 'unexpected']]
+    repairable: NotRequired[bool]
+
+
+class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
+    command_id: Required[str]
+    command: Required[Literal['cancel', 'retry']]
+    target_operation_id: Required[str]
+    new_operation_id: NotRequired[str]
+    expected_sequence: NotRequired[int]
+
+
+class RuntimeMaintenanceEvent(TypedDict, total=False):
+    schema_version: Required[Literal[2]]
+    event_type: Required[Literal['snapshot', 'progress', 'heartbeat']]
+    sequence: Required[int]
+    operation: Required[Literal['inspect', 'ensure', 'repair']]
+    snapshot: Required[RuntimeMaintenanceStatus]
+    message_code: Required[str]
+    message_args: NotRequired[dict[str, Any]]
+    fallback_message: NotRequired[str]
+
+
+class RuntimeMaintenanceReceipt(TypedDict, total=False):
+    schema_version: Required[Literal[2]]
+    operation_id: Required[str]
+    snapshot: Required[RuntimeMaintenanceStatus]
+    negotiated_capabilities: Required[list[str]]
+
+
+class RuntimeMaintenanceRequest(TypedDict, total=False):
+    operation_id: NotRequired[str]
+    operation: Required[Literal['inspect', 'ensure', 'repair']]
+    profile_id: NotRequired[str]
+    component_ids: NotRequired[list[str]]
+    required_capabilities: NotRequired[list[str]]
 
 
 class RuntimeMaintenanceStatus(TypedDict, total=False):
     operation_id: Required[str]
+    source_operation_id: NotRequired[str | None]
     sequence: Required[int]
     operation: Required[Literal['inspect', 'ensure', 'repair']]
     operation_state: Required[Literal['queued', 'running', 'succeeded', 'failed', 'cancelled']]
@@ -418,6 +471,20 @@ class RuntimeMaintenanceStatus(TypedDict, total=False):
     updated_at: Required[str]
     progress: NotRequired[ProgressSnapshot | None]
     message_code: NotRequired[str | None]
+    requested_component_ids: NotRequired[list[str]]
+    effective_component_ids: NotRequired[list[str]]
+    source: NotRequired[RuntimeSourceIdentity]
+
+
+class RuntimeMaintenanceUpdate(TypedDict, total=False):
+    schema_version: Required[Literal[2]]
+    operation_id: Required[str]
+    snapshot: Required[RuntimeMaintenanceStatus]
+    events: Required[list[RuntimeMaintenanceEvent]]
+    oldest_sequence: Required[int]
+    through_sequence: Required[int]
+    more: Required[bool]
+    replay_expires_at: Required[str | None]
 
 
 class RuntimePreloadRequest(TypedDict, total=False):
@@ -434,11 +501,20 @@ class RuntimeReleaseRequest(TypedDict, total=False):
     pipeline: NotRequired[str | None]
 
 
+class RuntimeSourceIdentity(TypedDict, total=False):
+    backend_version: Required[str]
+    backend_source_sha: Required[str]
+    runtime_manifest_sha256: Required[str]
+    protocol_version: Required[str]
+    protocol_manifest_sha256: Required[str]
+
+
 class RuntimeStatusSnapshot(TypedDict, total=False):
     schema_version: Required[Literal[2]]
     instance_id: Required[str]
     service_state: Required[RuntimeServiceState]
     backend_version: Required[str]
+    source: NotRequired[RuntimeSourceIdentity]
     profile: Required[RuntimeProfileStatus]
     maintenance: Required[RuntimeMaintenanceStatus | None]
 

@@ -8,6 +8,11 @@ EXPORT_DOCUMENT_V1 = "export.document.v1"
 RUNTIME_SETTINGS_V2 = "runtime.settings.v2"
 RUNTIME_MAINTENANCE_V1 = "runtime.maintenance.v1"
 TASK_PROGRESS_V1 = "task.progress.v1"
+RUNTIME_MAINTENANCE_V2 = "runtime.maintenance.v2"
+RUNTIME_COMPONENT_REPAIR_V1 = "runtime.component-repair.v1"
+RUNTIME_CAPABILITY_METADATA_V1 = "runtime.capability-metadata.v1"
+RUNTIME_EVENTS_SSE_V1 = "runtime.events.sse.v1"
+RUNTIME_EVENTS_NDJSON_V1 = "runtime.events.ndjson.v1"
 
 ALL_CAPABILITIES: tuple[str, ...] = (
     'ocr.recognition.v2',
@@ -17,6 +22,11 @@ ALL_CAPABILITIES: tuple[str, ...] = (
     'runtime.settings.v2',
     'runtime.maintenance.v1',
     'task.progress.v1',
+    'runtime.maintenance.v2',
+    'runtime.component-repair.v1',
+    'runtime.capability-metadata.v1',
+    'runtime.events.sse.v1',
+    'runtime.events.ndjson.v1',
 )
 READY_ENVELOPE_VERSION = 1
 PROTOCOL_VERSION = 2

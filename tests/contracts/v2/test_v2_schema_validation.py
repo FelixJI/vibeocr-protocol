@@ -33,6 +33,16 @@ def _golden() -> dict:
 JOB_SCHEMA = _load("job.schema.json")
 ERROR_SCHEMA = _load("errors.schema.json")
 JOB_INTERFACE_SCHEMA = _load("job-interface.schema.json")
+BOOTSTRAP_SCHEMA = json.loads(
+    resources.files("vibeocr.runtime_contracts")
+    .joinpath("bootstrap.schema.json")
+    .read_text(encoding="utf-8")
+)
+RUNTIME_HOST_SCHEMA = json.loads(
+    resources.files("vibeocr.runtime_contracts")
+    .joinpath("runtime-host.schema.json")
+    .read_text(encoding="utf-8")
+)
 
 
 # ---------------------------------------------------------------------------
@@ -108,11 +118,52 @@ def test_job_item_rejects_unknown_state() -> None:
         jsonschema.validate(payload, JOB_SCHEMA)
 
 
-def test_error_schema_rejects_unknown_code() -> None:
+def test_error_wire_schema_allows_future_minor_error_code() -> None:
     payload = copy.deepcopy(_golden()["error_validation"])
     payload["code"] = "FAKE_CODE"
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(payload, ERROR_SCHEMA)
+    jsonschema.validate(payload, ERROR_SCHEMA)
+    assert (
+        "FAKE_CODE" not in ERROR_SCHEMA["properties"]["code"]["x-vibeocr-known-values"]
+    )
+
+
+def test_bootstrap_schema_allows_future_minor_capability() -> None:
+    payload = {
+        "ready": True,
+        "pid": 4242,
+        "port": 12345,
+        "instance_id": "supervisor-1",
+        "protocol_version": 2,
+        "schema_version": 2,
+        "capabilities": ["runtime.future-capability.v1"],
+        "ready_version": 1,
+    }
+
+    jsonschema.validate(payload, BOOTSTRAP_SCHEMA)
+
+
+def test_runtime_host_schema_accepts_legacy_event_without_top_level_sequence() -> None:
+    payload = {
+        "schema_version": 2,
+        "protocol_version": 2,
+        "event_version": 1,
+        "event_type": "progress",
+        "operation": "ensure",
+        "snapshot": {
+            "operation_id": "op-1",
+            "sequence": 1,
+            "operation": "ensure",
+            "operation_state": "running",
+            "phase": "install_profile",
+            "profile_id": "win-x64-cpu",
+            "component_id": None,
+            "updated_at": "2026-08-05T12:00:00Z",
+            "progress": None,
+        },
+        "message_code": "runtime.installing",
+    }
+
+    jsonschema.validate(payload, RUNTIME_HOST_SCHEMA)
 
 
 def test_error_schema_accepts_category_code_combo() -> None:
@@ -179,7 +230,7 @@ def test_errors_json_codes_match_schema_enum() -> None:
         .read_text(encoding="utf-8")
     )
     registry_codes = {row["code"] for row in registry["codes"]}
-    schema_codes = set(ERROR_SCHEMA["properties"]["code"]["enum"])
+    schema_codes = set(ERROR_SCHEMA["properties"]["code"]["x-vibeocr-known-values"])
     assert registry_codes == schema_codes, (
         "errors.json codes and errors.schema.json enum must match exactly"
     )
@@ -192,5 +243,7 @@ def test_errors_json_categories_match_schema_enum() -> None:
         .read_text(encoding="utf-8")
     )
     registry_categories = {row["category"] for row in registry["codes"]}
-    schema_categories = set(ERROR_SCHEMA["properties"]["category"]["enum"])
+    schema_categories = set(
+        ERROR_SCHEMA["properties"]["category"]["x-vibeocr-known-values"]
+    )
     assert registry_categories == schema_categories

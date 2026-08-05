@@ -16,6 +16,7 @@ from vibeocr.runtime_client.mock_server import MockRuntimeServer
 from vibeocr.runtime_client.process import ReadyEnvelope
 from vibeocr.runtime_contracts import (
     CancelMode,
+    ContractError,
     JobCommand,
     JobCommandKind,
     JobKind,
@@ -24,7 +25,7 @@ from vibeocr.runtime_contracts import (
     SubmitItem,
     SubmitRequest,
 )
-from vibeocr.runtime_contracts.errors import ErrorCode
+from vibeocr.runtime_contracts.errors import ErrorCategories, ErrorCode, ErrorPayload
 from vibeocr.runtime_contracts.generated.operations import operation_path
 
 
@@ -66,6 +67,191 @@ def test_mock_serves_golden_health_and_typed_auth_error() -> None:
     assert raised.value.status_code == 401
     assert raised.value.code is ErrorCode.UNAUTHORIZED
     assert raised.value.detail == golden["unauthorized_error"]["detail"]
+
+
+def test_runtime_client_error_preserves_retry_after_hint() -> None:
+    error = RuntimeClientError.from_payload(
+        ErrorPayload(
+            schema_version=2,
+            instance_id="sup-1",
+            code=ErrorCode.BACKEND_UNAVAILABLE,
+            message="busy",
+            category=ErrorCategories.BACKEND_UNAVAILABLE,
+            retryable=True,
+            retry_after=5,
+        )
+    )
+
+    assert error.retry_after == 5
+
+
+def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> None:
+    class RecordingClient(RuntimeHttpClient):
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict]] = []
+
+        def request_json(self, operation_id: str, **kwargs):
+            self.calls.append((operation_id, kwargs))
+            requested = kwargs.get("json_body", {})
+            operation = requested.get("operation", "repair")
+            operation_id_value = requested.get(
+                "operation_id", requested.get("new_operation_id", "op-1")
+            )
+            return {
+                "schema_version": 2,
+                "operation_id": operation_id_value,
+                "snapshot": {
+                    "operation_id": operation_id_value,
+                    "sequence": 1,
+                    "operation": operation,
+                    "operation_state": "running",
+                    "phase": "install_profile",
+                    "profile_id": "win-x64-cpu",
+                    "updated_at": "2026-08-05T12:00:00Z",
+                },
+                "negotiated_capabilities": ["runtime.maintenance.v2"],
+            }
+
+    client = RecordingClient()
+    client.repair_runtime(operation_id="op-1", component_ids=("ocr_engine",))
+    client.retry_runtime(
+        "op-0",
+        command_id="cmd-1",
+        new_operation_id="op-1",
+        expected_sequence=7,
+    )
+
+    assert client.calls[0] == (
+        "startRuntimeMaintenance",
+        {
+            "json_body": {
+                "operation": "repair",
+                "operation_id": "op-1",
+                "component_ids": ["ocr_engine"],
+            },
+            "timeout": 600.0,
+        },
+    )
+    assert client.calls[1][0] == "commandRuntimeMaintenance"
+    assert client.calls[1][1]["json_body"] == {
+        "command_id": "cmd-1",
+        "command": "retry",
+        "target_operation_id": "op-0",
+        "new_operation_id": "op-1",
+        "expected_sequence": 7,
+    }
+
+
+def test_runtime_client_observe_rejects_page_that_skips_requested_cursor() -> None:
+    class GapClient(RuntimeHttpClient):
+        def request_json(self, operation_id: str, **kwargs):
+            del operation_id, kwargs
+            snapshot = {
+                "operation_id": "op-gap",
+                "sequence": 3,
+                "operation": "ensure",
+                "operation_state": "running",
+                "phase": "install_profile",
+                "profile_id": "win-x64-cpu",
+                "updated_at": "2026-08-05T12:00:00Z",
+            }
+            return {
+                "schema_version": 2,
+                "operation_id": "op-gap",
+                "snapshot": snapshot,
+                "events": [
+                    {
+                        "schema_version": 2,
+                        "event_type": "snapshot",
+                        "sequence": 3,
+                        "operation": "ensure",
+                        "snapshot": snapshot,
+                        "message_code": "runtime.install.profile",
+                    }
+                ],
+                "oldest_sequence": 1,
+                "through_sequence": 3,
+                "more": False,
+                "replay_expires_at": None,
+            }
+
+    with pytest.raises(ContractError, match="does not follow cursor"):
+        GapClient(base_url="http://127.0.0.1").observe_runtime_maintenance(
+            "op-gap", after_sequence=1
+        )
+
+
+@pytest.mark.parametrize(
+    ("response_operation_id", "more", "message"),
+    [
+        ("op-other", False, "operation_id mismatch"),
+        ("op-empty", True, "cannot have more events"),
+    ],
+)
+def test_runtime_client_observe_rejects_identity_mismatch_or_empty_more_page(
+    response_operation_id: str,
+    more: bool,
+    message: str,
+) -> None:
+    class InvalidCursorClient(RuntimeHttpClient):
+        def request_json(self, operation_id: str, **kwargs):
+            del operation_id, kwargs
+            return {
+                "schema_version": 2,
+                "operation_id": response_operation_id,
+                "snapshot": {
+                    "operation_id": response_operation_id,
+                    "sequence": 1,
+                    "operation": "ensure",
+                    "operation_state": "running",
+                    "phase": "install_profile",
+                    "profile_id": "win-x64-cpu",
+                    "updated_at": "2026-08-05T12:00:00Z",
+                },
+                "events": [],
+                "oldest_sequence": 1,
+                "through_sequence": 0,
+                "more": more,
+                "replay_expires_at": None,
+            }
+
+    with pytest.raises(ContractError, match=message):
+        InvalidCursorClient(base_url="http://127.0.0.1").observe_runtime_maintenance(
+            "op-empty"
+        )
+
+
+def test_async_runtime_client_revalidates_transport_observe_cursor() -> None:
+    class WrongOperationTransport(RuntimeHttpClient):
+        def request_json(self, operation_id: str, **kwargs):
+            del operation_id, kwargs
+            return {
+                "schema_version": 2,
+                "operation_id": "op-other",
+                "snapshot": {
+                    "operation_id": "op-other",
+                    "sequence": 1,
+                    "operation": "ensure",
+                    "operation_state": "running",
+                    "phase": "install_profile",
+                    "profile_id": "win-x64-cpu",
+                    "updated_at": "2026-08-05T12:00:00Z",
+                },
+                "events": [],
+                "oldest_sequence": 1,
+                "through_sequence": 0,
+                "more": False,
+                "replay_expires_at": None,
+            }
+
+    async def scenario() -> None:
+        client = SupervisorClient(base_url="http://127.0.0.1", session_token="token")
+        client._transport = WrongOperationTransport(base_url="http://127.0.0.1")
+        async with client:
+            await client.observe_runtime_maintenance("op-empty")
+
+    with pytest.raises(ContractError, match="operation_id mismatch"):
+        asyncio.run(scenario())
 
 
 @pytest.mark.parametrize(

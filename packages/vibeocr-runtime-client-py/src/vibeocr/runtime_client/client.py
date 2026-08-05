@@ -7,7 +7,7 @@ import base64
 import json
 import logging
 import secrets
-from collections.abc import Iterable, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
 from functools import cache
 from typing import TYPE_CHECKING, Any, cast
@@ -25,6 +25,13 @@ from vibeocr.runtime_contracts import (
     JobRef,
     JobUpdate,
     ResidencyStatus,
+    RuntimeMaintenanceCommand,
+    RuntimeMaintenanceCommandKind,
+    RuntimeMaintenanceEvent,
+    RuntimeMaintenanceOperation,
+    RuntimeMaintenanceReceipt,
+    RuntimeMaintenanceRequest,
+    RuntimeMaintenanceUpdate,
     SettingsSnapshot,
     SubmitRequest,
 )
@@ -35,11 +42,15 @@ from vibeocr.runtime_contracts.generated.operations import (
 )
 from vibeocr.runtime_contracts.generated.server import RESPONSE_JSON_SCHEMAS
 from vibeocr.runtime_contracts.parser import (
+    ContractError,
     parse_error_payload,
     parse_job_ref,
     parse_job_update,
     parse_pipeline_spec,
     parse_residency_entry,
+    parse_runtime_maintenance_event,
+    parse_runtime_maintenance_receipt,
+    parse_runtime_maintenance_update,
 )
 from vibeocr.runtime_contracts.utils.http_log import (
     guess_request_size,
@@ -75,6 +86,28 @@ if TYPE_CHECKING:
     )
 
 JsonObject = dict[str, Any]
+
+
+def _validate_runtime_maintenance_cursor(
+    update: RuntimeMaintenanceUpdate,
+    operation_id: str,
+    after_sequence: int,
+) -> RuntimeMaintenanceUpdate:
+    if (
+        update.operation_id != operation_id
+        or update.snapshot.operation_id != operation_id
+    ):
+        raise ContractError("runtime maintenance response operation_id mismatch")
+    if update.events and update.events[0].sequence != after_sequence + 1:
+        raise ContractError("runtime maintenance event sequence does not follow cursor")
+    if not update.events:
+        if update.through_sequence > after_sequence:
+            raise ContractError("runtime maintenance empty page advanced its cursor")
+        if update.more:
+            raise ContractError(
+                "runtime maintenance empty page cannot have more events"
+            )
+    return update
 
 
 def _forward_compatible_response_schema(value: Any) -> Any:
@@ -138,6 +171,7 @@ class RuntimeClientError(Exception):
         message: str,
         *,
         retryable: bool = False,
+        retry_after: int | None = None,
         detail: Mapping[str, Any] | None = None,
         status_code: int | None = None,
     ) -> None:
@@ -145,6 +179,7 @@ class RuntimeClientError(Exception):
         self.code = code
         self.message = message
         self.retryable = retryable
+        self.retry_after = retry_after
         self.detail = dict(detail or {})
         self.status_code = status_code
 
@@ -159,6 +194,7 @@ class RuntimeClientError(Exception):
             payload.code,
             payload.message,
             retryable=payload.retryable,
+            retry_after=payload.retry_after,
             detail=payload.detail,
             status_code=status_code,
         )
@@ -355,6 +391,122 @@ class RuntimeHttpClient:
 
     def residency(self) -> WireResidencyStatus:
         return cast("WireResidencyStatus", self.request_json("getRuntimeResidency"))
+
+    def start_runtime_maintenance(
+        self, request: RuntimeMaintenanceRequest
+    ) -> RuntimeMaintenanceReceipt:
+        return parse_runtime_maintenance_receipt(
+            self.request_json(
+                "startRuntimeMaintenance", json_body=request.to_payload(), timeout=600.0
+            )
+        )
+
+    def command_runtime_maintenance(
+        self, command: RuntimeMaintenanceCommand
+    ) -> RuntimeMaintenanceReceipt:
+        return parse_runtime_maintenance_receipt(
+            self.request_json(
+                "commandRuntimeMaintenance", json_body=command.to_payload()
+            )
+        )
+
+    def observe_runtime_maintenance(
+        self,
+        operation_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 128,
+    ) -> RuntimeMaintenanceUpdate:
+        return _validate_runtime_maintenance_cursor(
+            parse_runtime_maintenance_update(
+                self.request_json(
+                    "observeRuntimeMaintenance",
+                    path_parameters={"operation_id": operation_id},
+                    query={"after_sequence": after_sequence, "limit": limit},
+                )
+            ),
+            operation_id,
+            after_sequence,
+        )
+
+    def stream_runtime_maintenance_ndjson(
+        self, operation_id: str, *, after_sequence: int = 0
+    ) -> tuple[RuntimeMaintenanceEvent, ...]:
+        values = self.request_ndjson(
+            "streamRuntimeMaintenanceEvents",
+            path_parameters={"operation_id": operation_id},
+            query={"after_sequence": after_sequence},
+            headers={"Accept": "application/x-ndjson"},
+        )
+        return tuple(parse_runtime_maintenance_event(value) for value in values)
+
+    def inspect_runtime(
+        self, *, operation_id: str | None = None
+    ) -> RuntimeMaintenanceReceipt:
+        return self.start_runtime_maintenance(
+            RuntimeMaintenanceRequest(
+                operation=RuntimeMaintenanceOperation.INSPECT,
+                operation_id=operation_id,
+            )
+        )
+
+    def ensure_runtime(
+        self, *, operation_id: str | None = None
+    ) -> RuntimeMaintenanceReceipt:
+        return self.start_runtime_maintenance(
+            RuntimeMaintenanceRequest(
+                operation=RuntimeMaintenanceOperation.ENSURE,
+                operation_id=operation_id,
+            )
+        )
+
+    def repair_runtime(
+        self,
+        *,
+        operation_id: str | None = None,
+        component_ids: Iterable[str] = (),
+    ) -> RuntimeMaintenanceReceipt:
+        return self.start_runtime_maintenance(
+            RuntimeMaintenanceRequest(
+                operation=RuntimeMaintenanceOperation.REPAIR,
+                operation_id=operation_id,
+                component_ids=tuple(component_ids),
+            )
+        )
+
+    def cancel_runtime(
+        self,
+        operation_id: str,
+        *,
+        command_id: str,
+        expected_sequence: int | None = None,
+    ) -> RuntimeMaintenanceReceipt:
+        return self.command_runtime_maintenance(
+            RuntimeMaintenanceCommand(
+                command_id=command_id,
+                command=RuntimeMaintenanceCommandKind.CANCEL,
+                target_operation_id=operation_id,
+                expected_sequence=expected_sequence,
+            )
+        )
+
+    def retry_runtime(
+        self,
+        operation_id: str,
+        *,
+        command_id: str,
+        new_operation_id: str,
+        expected_sequence: int | None = None,
+    ) -> RuntimeMaintenanceReceipt:
+        return self.command_runtime_maintenance(
+            RuntimeMaintenanceCommand(
+                command_id=command_id,
+                command=RuntimeMaintenanceCommandKind.RETRY,
+                target_operation_id=operation_id,
+                new_operation_id=new_operation_id,
+                expected_sequence=expected_sequence,
+            )
+        )
 
     def release_idle(self, pipeline: str | None = None) -> WireResidencyStatus:
         return cast(
@@ -694,6 +846,183 @@ class SupervisorClient:
             )
         value = await asyncio.to_thread(self._require_transport().residency)
         return _parse_residency(value)
+
+    async def start_runtime_maintenance(
+        self, request: RuntimeMaintenanceRequest
+    ) -> RuntimeMaintenanceReceipt:
+        if self._client is not None:
+            response = await self._client.post(
+                operation_path("startRuntimeMaintenance"),
+                json=request.to_payload(),
+                timeout=600.0,
+            )
+            value = self._async_response_object(response, "startRuntimeMaintenance")
+            return parse_runtime_maintenance_receipt(value)
+        return await asyncio.to_thread(
+            self._require_transport().start_runtime_maintenance, request
+        )
+
+    async def command_runtime_maintenance(
+        self, command: RuntimeMaintenanceCommand
+    ) -> RuntimeMaintenanceReceipt:
+        if self._client is not None:
+            response = await self._client.post(
+                operation_path("commandRuntimeMaintenance"),
+                json=command.to_payload(),
+            )
+            value = self._async_response_object(response, "commandRuntimeMaintenance")
+            return parse_runtime_maintenance_receipt(value)
+        return await asyncio.to_thread(
+            self._require_transport().command_runtime_maintenance, command
+        )
+
+    async def observe_runtime_maintenance(
+        self,
+        operation_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 128,
+    ) -> RuntimeMaintenanceUpdate:
+        if self._client is not None:
+            response = await self._client.get(
+                _bind_path("observeRuntimeMaintenance", operation_id=operation_id),
+                params={"after_sequence": after_sequence, "limit": limit},
+            )
+            value = self._async_response_object(response, "observeRuntimeMaintenance")
+            return _validate_runtime_maintenance_cursor(
+                parse_runtime_maintenance_update(value), operation_id, after_sequence
+            )
+        update = await asyncio.to_thread(
+            self._require_transport().observe_runtime_maintenance,
+            operation_id,
+            after_sequence=after_sequence,
+            limit=limit,
+        )
+        return _validate_runtime_maintenance_cursor(
+            update, operation_id, after_sequence
+        )
+
+    async def stream_runtime_maintenance(
+        self,
+        operation_id: str,
+        *,
+        after_sequence: int = 0,
+        media_type: str = "application/x-ndjson",
+    ) -> AsyncIterator[RuntimeMaintenanceEvent]:
+        if media_type not in {"application/x-ndjson", "text/event-stream"}:
+            raise ValueError(
+                "media_type must be application/x-ndjson or text/event-stream"
+            )
+        if self._client is None:
+            if media_type != "application/x-ndjson":
+                raise ValueError("the stdlib transport supports NDJSON streaming only")
+            events = await asyncio.to_thread(
+                self._require_transport().stream_runtime_maintenance_ndjson,
+                operation_id,
+                after_sequence=after_sequence,
+            )
+            for event in events:
+                yield event
+            return
+
+        path = _bind_path("streamRuntimeMaintenanceEvents", operation_id=operation_id)
+        async with self._client.stream(
+            "GET",
+            path,
+            params={"after_sequence": after_sequence},
+            headers={"Accept": media_type},
+        ) as response:
+            if response.status_code >= 400:
+                await response.aread()
+                raise self._error_from_response(response)
+            actual = response.headers.get("content-type", "").split(";", 1)[0]
+            if actual != media_type:
+                raise RuntimeClientError(
+                    ErrorCode.ADAPTER_PROTOCOL_VIOLATION,
+                    f"Runtime event stream returned {actual or '<missing>'}",
+                    detail={"expected_media_type": media_type},
+                )
+            async for line in response.aiter_lines():
+                if not line or (
+                    media_type == "text/event-stream" and not line.startswith("data:")
+                ):
+                    continue
+                raw = line[5:].lstrip() if media_type == "text/event-stream" else line
+                value = json.loads(raw)
+                if not isinstance(value, dict):
+                    raise RuntimeClientError(
+                        ErrorCode.ADAPTER_PROTOCOL_VIOLATION,
+                        "Runtime event stream item is not a JSON object",
+                    )
+                yield parse_runtime_maintenance_event(value)
+
+    async def inspect_runtime(
+        self, *, operation_id: str | None = None
+    ) -> RuntimeMaintenanceReceipt:
+        return await self.start_runtime_maintenance(
+            RuntimeMaintenanceRequest(
+                operation=RuntimeMaintenanceOperation.INSPECT,
+                operation_id=operation_id,
+            )
+        )
+
+    async def ensure_runtime(
+        self, *, operation_id: str | None = None
+    ) -> RuntimeMaintenanceReceipt:
+        return await self.start_runtime_maintenance(
+            RuntimeMaintenanceRequest(
+                operation=RuntimeMaintenanceOperation.ENSURE,
+                operation_id=operation_id,
+            )
+        )
+
+    async def repair_runtime(
+        self,
+        *,
+        operation_id: str | None = None,
+        component_ids: Iterable[str] = (),
+    ) -> RuntimeMaintenanceReceipt:
+        return await self.start_runtime_maintenance(
+            RuntimeMaintenanceRequest(
+                operation=RuntimeMaintenanceOperation.REPAIR,
+                operation_id=operation_id,
+                component_ids=tuple(component_ids),
+            )
+        )
+
+    async def cancel_runtime(
+        self,
+        operation_id: str,
+        *,
+        command_id: str,
+        expected_sequence: int | None = None,
+    ) -> RuntimeMaintenanceReceipt:
+        return await self.command_runtime_maintenance(
+            RuntimeMaintenanceCommand(
+                command_id=command_id,
+                command=RuntimeMaintenanceCommandKind.CANCEL,
+                target_operation_id=operation_id,
+                expected_sequence=expected_sequence,
+            )
+        )
+
+    async def retry_runtime(
+        self,
+        operation_id: str,
+        *,
+        command_id: str,
+        new_operation_id: str,
+        expected_sequence: int | None = None,
+    ) -> RuntimeMaintenanceReceipt:
+        return await self.command_runtime_maintenance(
+            RuntimeMaintenanceCommand(
+                command_id=command_id,
+                command=RuntimeMaintenanceCommandKind.RETRY,
+                target_operation_id=operation_id,
+                new_operation_id=new_operation_id,
+                expected_sequence=expected_sequence,
+            )
+        )
 
     async def release_idle(self, pipeline: str | None = None) -> ResidencyStatus:
         if self._client is not None:

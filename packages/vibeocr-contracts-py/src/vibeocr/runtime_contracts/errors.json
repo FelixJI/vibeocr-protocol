@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "description": "Stable typed error registry for the HTTP v2 inference supervisor protocol. Error responses MUST carry schema_version, instance_id and one of these typed codes; the UI maps codes to user-visible behavior and MUST NEVER parse Python tracebacks. The 'retryable' flag is consumed by the client to decide automatic single retry for transient errors. Keep entries in sync with errors.schema.json#code enum.",
-  "categories": ["validation", "auth", "not_found", "conflict", "cancelled", "oom", "transient", "backend_unavailable", "internal"],
+  "description": "Stable typed error registry for Protocol v2 HTTP and Runtime Host canonical errors. Error responses MUST carry schema_version, instance_id and one of these typed codes; the UI maps codes to user-visible behavior and MUST NEVER parse Python tracebacks. The retryable flag and optional retry_after are consumed by clients for bounded retry behavior. Keep entries in sync with errors.schema.json#code enum.",
+  "categories": ["validation", "auth", "not_found", "conflict", "capability", "identity", "cancelled", "oom", "transient", "backend_unavailable", "internal"],
   "codes": [
     {
       "code": "VALIDATION_ERROR",
@@ -128,6 +128,87 @@
       "http_status": 500,
       "retryable": true,
       "message": "An unexpected internal error occurred."
+    },
+    {
+      "code": "RUNTIME_OPERATION_NOT_FOUND",
+      "category": "not_found",
+      "http_status": 404,
+      "retryable": false,
+      "message": "The referenced Runtime maintenance operation does not exist or has expired."
+    },
+    {
+      "code": "RUNTIME_OPERATION_ID_CONFLICT",
+      "category": "conflict",
+      "http_status": 409,
+      "retryable": false,
+      "message": "The operation id is already bound to a different normalized intent."
+    },
+    {
+      "code": "RUNTIME_COMMAND_ID_CONFLICT",
+      "category": "conflict",
+      "http_status": 409,
+      "retryable": false,
+      "message": "The command id is already bound to a different command payload."
+    },
+    {
+      "code": "RUNTIME_OPERATION_NOT_CANCELLABLE",
+      "category": "conflict",
+      "http_status": 409,
+      "retryable": false,
+      "message": "The Runtime maintenance operation cannot be cancelled in its current state."
+    },
+    {
+      "code": "RUNTIME_OPERATION_NOT_RETRYABLE",
+      "category": "conflict",
+      "http_status": 409,
+      "retryable": false,
+      "message": "Only failed or cancelled Runtime maintenance operations can be retried."
+    },
+    {
+      "code": "RUNTIME_CURSOR_EXPIRED",
+      "category": "not_found",
+      "http_status": 410,
+      "retryable": false,
+      "message": "The Runtime maintenance event cursor predates the retained event window."
+    },
+    {
+      "code": "RUNTIME_CAPABILITY_UNAVAILABLE",
+      "category": "capability",
+      "http_status": 426,
+      "retryable": false,
+      "message": "A capability required by the Runtime maintenance request is unavailable."
+    },
+    {
+      "code": "RUNTIME_IDENTITY_MISMATCH",
+      "category": "identity",
+      "http_status": 409,
+      "retryable": false,
+      "message": "The requested Runtime source identity does not match the verified release binding.",
+      "runtime_host_code": "invalid_binding"
+    },
+    {
+      "code": "RUNTIME_BUSY",
+      "category": "transient",
+      "http_status": 423,
+      "retryable": true,
+      "message": "Another Runtime maintenance operation owns the Runtime store lock.",
+      "runtime_host_code": "lock_timeout"
+    },
+    {
+      "code": "RUNTIME_INSTALL_FAILED",
+      "category": "backend_unavailable",
+      "http_status": 500,
+      "retryable": false,
+      "message": "The Runtime maintenance installation or verification failed.",
+      "runtime_host_code": "install_failed"
+    },
+    {
+      "code": "RUNTIME_IO_ERROR",
+      "category": "transient",
+      "http_status": 500,
+      "retryable": true,
+      "message": "A transient local I/O error interrupted Runtime maintenance.",
+      "runtime_host_code": "io_error"
     }
   ]
 }

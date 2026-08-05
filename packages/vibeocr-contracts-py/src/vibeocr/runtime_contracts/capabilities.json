@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "capabilities": [
     "ocr.recognition.v2",
     "pdf.edit.v2",
@@ -7,29 +7,109 @@
     "export.document.v1",
     "runtime.settings.v2",
     "runtime.maintenance.v1",
-    "task.progress.v1"
+    "task.progress.v1",
+    "runtime.maintenance.v2",
+    "runtime.component-repair.v1",
+    "runtime.capability-metadata.v1",
+    "runtime.events.sse.v1",
+    "runtime.events.ndjson.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
-      "description": "Submit, observe, cancel, retry, and forget Runtime API v2 OCR jobs."
+      "description": "Submit, observe, cancel, retry, and forget Runtime API v2 OCR jobs.",
+      "lifecycle": "active",
+      "introduced_in": "2.0.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     },
     "pdf.edit.v2": {
-      "description": "Open, render, inspect, mutate, stream, and save PDF sessions."
+      "description": "Open, render, inspect, mutate, stream, and save PDF sessions.",
+      "lifecycle": "active",
+      "introduced_in": "2.0.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     },
     "qrcode.v2": {
-      "description": "Decode QR/barcode images and generate QR or SVG image envelopes."
+      "description": "Decode QR/barcode images and generate QR or SVG image envelopes.",
+      "lifecycle": "active",
+      "introduced_in": "2.0.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     },
     "export.document.v1": {
-      "description": "Export OCR content to document formats supported by the Backend."
+      "description": "Export OCR content to document formats supported by the Backend.",
+      "lifecycle": "active",
+      "introduced_in": "2.0.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     },
     "runtime.settings.v2": {
-      "description": "Inspect residency, preload/release pipelines, and exchange Runtime settings."
+      "description": "Inspect residency, preload/release pipelines, and exchange Runtime settings.",
+      "lifecycle": "active",
+      "introduced_in": "2.0.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     },
     "runtime.maintenance.v1": {
-      "description": "Observe Runtime Host maintenance over opt-in NDJSON and inspect the authenticated HTTP runtime status snapshot."
+      "description": "Observe Runtime Host maintenance over opt-in NDJSON and inspect the authenticated HTTP runtime status snapshot.",
+      "lifecycle": "active",
+      "introduced_in": "2.2.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     },
     "task.progress.v1": {
-      "description": "Consume typed units and determinate or indeterminate progress on Runtime jobs and stage events."
+      "description": "Consume typed units and determinate or indeterminate progress on Runtime jobs and stage events.",
+      "lifecycle": "active",
+      "introduced_in": "2.2.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.maintenance.v2": {
+      "description": "Use idempotent Runtime maintenance operations, commands, durable sequence cursors, and replay.",
+      "lifecycle": "active",
+      "introduced_in": "2.3.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.component-repair.v1": {
+      "description": "Inspect desired and actual component drift and request repair by stable component id.",
+      "lifecycle": "active",
+      "introduced_in": "2.3.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.capability-metadata.v1": {
+      "description": "Negotiate required capabilities and consume lifecycle, deprecation, sunset, and replacement metadata.",
+      "lifecycle": "active",
+      "introduced_in": "2.3.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.events.sse.v1": {
+      "description": "Replay and follow authenticated Runtime maintenance events as Server-Sent Events after Supervisor readiness.",
+      "lifecycle": "active",
+      "introduced_in": "2.3.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.events.ndjson.v1": {
+      "description": "Replay and follow authenticated Runtime maintenance events as HTTP NDJSON after Supervisor readiness.",
+      "lifecycle": "active",
+      "introduced_in": "2.3.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
     }
   }
 }

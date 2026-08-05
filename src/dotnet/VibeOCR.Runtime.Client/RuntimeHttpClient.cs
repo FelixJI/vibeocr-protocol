@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using VibeOCR.Contracts.HttpV2;
+using VibeOCR.Runtime.Contracts.Generated;
 
 namespace VibeOCR.Runtime.Client;
 
@@ -197,6 +198,226 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
         }
     }
 
+    public async Task<RuntimeMaintenanceReceipt> StartRuntimeMaintenanceAsync(
+        RuntimeMaintenanceRequest request,
+        CancellationToken cancellationToken)
+    {
+        using StringContent content = new(
+            HttpV2Json.Serialize(request), Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await PostAsync(
+            RuntimeOperationPaths.StartRuntimeMaintenance,
+            content,
+            cancellationToken).ConfigureAwait(false);
+        return await ReadJsonAsync(
+            response,
+            HttpV2JsonContext.Default.RuntimeMaintenanceReceipt,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<RuntimeMaintenanceReceipt> CommandRuntimeMaintenanceAsync(
+        RuntimeMaintenanceCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command.Command == RuntimeMaintenanceCommandKind.Retry
+            && string.IsNullOrWhiteSpace(command.NewOperationId))
+        {
+            throw new ArgumentException("Retry requires new_operation_id.", nameof(command));
+        }
+        using StringContent content = new(
+            HttpV2Json.Serialize(command), Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await PostAsync(
+            RuntimeOperationPaths.CommandRuntimeMaintenance,
+            content,
+            cancellationToken).ConfigureAwait(false);
+        return await ReadJsonAsync(
+            response,
+            HttpV2JsonContext.Default.RuntimeMaintenanceReceipt,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<RuntimeMaintenanceUpdate> ObserveRuntimeMaintenanceAsync(
+        string operationId,
+        int afterSequence,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        if (afterSequence < 0 || limit is < 1 or > 512)
+        {
+            throw new ArgumentOutOfRangeException(nameof(afterSequence));
+        }
+        string path = BindOperationPath(
+            RuntimeOperationPaths.ObserveRuntimeMaintenance,
+            operationId)
+            + $"?after_sequence={afterSequence}&limit={limit}";
+        using HttpResponseMessage response = await GetAsync(path, cancellationToken)
+            .ConfigureAwait(false);
+        RuntimeMaintenanceUpdate update = await ReadJsonAsync(
+            response,
+            HttpV2JsonContext.Default.RuntimeMaintenanceUpdate,
+            cancellationToken).ConfigureAwait(false);
+        ValidateMaintenanceCursor(update, operationId, afterSequence);
+        return update;
+    }
+
+    private static void ValidateMaintenanceCursor(
+        RuntimeMaintenanceUpdate update,
+        string operationId,
+        int afterSequence)
+    {
+        bool invalid = update.OperationId != operationId
+            || update.Snapshot.OperationId != operationId
+            || update.OldestSequence < 1
+            || update.ThroughSequence < 0
+            || update.Snapshot.Sequence < update.ThroughSequence
+            || update.OldestSequence > update.Snapshot.Sequence;
+        if (update.Events.Count == 0)
+        {
+            invalid |= update.ThroughSequence > afterSequence || update.More;
+        }
+        else
+        {
+            invalid |= update.Events[0].Sequence != afterSequence + 1
+                || update.Events[^1].Sequence != update.ThroughSequence;
+            for (int index = 0; index < update.Events.Count; index++)
+            {
+                RuntimeMaintenanceEvent current = update.Events[index];
+                invalid |= current.Sequence != current.Snapshot.Sequence
+                    || current.Snapshot.OperationId != operationId;
+                if (index > 0)
+                {
+                    invalid |= current.Sequence != update.Events[index - 1].Sequence + 1;
+                }
+            }
+        }
+        if (invalid)
+        {
+            throw new RuntimeClientException(
+                HttpV2ErrorCode.AdapterProtocolViolation,
+                "Runtime maintenance cursor response is invalid",
+                retryable: false);
+        }
+    }
+
+    public Task<RuntimeMaintenanceReceipt> InspectRuntimeAsync(
+        string? operationId,
+        CancellationToken cancellationToken) =>
+        StartRuntimeMaintenanceAsync(
+            new RuntimeMaintenanceRequest
+            {
+                OperationId = operationId,
+                Operation = RuntimeMaintenanceOperation.Inspect,
+            },
+            cancellationToken);
+
+    public Task<RuntimeMaintenanceReceipt> EnsureRuntimeAsync(
+        string? operationId,
+        CancellationToken cancellationToken) =>
+        StartRuntimeMaintenanceAsync(
+            new RuntimeMaintenanceRequest
+            {
+                OperationId = operationId,
+                Operation = RuntimeMaintenanceOperation.Ensure,
+            },
+            cancellationToken);
+
+    public Task<RuntimeMaintenanceReceipt> RepairRuntimeAsync(
+        string? operationId,
+        IReadOnlyList<string>? componentIds,
+        CancellationToken cancellationToken) =>
+        StartRuntimeMaintenanceAsync(
+            new RuntimeMaintenanceRequest
+            {
+                OperationId = operationId,
+                Operation = RuntimeMaintenanceOperation.Repair,
+                ComponentIds = componentIds,
+            },
+            cancellationToken);
+
+    public Task<RuntimeMaintenanceReceipt> CancelRuntimeAsync(
+        string operationId,
+        string commandId,
+        int? expectedSequence,
+        CancellationToken cancellationToken) =>
+        CommandRuntimeMaintenanceAsync(
+            new RuntimeMaintenanceCommand
+            {
+                CommandId = commandId,
+                Command = RuntimeMaintenanceCommandKind.Cancel,
+                TargetOperationId = operationId,
+                ExpectedSequence = expectedSequence,
+            },
+            cancellationToken);
+
+    public Task<RuntimeMaintenanceReceipt> RetryRuntimeAsync(
+        string operationId,
+        string commandId,
+        string newOperationId,
+        int? expectedSequence,
+        CancellationToken cancellationToken) =>
+        CommandRuntimeMaintenanceAsync(
+            new RuntimeMaintenanceCommand
+            {
+                CommandId = commandId,
+                Command = RuntimeMaintenanceCommandKind.Retry,
+                TargetOperationId = operationId,
+                NewOperationId = newOperationId,
+                ExpectedSequence = expectedSequence,
+            },
+            cancellationToken);
+
+    public async IAsyncEnumerable<RuntimeMaintenanceEvent> StreamRuntimeMaintenanceAsync(
+        string operationId,
+        int afterSequence,
+        string mediaType,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        if (afterSequence < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(afterSequence));
+        }
+        if (mediaType is not "application/x-ndjson" and not "text/event-stream")
+        {
+            throw new ArgumentException("Unsupported Runtime event media type.", nameof(mediaType));
+        }
+        string path = BindOperationPath(
+            RuntimeOperationPaths.StreamRuntimeMaintenanceEvents,
+            operationId) + $"?after_sequence={afterSequence}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, RequireRelativePath(path));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(mediaType));
+        using HttpResponseMessage response = await _http.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        string? actual = response.Content.Headers.ContentType?.MediaType;
+        if (!string.Equals(actual, mediaType, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RuntimeClientException(
+                HttpV2ErrorCode.AdapterProtocolViolation,
+                $"Runtime API returned media type '{actual ?? "<missing>"}'; expected '{mediaType}'.",
+                retryable: false);
+        }
+        await using Stream stream = await response.Content
+            .ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            if (string.IsNullOrWhiteSpace(line)
+                || (mediaType == "text/event-stream" && !line.StartsWith("data:", StringComparison.Ordinal)))
+            {
+                continue;
+            }
+            string json = mediaType == "text/event-stream" ? line[5..].TrimStart() : line;
+            RuntimeMaintenanceEvent? value = HttpV2Json.Deserialize<RuntimeMaintenanceEvent>(json);
+            yield return value ?? throw new RuntimeClientException(
+                HttpV2ErrorCode.AdapterProtocolViolation,
+                "Runtime API returned an empty event stream item.",
+                retryable: false);
+        }
+    }
+
     public async Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -218,7 +439,8 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                     payload.Code,
                     payload.Message,
                     payload.Retryable,
-                    payload.Detail);
+                    payload.Detail,
+                    payload.RetryAfter);
             }
         }
         catch (RuntimeClientException)
@@ -240,6 +462,15 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
     {
         _http.Dispose();
         return ValueTask.CompletedTask;
+    }
+
+    private static string BindOperationPath(string template, string operationId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        return template.Replace(
+            "{operation_id}",
+            Uri.EscapeDataString(operationId),
+            StringComparison.Ordinal);
     }
 
     private Uri RequireRelativePath(string path)

@@ -130,6 +130,27 @@ class RuntimeComponentState(StrEnum):
     CANCELLED = "cancelled"
 
 
+class RuntimeComponentDesiredState(StrEnum):
+    READY = "ready"
+    NOT_REQUIRED = "not_required"
+
+
+class RuntimeComponentActualState(StrEnum):
+    READY = "ready"
+    MISSING = "missing"
+    DRIFTED = "drifted"
+    UNKNOWN = "unknown"
+
+
+class RuntimeDriftReason(StrEnum):
+    NONE = "none"
+    MISSING = "missing"
+    VERSION_MISMATCH = "version_mismatch"
+    IDENTITY_MISMATCH = "identity_mismatch"
+    INTEGRITY_FAILED = "integrity_failed"
+    UNEXPECTED = "unexpected"
+
+
 class RuntimeServiceState(StrEnum):
     READY = "ready"
     DEGRADED = "degraded"
@@ -140,6 +161,17 @@ class RuntimeMaintenanceOperation(StrEnum):
     INSPECT = "inspect"
     ENSURE = "ensure"
     REPAIR = "repair"
+
+
+class RuntimeMaintenanceCommandKind(StrEnum):
+    CANCEL = "cancel"
+    RETRY = "retry"
+
+
+class RuntimeMaintenanceEventType(StrEnum):
+    SNAPSHOT = "snapshot"
+    PROGRESS = "progress"
+    HEARTBEAT = "heartbeat"
 
 
 class RuntimeOperationState(StrEnum):
@@ -207,6 +239,20 @@ class ProgressSnapshot:
     unit: ProgressUnit
     current: int
     total: int | None = None
+    estimated_remaining_seconds: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.current < 0:
+            raise ValueError("progress current must be non-negative")
+        if self.total is not None and self.total < 0:
+            raise ValueError("progress total must be non-negative")
+        if self.estimated_remaining_seconds is not None:
+            if self.unit not in {ProgressUnit.ITEMS, ProgressUnit.BYTES}:
+                raise ValueError("ETA requires items or bytes progress")
+            if self.total is None or self.total <= 0:
+                raise ValueError("ETA requires a positive real total")
+            if self.estimated_remaining_seconds < 0:
+                raise ValueError("ETA must be non-negative")
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -215,6 +261,8 @@ class ProgressSnapshot:
         }
         if self.total is not None:
             payload["total"] = self.total
+        if self.estimated_remaining_seconds is not None:
+            payload["estimated_remaining_seconds"] = self.estimated_remaining_seconds
         return payload
 
 
@@ -539,19 +587,104 @@ class ResidencyStatus:
 
 
 @dataclass(frozen=True, slots=True)
+class RuntimeSourceIdentity:
+    backend_version: str
+    backend_source_sha: str
+    runtime_manifest_sha256: str
+    protocol_version: str
+    protocol_manifest_sha256: str
+
+    def to_payload(self) -> dict[str, str]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeMaintenanceRequest:
+    operation: RuntimeMaintenanceOperation
+    operation_id: str | None = None
+    profile_id: str | None = None
+    component_ids: tuple[str, ...] = ()
+    required_capabilities: tuple[str, ...] = ()
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {"operation": self.operation.value}
+        if self.operation_id is not None:
+            payload["operation_id"] = self.operation_id
+        if self.profile_id is not None:
+            payload["profile_id"] = self.profile_id
+        if self.component_ids:
+            payload["component_ids"] = list(self.component_ids)
+        if self.required_capabilities:
+            payload["required_capabilities"] = list(self.required_capabilities)
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeMaintenanceCommand:
+    command_id: str
+    command: RuntimeMaintenanceCommandKind
+    target_operation_id: str
+    new_operation_id: str | None = None
+    expected_sequence: int | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            self.command is RuntimeMaintenanceCommandKind.RETRY
+            and self.new_operation_id is None
+        ):
+            raise ValueError("retry requires new_operation_id")
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "command_id": self.command_id,
+            "command": self.command.value,
+            "target_operation_id": self.target_operation_id,
+        }
+        if self.new_operation_id is not None:
+            payload["new_operation_id"] = self.new_operation_id
+        if self.expected_sequence is not None:
+            payload["expected_sequence"] = self.expected_sequence
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeComponentStatus:
     component_id: str
     display_name: str
     state: RuntimeComponentState
     version: str | None = None
+    desired_state: RuntimeComponentDesiredState | None = None
+    desired_version: str | None = None
+    actual_state: RuntimeComponentActualState | None = None
+    actual_version: str | None = None
+    drift_reason: RuntimeDriftReason | None = None
+    repairable: bool | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "component_id": self.component_id,
             "display_name": self.display_name,
             "state": self.state.value,
             "version": self.version,
         }
+        optional = {
+            "desired_state": (
+                self.desired_state.value if self.desired_state is not None else None
+            ),
+            "desired_version": self.desired_version,
+            "actual_state": (
+                self.actual_state.value if self.actual_state is not None else None
+            ),
+            "actual_version": self.actual_version,
+            "drift_reason": (
+                self.drift_reason.value if self.drift_reason is not None else None
+            ),
+            "repairable": self.repairable,
+        }
+        payload.update(
+            {key: value for key, value in optional.items() if value is not None}
+        )
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -577,13 +710,18 @@ class RuntimeMaintenanceStatus:
     phase: RuntimeMaintenancePhase
     profile_id: str
     updated_at: str = field(default_factory=_utcnow_iso)
+    source_operation_id: str | None = None
     component_id: str | None = None
     progress: ProgressSnapshot | None = None
     message_code: str | None = None
+    requested_component_ids: tuple[str, ...] = ()
+    effective_component_ids: tuple[str, ...] = ()
+    source: RuntimeSourceIdentity | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "operation_id": self.operation_id,
+            "source_operation_id": self.source_operation_id,
             "sequence": self.sequence,
             "operation": self.operation.value,
             "operation_state": self.operation_state.value,
@@ -594,6 +732,79 @@ class RuntimeMaintenanceStatus:
             "progress": self.progress.to_payload() if self.progress else None,
             "message_code": self.message_code,
         }
+        if self.requested_component_ids:
+            payload["requested_component_ids"] = list(self.requested_component_ids)
+        if self.effective_component_ids:
+            payload["effective_component_ids"] = list(self.effective_component_ids)
+        if self.source is not None:
+            payload["source"] = self.source.to_payload()
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeMaintenanceReceipt:
+    operation_id: str
+    snapshot: RuntimeMaintenanceStatus
+    negotiated_capabilities: tuple[str, ...] = ()
+    schema_version: int = SCHEMA_VERSION
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "operation_id": self.operation_id,
+            "snapshot": self.snapshot.to_payload(),
+            "negotiated_capabilities": list(self.negotiated_capabilities),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeMaintenanceEvent:
+    sequence: int
+    event_type: RuntimeMaintenanceEventType
+    operation: RuntimeMaintenanceOperation
+    snapshot: RuntimeMaintenanceStatus
+    message_code: str
+    message_args: dict[str, str] = field(default_factory=dict)
+    fallback_message: str | None = None
+    schema_version: int = SCHEMA_VERSION
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "schema_version": self.schema_version,
+            "event_type": self.event_type.value,
+            "sequence": self.sequence,
+            "operation": self.operation.value,
+            "snapshot": self.snapshot.to_payload(),
+            "message_code": self.message_code,
+            "message_args": dict(self.message_args),
+        }
+        if self.fallback_message is not None:
+            payload["fallback_message"] = self.fallback_message
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeMaintenanceUpdate:
+    operation_id: str
+    snapshot: RuntimeMaintenanceStatus
+    events: tuple[RuntimeMaintenanceEvent, ...]
+    oldest_sequence: int
+    through_sequence: int
+    more: bool
+    replay_expires_at: str | None
+    schema_version: int = SCHEMA_VERSION
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "operation_id": self.operation_id,
+            "snapshot": self.snapshot.to_payload(),
+            "events": [event.to_payload() for event in self.events],
+            "oldest_sequence": self.oldest_sequence,
+            "through_sequence": self.through_sequence,
+            "more": self.more,
+            "replay_expires_at": self.replay_expires_at,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -603,10 +814,11 @@ class RuntimeStatusSnapshot:
     backend_version: str
     profile: RuntimeProfileStatus
     maintenance: RuntimeMaintenanceStatus | None = None
+    source: RuntimeSourceIdentity | None = None
     schema_version: int = SCHEMA_VERSION
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "schema_version": self.schema_version,
             "instance_id": self.instance_id,
             "service_state": self.service_state.value,
@@ -614,6 +826,9 @@ class RuntimeStatusSnapshot:
             "profile": self.profile.to_payload(),
             "maintenance": self.maintenance.to_payload() if self.maintenance else None,
         }
+        if self.source is not None:
+            payload["source"] = self.source.to_payload()
+        return payload
 
 
 # ---------------------------------------------------------------------------

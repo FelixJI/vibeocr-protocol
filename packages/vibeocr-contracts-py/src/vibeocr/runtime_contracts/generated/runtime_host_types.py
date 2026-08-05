@@ -7,30 +7,53 @@ Accelerator = Literal['cpu', 'nvidia_cuda']
 IntegrityStatus = Literal['verified', 'not-installed']
 ProgressUnit = Literal['steps', 'items', 'bytes']
 RuntimeHostErrorCode = Literal['invalid_request', 'invalid_binding', 'install_failed', 'lock_timeout', 'io_error']
-RuntimeHostEventStream = Literal['ndjson.v1']
+RuntimeHostEventStream = Literal['ndjson.v1', 'ndjson.v2']
 RuntimeHostOperation = Literal['inspect', 'ensure', 'repair']
+RuntimeMaintenanceCommandKind = Literal['cancel', 'retry']
 RuntimeMaintenanceEventType = Literal['snapshot', 'progress', 'heartbeat']
 RuntimeMaintenancePhase = Literal['validate_binding', 'wait_for_lock', 'prepare_runtime', 'install_profile', 'install_backend', 'verify_runtime', 'commit_runtime']
 RuntimeOperationState = Literal['queued', 'running', 'succeeded', 'failed', 'cancelled']
 RuntimeStatus = Literal['ready', 'missing']
 
 
+class CapabilityDescriptor(TypedDict, total=False):
+    name: Required[str]
+    lifecycle: Required[Literal['active', 'deprecated']]
+    introduced_in: Required[str]
+    deprecated_in: Required[str | None]
+    sunset_at: Required[str | None]
+    replacement: Required[str | None]
+
+
 class ProgressSnapshot(TypedDict, total=False):
     unit: Required[ProgressUnit]
     current: Required[int]
     total: NotRequired[int]
+    estimated_remaining_seconds: NotRequired[float]
 
 
 class RuntimeComponentDescriptor(TypedDict, total=False):
     component_id: Required[str]
     display_name: Required[str]
     version: NotRequired[str]
+    state: NotRequired[Literal['not_required', 'pending', 'installing', 'verifying', 'ready', 'failed', 'cancelled']]
+    desired_state: NotRequired[Literal['ready', 'not_required']]
+    desired_version: NotRequired[str | None]
+    actual_state: NotRequired[Literal['ready', 'missing', 'drifted', 'unknown']]
+    actual_version: NotRequired[str | None]
+    drift_reason: NotRequired[Literal['none', 'missing', 'version_mismatch', 'identity_mismatch', 'integrity_failed', 'unexpected']]
+    repairable: NotRequired[bool]
 
 
 class RuntimeHostError(TypedDict, total=False):
     code: Required[RuntimeHostErrorCode]
     message: Required[str]
     retryable: Required[bool]
+    canonical_code: NotRequired[str]
+    category: NotRequired[Literal['validation', 'auth', 'not_found', 'conflict', 'capability', 'identity', 'cancelled', 'oom', 'transient', 'backend_unavailable', 'internal']]
+    retry_after: NotRequired[int]
+    message_code: NotRequired[str]
+    detail: NotRequired[dict[str, Any]]
 
 
 class RuntimeHostFailure(TypedDict, total=False):
@@ -50,6 +73,9 @@ class RuntimeHostRequest(TypedDict, total=False):
     accelerator: NotRequired[Accelerator | None]
     layout_manifest: NotRequired[str | None]
     product_id: NotRequired[str | None]
+    operation_id: NotRequired[str]
+    component_ids: NotRequired[list[str]]
+    required_capabilities: NotRequired[list[str]]
     accepted_event_streams: NotRequired[list[RuntimeHostEventStream]]
 
 
@@ -61,6 +87,8 @@ class RuntimeHostSuccess(TypedDict, total=False):
     launch: NotRequired[RuntimeLaunch | None]
     profile: NotRequired[RuntimeProfileDescriptor | None]
     maintenance: NotRequired[RuntimeMaintenanceSnapshot | None]
+    negotiated_capabilities: NotRequired[list[str]]
+    capability_descriptors: NotRequired[list[CapabilityDescriptor]]
 
 
 class RuntimeLaunch(TypedDict, total=False):
@@ -71,10 +99,29 @@ class RuntimeLaunch(TypedDict, total=False):
     environment: Required[dict[str, Any]]
 
 
+class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
+    protocol_version: Required[Literal[2]]
+    request_kind: Required[Literal['command']]
+    command: Required[RuntimeMaintenanceCommandKind]
+    command_id: Required[str]
+    target_operation_id: Required[str]
+    new_operation_id: NotRequired[str]
+    expected_sequence: NotRequired[int]
+    product_root: Required[str]
+    component_lock: Required[str]
+    runtime_manifest: Required[str]
+    accelerator: NotRequired[Accelerator]
+    layout_manifest: NotRequired[str]
+    product_id: NotRequired[str]
+    accepted_event_streams: NotRequired[list[RuntimeHostEventStream]]
+
+
 class RuntimeMaintenanceEvent(TypedDict, total=False):
+    schema_version: NotRequired[Literal[2]]
     protocol_version: Required[Literal[2]]
     event_version: Required[Literal[1]]
     event_type: Required[RuntimeMaintenanceEventType]
+    sequence: NotRequired[int]
     operation: Required[RuntimeHostOperation]
     snapshot: Required[RuntimeMaintenanceSnapshot]
     message_code: Required[str]
@@ -82,22 +129,61 @@ class RuntimeMaintenanceEvent(TypedDict, total=False):
     fallback_message: NotRequired[str]
 
 
+class RuntimeMaintenanceObserveRequest(TypedDict, total=False):
+    protocol_version: Required[Literal[2]]
+    request_kind: Required[Literal['observe']]
+    operation_id: Required[str]
+    after_sequence: Required[int]
+    limit: NotRequired[int]
+    product_root: Required[str]
+    component_lock: Required[str]
+    runtime_manifest: Required[str]
+    accelerator: NotRequired[Accelerator]
+    layout_manifest: NotRequired[str]
+    product_id: NotRequired[str]
+
+
 class RuntimeMaintenanceSnapshot(TypedDict, total=False):
     operation_id: Required[str]
+    source_operation_id: NotRequired[str | None]
     sequence: Required[int]
     operation: Required[RuntimeHostOperation]
     operation_state: Required[RuntimeOperationState]
     phase: Required[RuntimeMaintenancePhase]
     profile_id: Required[str]
     component_id: NotRequired[str | None]
+    requested_component_ids: NotRequired[list[str]]
+    effective_component_ids: NotRequired[list[str]]
+    source: NotRequired[RuntimeSourceIdentity]
     updated_at: Required[str]
     progress: NotRequired[ProgressSnapshot | None]
+
+
+class RuntimeMaintenanceUpdate(TypedDict, total=False):
+    protocol_version: Required[Literal[2]]
+    ok: Required[Literal[True]]
+    request_kind: Required[Literal['observe']]
+    operation_id: Required[str]
+    snapshot: Required[RuntimeMaintenanceSnapshot]
+    events: Required[list[RuntimeMaintenanceEvent]]
+    oldest_sequence: Required[int]
+    through_sequence: Required[int]
+    more: Required[bool]
+    replay_expires_at: NotRequired[str | None]
 
 
 class RuntimeProfileDescriptor(TypedDict, total=False):
     profile_id: Required[str]
     accelerator: Required[Accelerator]
     components: Required[list[RuntimeComponentDescriptor]]
+
+
+class RuntimeSourceIdentity(TypedDict, total=False):
+    backend_version: Required[str]
+    backend_source_sha: Required[str]
+    runtime_manifest_sha256: Required[str]
+    protocol_version: Required[str]
+    protocol_manifest_sha256: Required[str]
 
 
 class RuntimeState(TypedDict, total=False):
@@ -107,3 +193,4 @@ class RuntimeState(TypedDict, total=False):
     integrity: Required[IntegrityStatus]
     manifest_sha256: Required[str]
     backend_version: Required[str]
+    source: NotRequired[RuntimeSourceIdentity]
