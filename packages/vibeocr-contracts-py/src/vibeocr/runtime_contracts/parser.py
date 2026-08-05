@@ -43,8 +43,20 @@ from .dtos import (
     JobUpdate,
     PipelineSelection,
     PipelineSpec,
+    ProgressSnapshot,
+    ProgressUnit,
     ResidencyEntry,
     ResidencyKind,
+    RuntimeAccelerator,
+    RuntimeComponentState,
+    RuntimeComponentStatus,
+    RuntimeMaintenanceOperation,
+    RuntimeMaintenancePhase,
+    RuntimeMaintenanceStatus,
+    RuntimeOperationState,
+    RuntimeProfileStatus,
+    RuntimeServiceState,
+    RuntimeStatusSnapshot,
     StageEvent,
     SubmitItem,
     SubmitRequest,
@@ -413,6 +425,11 @@ def parse_job_snapshot(payload: dict[str, Any]) -> JobSnapshot:
             if payload.get("pipeline") is not None
             else None
         ),
+        progress=(
+            _parse_progress_snapshot(payload["progress"])
+            if payload.get("progress") is not None
+            else None
+        ),
     )
 
 
@@ -445,6 +462,29 @@ def _parse_stage_event(payload: Any) -> StageEvent:
         item_id=payload.get("item_id"),
         timestamp=payload["timestamp"],
         detail=detail,
+        progress=(
+            _parse_progress_snapshot(payload["progress"])
+            if payload.get("progress") is not None
+            else None
+        ),
+        message_code=payload.get("message_code"),
+    )
+
+
+def _parse_progress_snapshot(payload: Any) -> ProgressSnapshot:
+    if not isinstance(payload, dict):
+        raise ContractError("progress must be a JSON object")
+    _require_fields(payload, ("unit", "current"), "progress")
+    current = payload["current"]
+    total = payload.get("total")
+    if not isinstance(current, int) or current < 0:
+        raise ContractError("progress current must be a non-negative integer")
+    if total is not None and (not isinstance(total, int) or total < 0):
+        raise ContractError("progress total must be a non-negative integer")
+    return ProgressSnapshot(
+        unit=_require_enum(ProgressUnit, payload["unit"], "progress unit"),
+        current=current,
+        total=total,
     )
 
 
@@ -668,6 +708,124 @@ def parse_pipeline_spec(payload: dict[str, Any]) -> PipelineSpec:
     )
 
 
+def parse_runtime_status(payload: dict[str, Any]) -> RuntimeStatusSnapshot:
+    if not isinstance(payload, dict):
+        raise ContractError("runtime status must be a JSON object")
+    _require_fields(
+        payload,
+        (
+            "schema_version",
+            "instance_id",
+            "service_state",
+            "backend_version",
+            "profile",
+            "maintenance",
+        ),
+        "runtime status",
+    )
+    if payload["schema_version"] != SCHEMA_VERSION:
+        raise ContractError(
+            "schema_version mismatch: "
+            f"expected {SCHEMA_VERSION}, got {payload['schema_version']}"
+        )
+    profile = payload["profile"]
+    if not isinstance(profile, dict):
+        raise ContractError("runtime profile must be a JSON object")
+    _require_fields(
+        profile, ("profile_id", "accelerator", "components"), "runtime profile"
+    )
+    components = profile["components"]
+    if not isinstance(components, list):
+        raise ContractError("runtime profile components must be a list")
+    parsed_components: list[RuntimeComponentStatus] = []
+    for component in components:
+        if not isinstance(component, dict):
+            raise ContractError("runtime component must be a JSON object")
+        _require_fields(
+            component,
+            ("component_id", "display_name", "state"),
+            "runtime component",
+        )
+        parsed_components.append(
+            RuntimeComponentStatus(
+                component_id=component["component_id"],
+                display_name=component["display_name"],
+                state=_require_enum(
+                    RuntimeComponentState,
+                    component["state"],
+                    "runtime component state",
+                ),
+                version=component.get("version"),
+            )
+        )
+    maintenance_raw = payload["maintenance"]
+    maintenance = None
+    if maintenance_raw is not None:
+        if not isinstance(maintenance_raw, dict):
+            raise ContractError("runtime maintenance must be null or a JSON object")
+        _require_fields(
+            maintenance_raw,
+            (
+                "operation_id",
+                "sequence",
+                "operation",
+                "operation_state",
+                "phase",
+                "profile_id",
+                "updated_at",
+            ),
+            "runtime maintenance",
+        )
+        maintenance = RuntimeMaintenanceStatus(
+            operation_id=maintenance_raw["operation_id"],
+            sequence=int(maintenance_raw["sequence"]),
+            operation=_require_enum(
+                RuntimeMaintenanceOperation,
+                maintenance_raw["operation"],
+                "runtime maintenance operation",
+            ),
+            operation_state=_require_enum(
+                RuntimeOperationState,
+                maintenance_raw["operation_state"],
+                "runtime operation state",
+            ),
+            phase=_require_enum(
+                RuntimeMaintenancePhase,
+                maintenance_raw["phase"],
+                "runtime maintenance phase",
+            ),
+            profile_id=maintenance_raw["profile_id"],
+            component_id=maintenance_raw.get("component_id"),
+            updated_at=maintenance_raw["updated_at"],
+            progress=(
+                _parse_progress_snapshot(maintenance_raw["progress"])
+                if maintenance_raw.get("progress") is not None
+                else None
+            ),
+            message_code=maintenance_raw.get("message_code"),
+        )
+    return RuntimeStatusSnapshot(
+        schema_version=SCHEMA_VERSION,
+        instance_id=payload["instance_id"],
+        service_state=_require_enum(
+            RuntimeServiceState,
+            payload["service_state"],
+            "runtime service state",
+        ),
+        backend_version=payload["backend_version"],
+        profile=RuntimeProfileStatus(
+            profile_id=profile["profile_id"],
+            accelerator=_require_enum(
+                RuntimeAccelerator,
+                profile["accelerator"],
+                "runtime accelerator",
+            ),
+            components=tuple(parsed_components),
+        ),
+        maintenance=maintenance,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SchemaValidator:
     """Bundles the parse helpers so callers can inject a fake clock etc."""
@@ -697,5 +855,6 @@ __all__ = [
     "parse_pipeline_selection",
     "parse_pipeline_spec",
     "parse_residency_entry",
+    "parse_runtime_status",
     "parse_submit_request",
 ]

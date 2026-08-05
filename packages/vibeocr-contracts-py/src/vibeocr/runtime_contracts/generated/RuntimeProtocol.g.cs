@@ -10,6 +10,8 @@ public static class RuntimeProtocol
     public const string QRCODE_V2 = "qrcode.v2";
     public const string EXPORT_DOCUMENT_V1 = "export.document.v1";
     public const string RUNTIME_SETTINGS_V2 = "runtime.settings.v2";
+    public const string RUNTIME_MAINTENANCE_V1 = "runtime.maintenance.v1";
+    public const string TASK_PROGRESS_V1 = "task.progress.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -20,7 +22,9 @@ public static class RuntimeProtocol
         "pdf.edit.v2",
         "qrcode.v2",
         "export.document.v1",
-        "runtime.settings.v2"
+        "runtime.settings.v2",
+        "runtime.maintenance.v1",
+        "task.progress.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
@@ -29,6 +33,7 @@ public static class RuntimeProtocol
         new("GET", "/v2/jobs/{job_id}/observe", "observeJob"),
         new("GET", "/v2/pdf/sessions/{session_id}/render", "renderPdfPage"),
         new("GET", "/v2/runtime/residency", "getRuntimeResidency"),
+        new("GET", "/v2/runtime/status", "getRuntimeStatus"),
         new("GET", "/v2/settings", "getSettings"),
         new("POST", "/v2/export", "exportOcr"),
         new("POST", "/v2/jobs", "submitJob"),
@@ -71,6 +76,7 @@ public static class RuntimeOperationPaths
     public const string ObserveJob = "/v2/jobs/{job_id}/observe";
     public const string RenderPdfPage = "/v2/pdf/sessions/{session_id}/render";
     public const string GetRuntimeResidency = "/v2/runtime/residency";
+    public const string GetRuntimeStatus = "/v2/runtime/status";
     public const string GetSettings = "/v2/settings";
     public const string ExportOcr = "/v2/export";
     public const string SubmitJob = "/v2/jobs";

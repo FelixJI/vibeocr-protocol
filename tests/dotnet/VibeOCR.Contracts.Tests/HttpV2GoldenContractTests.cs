@@ -64,6 +64,67 @@ public sealed class HttpV2GoldenContractTests
     }
 
     [Fact]
+    public void RuntimeStatusRoundTripsTypedProfileAndProgress()
+    {
+        var status = new RuntimeStatusSnapshot
+        {
+            InstanceId = "runtime-1",
+            ServiceState = RuntimeServiceState.Maintenance,
+            BackendVersion = "0.9.0",
+            Profile = new RuntimeProfileStatus
+            {
+                ProfileId = "win-x64-cpu",
+                Accelerator = RuntimeAccelerator.Cpu,
+                Components =
+                [
+                    new RuntimeComponentStatus
+                    {
+                        ComponentId = "ocr_engine",
+                        DisplayName = "OCR engine",
+                        State = RuntimeComponentState.Installing,
+                        Version = "3.3.2",
+                    },
+                ],
+            },
+            Maintenance = new RuntimeMaintenanceStatus
+            {
+                OperationId = "install-1",
+                Sequence = 2,
+                Operation = RuntimeMaintenanceOperation.Ensure,
+                OperationState = RuntimeOperationState.Running,
+                Phase = RuntimeMaintenancePhase.InstallProfile,
+                ProfileId = "win-x64-cpu",
+                ComponentId = "ocr_engine",
+                UpdatedAt = "2026-08-05T12:00:00Z",
+                Progress = new ProgressSnapshot
+                {
+                    Unit = ProgressUnit.Steps,
+                    Current = 2,
+                    Total = 5,
+                },
+                MessageCode = "runtime.install.profile",
+            },
+        };
+        string json = HttpV2Json.Serialize(status);
+        RuntimeStatusSnapshot parsed =
+            HttpV2Json.Deserialize<RuntimeStatusSnapshot>(json)!;
+        Assert.Equal("ocr_engine", parsed.Profile.Components.Single().ComponentId);
+        Assert.Equal(5, parsed.Maintenance!.Progress!.Total);
+    }
+
+    [Fact]
+    public void IndeterminateProgressOmitsTotal()
+    {
+        var progress = new ProgressSnapshot
+        {
+            Unit = ProgressUnit.Bytes,
+            Current = 1024,
+        };
+        JsonNode payload = JsonNode.Parse(HttpV2Json.Serialize(progress))!;
+        Assert.False(payload.AsObject().ContainsKey("total"));
+    }
+
+    [Fact]
     public void SettingsSnapshotRoundTrips()
     {
         JsonElement fixture = LoadGolden().RootElement.GetProperty("settings_snapshot");

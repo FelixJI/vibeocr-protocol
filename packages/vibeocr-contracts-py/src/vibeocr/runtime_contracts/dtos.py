@@ -114,6 +114,57 @@ class EvictionReason(StrEnum):
     SUPERVISOR_SHUTDOWN = "supervisor_shutdown"
 
 
+class ProgressUnit(StrEnum):
+    STEPS = "steps"
+    ITEMS = "items"
+    BYTES = "bytes"
+
+
+class RuntimeComponentState(StrEnum):
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    INSTALLING = "installing"
+    VERIFYING = "verifying"
+    READY = "ready"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class RuntimeServiceState(StrEnum):
+    READY = "ready"
+    DEGRADED = "degraded"
+    MAINTENANCE = "maintenance"
+
+
+class RuntimeMaintenanceOperation(StrEnum):
+    INSPECT = "inspect"
+    ENSURE = "ensure"
+    REPAIR = "repair"
+
+
+class RuntimeOperationState(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class RuntimeMaintenancePhase(StrEnum):
+    VALIDATE_BINDING = "validate_binding"
+    WAIT_FOR_LOCK = "wait_for_lock"
+    PREPARE_RUNTIME = "prepare_runtime"
+    INSTALL_PROFILE = "install_profile"
+    INSTALL_BACKEND = "install_backend"
+    VERIFY_RUNTIME = "verify_runtime"
+    COMMIT_RUNTIME = "commit_runtime"
+
+
+class RuntimeAccelerator(StrEnum):
+    CPU = "cpu"
+    NVIDIA_CUDA = "nvidia_cuda"
+
+
 # ---------------------------------------------------------------------------
 # Job DTOs
 # ---------------------------------------------------------------------------
@@ -150,6 +201,24 @@ class JobSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class ProgressSnapshot:
+    """Typed progress; an omitted total means indeterminate progress."""
+
+    unit: ProgressUnit
+    current: int
+    total: int | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "unit": self.unit.value,
+            "current": self.current,
+        }
+        if self.total is not None:
+            payload["total"] = self.total
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
 class StageEvent:
     """One ordered event in a job's event log."""
 
@@ -158,15 +227,22 @@ class StageEvent:
     item_id: str | None
     timestamp: str = field(default_factory=_utcnow_iso)
     detail: dict[str, Any] | None = None
+    progress: ProgressSnapshot | None = None
+    message_code: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "sequence": self.sequence,
             "stage": self.stage,
             "item_id": self.item_id,
             "timestamp": self.timestamp,
             "detail": self.detail or {},
         }
+        if self.progress is not None:
+            payload["progress"] = self.progress.to_payload()
+        if self.message_code is not None:
+            payload["message_code"] = self.message_code
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,9 +291,10 @@ class JobSnapshot:
     request_id: str | None = None
     source_job_id: str | None = None
     pipeline: PipelineSelection | None = None
+    progress: ProgressSnapshot | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "job_id": self.job_id,
             "kind": self.kind.value,
             "priority": self.priority.value,
@@ -241,6 +318,9 @@ class JobSnapshot:
             "source_job_id": self.source_job_id,
             "pipeline": self.pipeline.to_payload() if self.pipeline else None,
         }
+        if self.progress is not None:
+            payload["progress"] = self.progress.to_payload()
+        return payload
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +538,84 @@ class ResidencyStatus:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class RuntimeComponentStatus:
+    component_id: str
+    display_name: str
+    state: RuntimeComponentState
+    version: str | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "component_id": self.component_id,
+            "display_name": self.display_name,
+            "state": self.state.value,
+            "version": self.version,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeProfileStatus:
+    profile_id: str
+    accelerator: RuntimeAccelerator
+    components: tuple[RuntimeComponentStatus, ...] = ()
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "profile_id": self.profile_id,
+            "accelerator": self.accelerator.value,
+            "components": [component.to_payload() for component in self.components],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeMaintenanceStatus:
+    operation_id: str
+    sequence: int
+    operation: RuntimeMaintenanceOperation
+    operation_state: RuntimeOperationState
+    phase: RuntimeMaintenancePhase
+    profile_id: str
+    updated_at: str = field(default_factory=_utcnow_iso)
+    component_id: str | None = None
+    progress: ProgressSnapshot | None = None
+    message_code: str | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "operation_id": self.operation_id,
+            "sequence": self.sequence,
+            "operation": self.operation.value,
+            "operation_state": self.operation_state.value,
+            "phase": self.phase.value,
+            "profile_id": self.profile_id,
+            "component_id": self.component_id,
+            "updated_at": self.updated_at,
+            "progress": self.progress.to_payload() if self.progress else None,
+            "message_code": self.message_code,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeStatusSnapshot:
+    instance_id: str
+    service_state: RuntimeServiceState
+    backend_version: str
+    profile: RuntimeProfileStatus
+    maintenance: RuntimeMaintenanceStatus | None = None
+    schema_version: int = SCHEMA_VERSION
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "instance_id": self.instance_id,
+            "service_state": self.service_state.value,
+            "backend_version": self.backend_version,
+            "profile": self.profile.to_payload(),
+            "maintenance": self.maintenance.to_payload() if self.maintenance else None,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Settings DTO
 # ---------------------------------------------------------------------------
@@ -523,10 +681,22 @@ __all__ = [
     "JobUpdate",
     "PipelineSelection",
     "PipelineSpec",
+    "ProgressSnapshot",
+    "ProgressUnit",
     "ResidencyEntry",
     "ResidencyKind",
     "ResidencyStatus",
     "ResultEntry",
+    "RuntimeAccelerator",
+    "RuntimeComponentState",
+    "RuntimeComponentStatus",
+    "RuntimeMaintenanceOperation",
+    "RuntimeMaintenancePhase",
+    "RuntimeMaintenanceStatus",
+    "RuntimeOperationState",
+    "RuntimeProfileStatus",
+    "RuntimeServiceState",
+    "RuntimeStatusSnapshot",
     "SettingsSnapshot",
     "StageEvent",
     "SubmitItem",

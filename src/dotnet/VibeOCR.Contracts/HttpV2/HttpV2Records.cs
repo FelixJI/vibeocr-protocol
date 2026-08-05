@@ -25,6 +25,14 @@ public sealed record JobSummary
     public int Total { get; init; }
 }
 
+public sealed record ProgressSnapshot
+{
+    public required ProgressUnit Unit { get; init; }
+    public required int Current { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Total { get; init; }
+}
+
 public sealed record StageEvent
 {
     public required int Sequence { get; init; }
@@ -33,6 +41,10 @@ public sealed record StageEvent
     public string? Timestamp { get; init; }
     /// <summary>Arbitrary event detail. Defaults to an empty object on the wire.</summary>
     public IDictionary<string, JsonElement>? Detail { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ProgressSnapshot? Progress { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MessageCode { get; init; }
 }
 
 public sealed record JobRef
@@ -68,6 +80,8 @@ public sealed record JobSnapshot
     public string? RequestId { get; init; }
     public string? SourceJobId { get; init; }
     public PipelineSelection? Pipeline { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ProgressSnapshot? Progress { get; init; }
 }
 
 public sealed record PipelineSelection
@@ -166,6 +180,46 @@ public sealed record ResidencyStatus
     public IReadOnlyList<PipelineSpec> Pipelines { get; init; } = Array.Empty<PipelineSpec>();
     public int? VramTotalMb { get; init; }
     public int? VramUsedMb { get; init; }
+}
+
+public sealed record RuntimeComponentStatus
+{
+    public required string ComponentId { get; init; }
+    public required string DisplayName { get; init; }
+    public required RuntimeComponentState State { get; init; }
+    public string? Version { get; init; }
+}
+
+public sealed record RuntimeProfileStatus
+{
+    public required string ProfileId { get; init; }
+    public required RuntimeAccelerator Accelerator { get; init; }
+    public IReadOnlyList<RuntimeComponentStatus> Components { get; init; } =
+        Array.Empty<RuntimeComponentStatus>();
+}
+
+public sealed record RuntimeMaintenanceStatus
+{
+    public required string OperationId { get; init; }
+    public required int Sequence { get; init; }
+    public required RuntimeMaintenanceOperation Operation { get; init; }
+    public required RuntimeOperationState OperationState { get; init; }
+    public required RuntimeMaintenancePhase Phase { get; init; }
+    public required string ProfileId { get; init; }
+    public string? ComponentId { get; init; }
+    public required string UpdatedAt { get; init; }
+    public ProgressSnapshot? Progress { get; init; }
+    public string? MessageCode { get; init; }
+}
+
+public sealed record RuntimeStatusSnapshot
+{
+    public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    public required string InstanceId { get; init; }
+    public required RuntimeServiceState ServiceState { get; init; }
+    public required string BackendVersion { get; init; }
+    public required RuntimeProfileStatus Profile { get; init; }
+    public RuntimeMaintenanceStatus? Maintenance { get; init; }
 }
 
 /// <summary>

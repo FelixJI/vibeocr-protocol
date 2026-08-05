@@ -4,9 +4,10 @@
 
 正式 HTTP 合同是
 `packages/vibeocr-contracts-py/src/vibeocr/runtime_contracts/openapi.yaml`。
-`errors.json` 是错误码、分类和可重试性的注册表，`capabilities.json` 与
-`bootstrap.schema.json` 分别定义能力名称和进程启动握手。生成脚本把这些来源投影为
-Python 类型、C# wire 类型、服务端校验元数据和独立错误 Schema。
+`errors.json` 是错误码、分类和可重试性的注册表，`capabilities.json`、
+`bootstrap.schema.json` 与 `runtime-host.schema.json` 分别定义能力名称、进程启动握手
+和一次性 Runtime Host 控制面。生成脚本把这些来源投影为 Python 类型、C# wire 类型、
+服务端校验元数据和独立错误 Schema。
 
 生成产物不得独立演进。CI 运行 `generate_runtime_protocol.py --check`，以阻止规范与
 语言绑定漂移。
@@ -25,6 +26,18 @@ Python 类型、C# wire 类型、服务端校验元数据和独立错误 Schema�
 
 这些规则由 `scripts/check_openapi_quality.py` 执行。真正改变既有语义时，应发布新的
 协议主版本，而不是放宽解析器来制造表面兼容。
+
+## 维护状态与进度
+
+- Runtime 尚未可启动时，由父进程拥有的一次性 Host 通过 stdio 通信。请求只有显式声明
+  `accepted_event_streams=["ndjson.v1"]` 才会收到多行事件；未声明时继续只输出最终 JSON。
+- Supervisor ready 后，`GET /v2/runtime/status` 是服务状态、Backend 版本、当前 profile、
+  功能依赖分组及当前 maintenance snapshot 的权威快照。`health` 保持轻量探针，
+  `runtime/residency` 继续只负责已加载 pipeline/显存信息。
+- `ProgressSnapshot.total` 可省略；省略代表 indeterminate，客户端不得伪造百分比。
+  `StageEvent` 与 `JobSnapshot` 的 typed progress 是可选扩展，旧字段继续保留。
+- 原始安装日志不属于 wire contract。UI 使用稳定 `message_code`、功能 `component_id` 和
+  可选脱敏 fallback，不能解析 pip 输出、索引 URL 或本地路径。
 
 ## 错误合同
 

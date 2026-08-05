@@ -5,7 +5,9 @@
     "pdf.edit.v2",
     "qrcode.v2",
     "export.document.v1",
-    "runtime.settings.v2"
+    "runtime.settings.v2",
+    "runtime.maintenance.v1",
+    "task.progress.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -22,6 +24,12 @@
     },
     "runtime.settings.v2": {
       "description": "Inspect residency, preload/release pipelines, and exchange Runtime settings."
+    },
+    "runtime.maintenance.v1": {
+      "description": "Observe Runtime Host maintenance over opt-in NDJSON and inspect the authenticated HTTP runtime status snapshot."
+    },
+    "task.progress.v1": {
+      "description": "Consume typed units and determinate or indeterminate progress on Runtime jobs and stage events."
     }
   }
 }

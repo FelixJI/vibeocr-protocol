@@ -47,17 +47,18 @@ def test_error_json_schema_matches_the_formal_openapi_component() -> None:
     }
 
 
-def test_formal_spec_is_openapi_31_with_real_35_operation_surface() -> None:
+def test_formal_spec_is_openapi_31_with_real_36_operation_surface() -> None:
     spec = _spec()
     operations = _operations(spec)
     assert spec["openapi"] == "3.1.0"
-    assert len(operations) == 35
+    assert len(operations) == 36
     assert {(method.upper(), path) for method, path, _ in operations} == {
         ("GET", "/v2/health"),
         ("POST", "/v2/jobs"),
         ("GET", "/v2/jobs/{job_id}/observe"),
         ("POST", "/v2/jobs/command"),
         ("GET", "/v2/runtime/residency"),
+        ("GET", "/v2/runtime/status"),
         ("POST", "/v2/runtime/release"),
         ("POST", "/v2/runtime/preload"),
         ("GET", "/v2/settings"),
@@ -172,6 +173,82 @@ def test_runtime_host_control_protocol_is_formal_and_strict() -> None:
     invalid = dict(request, profile="win-x64-cu126")
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(invalid, host)
+
+
+def test_runtime_host_supports_opt_in_progress_and_profile_descriptors() -> None:
+    host = json.loads((V2 / "runtime-host.schema.json").read_text(encoding="utf-8"))
+    request = {
+        "protocol_version": 2,
+        "operation": "ensure",
+        "product_root": "C:/VibeOCR",
+        "component_lock": "C:/VibeOCR/component-lock.json",
+        "runtime_manifest": "C:/VibeOCR/backend/runtime-manifest.json",
+        "accepted_event_streams": ["ndjson.v1"],
+    }
+    jsonschema.validate(request, host)
+    event = {
+        "protocol_version": 2,
+        "event_version": 1,
+        "event_type": "progress",
+        "operation": "ensure",
+        "snapshot": {
+            "operation_id": "install-1",
+            "sequence": 3,
+            "operation": "ensure",
+            "operation_state": "running",
+            "phase": "install_profile",
+            "profile_id": "win-x64-cpu",
+            "component_id": "ocr_engine",
+            "updated_at": "2026-08-05T12:00:00Z",
+            "progress": {"unit": "steps", "current": 2, "total": 5},
+        },
+        "message_code": "runtime.install.profile",
+        "message_args": {"profile_id": "win-x64-cpu"},
+        "fallback_message": "Installing the CPU runtime profile.",
+    }
+    jsonschema.validate(event, host)
+    success = {
+        "protocol_version": 2,
+        "ok": True,
+        "operation": "ensure",
+        "state": {
+            "runtime_root": "C:/VibeOCR/data/runtime",
+            "accelerator": "cpu",
+            "status": "ready",
+            "integrity": "verified",
+            "manifest_sha256": "a" * 64,
+            "backend_version": "0.9.0",
+        },
+        "profile": {
+            "profile_id": "win-x64-cpu",
+            "accelerator": "cpu",
+            "components": [
+                {
+                    "component_id": "ocr_engine",
+                    "display_name": "OCR engine",
+                    "version": "3.3.2",
+                }
+            ],
+        },
+        "maintenance": event["snapshot"],
+    }
+    jsonschema.validate(success, host)
+
+
+def test_runtime_http_status_and_typed_progress_are_formal() -> None:
+    spec = _spec()
+    status = spec["paths"]["/v2/runtime/status"]["get"]
+    assert status["operationId"] == "getRuntimeStatus"
+    assert status["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/RuntimeStatusSnapshot"
+    }
+    schemas = spec["components"]["schemas"]
+    assert schemas["JobSnapshot"]["properties"]["progress"] == {
+        "$ref": "#/components/schemas/ProgressSnapshot"
+    }
+    assert schemas["StageEvent"]["properties"]["progress"] == {
+        "$ref": "#/components/schemas/ProgressSnapshot"
+    }
 
 
 def test_capabilities_are_versioned_and_generated_bindings_are_current() -> None:
@@ -323,8 +400,8 @@ def test_codegen_covers_wire_dtos_errors_and_operation_signatures() -> None:
     }
     assert all(hasattr(wire_types, name) for name in object_schemas)
     assert typing.get_type_hints(wire_types.Health)["protocol_version"] is not None
-    assert len(OPERATIONS) == 35
-    assert len({operation.operation_id for operation in OPERATIONS}) == 35
+    assert len(OPERATIONS) == 36
+    assert len({operation.operation_id for operation in OPERATIONS}) == 36
     registry = json.loads((V2 / "errors.json").read_text(encoding="utf-8"))
     assert {code.value for code in RuntimeErrorCode} == {
         entry["code"] for entry in registry["codes"]

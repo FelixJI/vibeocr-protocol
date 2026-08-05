@@ -97,6 +97,71 @@ public enum EvictionReason
     [JsonStringEnumMemberName("supervisor_shutdown")] SupervisorShutdown,
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<ProgressUnit>))]
+public enum ProgressUnit
+{
+    [JsonStringEnumMemberName("steps")] Steps,
+    [JsonStringEnumMemberName("items")] Items,
+    [JsonStringEnumMemberName("bytes")] Bytes,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeComponentState>))]
+public enum RuntimeComponentState
+{
+    [JsonStringEnumMemberName("not_required")] NotRequired,
+    [JsonStringEnumMemberName("pending")] Pending,
+    [JsonStringEnumMemberName("installing")] Installing,
+    [JsonStringEnumMemberName("verifying")] Verifying,
+    [JsonStringEnumMemberName("ready")] Ready,
+    [JsonStringEnumMemberName("failed")] Failed,
+    [JsonStringEnumMemberName("cancelled")] Cancelled,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeServiceState>))]
+public enum RuntimeServiceState
+{
+    [JsonStringEnumMemberName("ready")] Ready,
+    [JsonStringEnumMemberName("degraded")] Degraded,
+    [JsonStringEnumMemberName("maintenance")] Maintenance,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceOperation>))]
+public enum RuntimeMaintenanceOperation
+{
+    [JsonStringEnumMemberName("inspect")] Inspect,
+    [JsonStringEnumMemberName("ensure")] Ensure,
+    [JsonStringEnumMemberName("repair")] Repair,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeOperationState>))]
+public enum RuntimeOperationState
+{
+    [JsonStringEnumMemberName("queued")] Queued,
+    [JsonStringEnumMemberName("running")] Running,
+    [JsonStringEnumMemberName("succeeded")] Succeeded,
+    [JsonStringEnumMemberName("failed")] Failed,
+    [JsonStringEnumMemberName("cancelled")] Cancelled,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenancePhase>))]
+public enum RuntimeMaintenancePhase
+{
+    [JsonStringEnumMemberName("validate_binding")] ValidateBinding,
+    [JsonStringEnumMemberName("wait_for_lock")] WaitForLock,
+    [JsonStringEnumMemberName("prepare_runtime")] PrepareRuntime,
+    [JsonStringEnumMemberName("install_profile")] InstallProfile,
+    [JsonStringEnumMemberName("install_backend")] InstallBackend,
+    [JsonStringEnumMemberName("verify_runtime")] VerifyRuntime,
+    [JsonStringEnumMemberName("commit_runtime")] CommitRuntime,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeAccelerator>))]
+public enum RuntimeAccelerator
+{
+    [JsonStringEnumMemberName("cpu")] Cpu,
+    [JsonStringEnumMemberName("nvidia_cuda")] NvidiaCuda,
+}
+
 /// <summary>Typed error categories for the v2 protocol (errors.json categories).</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ErrorCategory>))]
 public enum ErrorCategory

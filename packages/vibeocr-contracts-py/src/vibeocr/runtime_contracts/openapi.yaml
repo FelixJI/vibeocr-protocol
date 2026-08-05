@@ -192,6 +192,29 @@
         }
       }
     },
+    "/v2/runtime/status": {
+      "get": {
+        "operationId": "getRuntimeStatus",
+        "responses": {
+          "200": {
+            "description": "Runtime service, profile, component, and maintenance status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeStatusSnapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/v2/runtime/residency": {
       "get": {
         "operationId": "getRuntimeResidency",
@@ -2140,6 +2163,9 @@
             "type": "integer",
             "minimum": 0
           },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressSnapshot"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -3161,6 +3187,32 @@
         },
         "additionalProperties": false
       },
+      "ProgressSnapshot": {
+        "type": "object",
+        "required": [
+          "unit",
+          "current"
+        ],
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "steps",
+              "items",
+              "bytes"
+            ]
+          },
+          "current": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "ResidencyStatus": {
         "type": "object",
         "required": [
@@ -3266,6 +3318,206 @@
           "angle"
         ],
         "type": "object",
+        "additionalProperties": false
+      },
+      "RuntimeComponentState": {
+        "type": "string",
+        "enum": [
+          "not_required",
+          "pending",
+          "installing",
+          "verifying",
+          "ready",
+          "failed",
+          "cancelled"
+        ]
+      },
+      "RuntimeComponentStatus": {
+        "type": "object",
+        "required": [
+          "component_id",
+          "display_name",
+          "state"
+        ],
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "$ref": "#/components/schemas/RuntimeComponentState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeMaintenanceStatus": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "sequence",
+          "operation",
+          "operation_state",
+          "phase",
+          "profile_id",
+          "updated_at"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "inspect",
+              "ensure",
+              "repair"
+            ]
+          },
+          "operation_state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "validate_binding",
+              "wait_for_lock",
+              "prepare_runtime",
+              "install_profile",
+              "install_backend",
+              "verify_runtime",
+              "commit_runtime"
+            ]
+          },
+          "profile_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "component_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProgressSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeProfileStatus": {
+        "type": "object",
+        "required": [
+          "profile_id",
+          "accelerator",
+          "components"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accelerator": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "nvidia_cuda"
+            ]
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeComponentStatus"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeServiceState": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "degraded",
+          "maintenance"
+        ]
+      },
+      "RuntimeStatusSnapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "instance_id",
+          "service_state",
+          "backend_version",
+          "profile",
+          "maintenance"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 2
+          },
+          "instance_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "service_state": {
+            "$ref": "#/components/schemas/RuntimeServiceState"
+          },
+          "backend_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile": {
+            "$ref": "#/components/schemas/RuntimeProfileStatus"
+          },
+          "maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuntimeMaintenanceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
         "additionalProperties": false
       },
       "RuntimePreloadRequest": {
@@ -3423,6 +3675,15 @@
           "detail": {
             "type": "object",
             "additionalProperties": true
+          },
+          "progress": {
+            "$ref": "#/components/schemas/ProgressSnapshot"
+          },
+          "message_code": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false
