@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.0
+
+### Features
+
+- **protocol:** 增加 Runtime 维护与进度契约 (#20) (6200cda)
+
+### Bug Fixes
+
+- **release:** 统一候选派生资产归属 (#18) (07afe0b)
+- **ci:** 修复发布 tag 推送认证 (#17) (c8dba01)
+
+### Performance
+
+- **ci:** 支持统一分片门禁与取消过时 PR 运行 (#19) (71d39d5)
+
 ## 2.1.0
 
 ### Features
