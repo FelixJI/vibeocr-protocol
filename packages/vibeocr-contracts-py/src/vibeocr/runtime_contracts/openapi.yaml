@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VibeOCR Local Runtime API",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "Authoritative Runtime API v2. The historical openapi.snapshot.json is non-authoritative."
   },
   "servers": [
@@ -239,11 +239,21 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "409": { "$ref": "#/components/responses/Error" },
-          "426": { "$ref": "#/components/responses/Error" }
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error"
+          }
         }
       }
     },
@@ -271,11 +281,21 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "404": { "$ref": "#/components/responses/Error" },
-          "409": { "$ref": "#/components/responses/Error" }
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
         }
       }
     },
@@ -283,12 +303,18 @@
       "get": {
         "operationId": "observeRuntimeMaintenance",
         "parameters": [
-          { "$ref": "#/components/parameters/OperationId" },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
           {
             "name": "after_sequence",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 0, "default": 0 }
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           },
           {
             "name": "limit",
@@ -313,11 +339,21 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "404": { "$ref": "#/components/responses/Error" },
-          "410": { "$ref": "#/components/responses/Error" }
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error"
+          }
         }
       }
     },
@@ -325,28 +361,54 @@
       "get": {
         "operationId": "streamRuntimeMaintenanceEvents",
         "parameters": [
-          { "$ref": "#/components/parameters/OperationId" },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
           {
             "name": "after_sequence",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 0, "default": 0 }
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Replay followed by live Runtime maintenance events",
             "content": {
-              "text/event-stream": { "schema": { "type": "string" } },
-              "application/x-ndjson": { "schema": { "type": "string" } }
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
             }
           },
-          "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "404": { "$ref": "#/components/responses/Error" },
-          "410": { "$ref": "#/components/responses/Error" },
-          "426": { "$ref": "#/components/responses/Error" }
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error"
+          }
         }
       }
     },
