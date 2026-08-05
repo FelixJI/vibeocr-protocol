@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.0
+
+### Features
+
+- **runtime:** 扩展维护可靠性契约 (#22) (990c783)
+
 ## 2.2.0
 
 ### Features
