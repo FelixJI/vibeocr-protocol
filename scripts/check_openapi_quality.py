@@ -285,7 +285,7 @@ def _required(schema: Mapping[str, Any]) -> set[str]:
     return set(value) if isinstance(value, list) else set()
 
 
-def _compare_request_constraints(
+def _compare_constraints(
     baseline: Mapping[str, Any],
     current: Mapping[str, Any],
     location: str,
@@ -297,36 +297,24 @@ def _compare_request_constraints(
         "minLength",
         "minItems",
         "minProperties",
-    ):
-        old = baseline.get(keyword)
-        new = current.get(keyword)
-        if isinstance(new, (int, float)) and (
-            not isinstance(old, (int, float)) or new > old
-        ):
-            issues.append(f"{location}: {keyword} tightened")
-    for keyword in (
         "maximum",
         "exclusiveMaximum",
         "maxLength",
         "maxItems",
         "maxProperties",
+        "pattern",
+        "format",
+        "const",
     ):
         old = baseline.get(keyword)
         new = current.get(keyword)
-        if isinstance(new, (int, float)) and (
-            not isinstance(old, (int, float)) or new < old
-        ):
-            issues.append(f"{location}: {keyword} tightened")
-    for keyword in ("pattern", "format", "const"):
-        if keyword in current and current.get(keyword) != baseline.get(keyword):
-            issues.append(f"{location}: {keyword} changed")
-    if (
-        baseline.get("additionalProperties") is not False
-        and current.get("additionalProperties") is False
-    ):
-        issues.append(f"{location}: additionalProperties was disabled")
-    if baseline.get("uniqueItems") is not True and current.get("uniqueItems") is True:
-        issues.append(f"{location}: uniqueItems was enabled")
+        if old != new:
+            issues.append(f"{location}: {keyword} changed from {old!r} to {new!r}")
+    for keyword, default in (("additionalProperties", True), ("uniqueItems", False)):
+        old = baseline.get(keyword, default)
+        new = current.get(keyword, default)
+        if old != new:
+            issues.append(f"{location}: {keyword} changed from {old!r} to {new!r}")
 
 
 def _compare_schema(
@@ -359,26 +347,18 @@ def _compare_schema(
 
     baseline_types = _schema_types(baseline_schema)
     current_types = _schema_types(current_schema)
-    if direction == "request":
-        incompatible_types = (
-            bool(current_types)
-            if not baseline_types
-            else bool(current_types) and not baseline_types <= current_types
-        )
-    else:
-        incompatible_types = (
-            False
-            if not baseline_types
-            else not current_types or not current_types <= baseline_types
-        )
+    incompatible_types = (
+        bool(current_types)
+        if direction == "request" and not baseline_types
+        else bool(baseline_types) and baseline_types != current_types
+    )
     if incompatible_types:
         issues.append(
             f"{location}: type changed from "
             f"{sorted(baseline_types) or ['any']} to "
             f"{sorted(current_types) or ['any']}"
         )
-    if direction == "request":
-        _compare_request_constraints(baseline_schema, current_schema, location, issues)
+    _compare_constraints(baseline_schema, current_schema, location, issues)
     for keyword in ("oneOf", "anyOf"):
         baseline_value = baseline_schema.get(keyword)
         current_value = current_schema.get(keyword)
@@ -392,14 +372,12 @@ def _compare_schema(
             json.dumps(choice, sort_keys=True, separators=(",", ":"))
             for choice in current_choices
         }
-        incompatible = (
-            baseline_fingerprints - current_fingerprints
-            if direction == "request"
-            else current_fingerprints - baseline_fingerprints
-        )
-        if incompatible:
-            change = "removed" if direction == "request" else "added"
-            issues.append(f"{location}: {keyword} branch was {change}")
+        removed = baseline_fingerprints - current_fingerprints
+        added = current_fingerprints - baseline_fingerprints
+        if removed:
+            issues.append(f"{location}: {keyword} branch was removed")
+        if added:
+            issues.append(f"{location}: {keyword} branch was added")
     baseline_all_of = baseline_schema.get("allOf")
     current_all_of = current_schema.get("allOf")
     baseline_constraints = baseline_all_of if isinstance(baseline_all_of, list) else []
@@ -412,14 +390,12 @@ def _compare_schema(
         json.dumps(choice, sort_keys=True, separators=(",", ":"))
         for choice in current_constraints
     }
-    incompatible_constraints = (
-        current_fingerprints - baseline_fingerprints
-        if direction == "request"
-        else baseline_fingerprints - current_fingerprints
-    )
-    if incompatible_constraints:
-        change = "added" if direction == "request" else "removed"
-        issues.append(f"{location}: allOf constraint was {change}")
+    removed_constraints = baseline_fingerprints - current_fingerprints
+    added_constraints = current_fingerprints - baseline_fingerprints
+    if removed_constraints:
+        issues.append(f"{location}: allOf constraint was removed")
+    if added_constraints:
+        issues.append(f"{location}: allOf constraint was added")
 
     baseline_properties = _mapping(baseline_schema.get("properties"))
     current_properties = _mapping(current_schema.get("properties"))
@@ -432,9 +408,13 @@ def _compare_schema(
     if direction == "request":
         for name in sorted(current_required - baseline_required):
             issues.append(f"{location}.{name}: request field became required")
+        for name in sorted(baseline_required - current_required):
+            issues.append(f"{location}.{name}: request field is no longer required")
     else:
         for name in sorted(baseline_required - current_required):
             issues.append(f"{location}.{name}: response field is no longer required")
+        for name in sorted(current_required - baseline_required):
+            issues.append(f"{location}.{name}: response field became required")
 
     for name in sorted(set(baseline_properties) & set(current_properties)):
         _compare_schema(
@@ -463,20 +443,14 @@ def _compare_schema(
     baseline_enum = baseline_schema.get("enum")
     current_enum = current_schema.get("enum")
     if isinstance(baseline_enum, list) and isinstance(current_enum, list):
-        if direction == "request":
-            removed_values = [
-                item for item in baseline_enum if item not in current_enum
-            ]
-            if removed_values:
-                issues.append(
-                    f"{location}: request enum no longer accepts {removed_values!r}"
-                )
-        else:
-            added_values = [item for item in current_enum if item not in baseline_enum]
-            if added_values:
-                issues.append(
-                    f"{location}: response enum added values {added_values!r}"
-                )
+        removed_values = [item for item in baseline_enum if item not in current_enum]
+        added_values = [item for item in current_enum if item not in baseline_enum]
+        if removed_values:
+            issues.append(
+                f"{location}: {direction} enum removed values {removed_values!r}"
+            )
+        if added_values:
+            issues.append(f"{location}: {direction} enum added values {added_values!r}")
 
 
 def _content_schemas(document: Document, container: object) -> dict[str, object]:
