@@ -468,7 +468,8 @@ def _compare_schema(
     current_has_enum = isinstance(current_enum, list)
     opened_known_values = current_schema.get("x-vibeocr-known-values")
     enum_was_opened = (
-        baseline_has_enum
+        direction == "response"
+        and baseline_has_enum
         and not current_has_enum
         and isinstance(opened_known_values, list)
         and all(item in opened_known_values for item in baseline_enum)

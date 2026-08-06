@@ -402,6 +402,24 @@ def test_breaking_gate_accepts_enum_opened_as_known_values() -> None:
     assert detect_breaking_changes(baseline, current) == []
 
 
+def test_breaking_gate_rejects_request_enum_opened_as_known_values() -> None:
+    baseline = _document()
+    baseline_name = baseline["components"]["schemas"]["CreateItem"]["properties"][
+        "name"
+    ]
+    baseline_name.pop("type")
+    baseline_name["enum"] = ["old", "shared"]
+    current = copy.deepcopy(baseline)
+    current_name = current["components"]["schemas"]["CreateItem"]["properties"]["name"]
+    current_name.pop("enum")
+    current_name["type"] = "string"
+    current_name["x-vibeocr-known-values"] = ["old", "shared", "new"]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any("request enum constraint was removed" in issue for issue in issues)
+
+
 def test_cli_returns_nonzero_for_breaking_baseline_current_pair(tmp_path: Path) -> None:
     baseline = tmp_path / "baseline.json"
     current = tmp_path / "current.json"
