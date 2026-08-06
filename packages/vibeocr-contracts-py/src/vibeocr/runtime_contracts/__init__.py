@@ -97,6 +97,19 @@ from .parser import (
     parse_runtime_status,
     parse_submit_request,
 )
+from .pdf import (
+    PdfDetectResult,
+    PdfDocumentMirror,
+    PdfModelDiff,
+    PdfMutationResult,
+    PdfOpenResult,
+    PdfPageInfoMirror,
+    PdfProgressEvent,
+    PdfProgressPhase,
+    PdfSaveResult,
+    TextBlockMirror,
+    TextLayerInfoMirror,
+)
 
 SCHEMA_VERSION = 2
 """Wire schema major version for the v2 protocol."""
@@ -126,6 +139,15 @@ __all__ = [
     "JobUpdate",
     "PipelineSelection",
     "PipelineSpec",
+    "PdfDetectResult",
+    "PdfDocumentMirror",
+    "PdfModelDiff",
+    "PdfMutationResult",
+    "PdfOpenResult",
+    "PdfPageInfoMirror",
+    "PdfProgressEvent",
+    "PdfProgressPhase",
+    "PdfSaveResult",
     "ProgressSnapshot",
     "ProgressUnit",
     "ResidencyEntry",
@@ -158,6 +180,8 @@ __all__ = [
     "StageEvent",
     "SubmitItem",
     "SubmitRequest",
+    "TextBlockMirror",
+    "TextLayerInfoMirror",
     "UnknownJobError",
     "assert_item_transition",
     "assert_job_transition",
