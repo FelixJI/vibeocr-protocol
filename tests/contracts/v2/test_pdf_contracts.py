@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import operator
+
 import pytest
 from jsonschema import validate
 from vibeocr.runtime_contracts import (
@@ -36,6 +38,12 @@ def test_pdf_document_mirror_is_exported_from_public_package() -> None:
             "model": {},
         },
         {"schema_version": 2, "session_id": "pdf-1", "model": {}},
+        {
+            "schema_version": 2,
+            "instance_id": "",
+            "session_id": "pdf-1",
+            "model": {},
+        },
     ],
 )
 def test_pdf_response_requires_v2_envelope(payload: dict[str, object]) -> None:
@@ -98,7 +106,7 @@ def test_pdf_open_result_parses_nested_mirror_and_retains_response_extensions() 
     assert result.model.extra == {"future_model_hint": {"revision": 3}}
     assert result.model.pages[0].extra == {"future_page_hint": "kept"}
     with pytest.raises(TypeError):
-        result.extra["new"] = "forbidden"  # type: ignore[index]
+        operator.setitem(result.extra, "new", "forbidden")
     canonical = result.to_payload()
     assert canonical["future_response_hint"] is True
     assert canonical["model"]["render_dpi"] == 300

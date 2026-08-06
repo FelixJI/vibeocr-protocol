@@ -84,6 +84,8 @@ def _response_envelope(payload: JsonObject, label: str) -> tuple[int, str]:
             f"schema_version mismatch: expected {SCHEMA_VERSION}, got {schema_version}"
         )
     instance_id = _string(_required(payload, "instance_id", label), "instance_id")
+    if not instance_id:
+        raise ContractError("instance_id must not be empty")
     return schema_version, instance_id
 
 
