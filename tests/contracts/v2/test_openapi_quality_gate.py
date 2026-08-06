@@ -355,6 +355,53 @@ def test_breaking_gate_detects_enum_changes_in_both_deployment_directions() -> N
     assert any("response enum removed values ['old']" in issue for issue in issues)
 
 
+def test_breaking_gate_detects_type_constraint_presence_change() -> None:
+    baseline = _document()
+    del baseline["components"]["schemas"]["Item"]["properties"]["name"]["type"]
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["Item"]["properties"]["name"]["type"] = "string"
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "response 200 application/json.name: type changed from ['any'] to ['string']"
+        in issue
+        for issue in issues
+    )
+
+
+def test_breaking_gate_detects_enum_constraint_presence_changes() -> None:
+    baseline = _document()
+    baseline["components"]["schemas"]["Item"]["properties"]["name"]["enum"] = [
+        "old",
+        "shared",
+    ]
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["CreateItem"]["properties"]["name"]["enum"] = [
+        "shared",
+    ]
+    del current["components"]["schemas"]["Item"]["properties"]["name"]["enum"]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any("request enum constraint was added" in issue for issue in issues)
+    assert any("response enum constraint was removed" in issue for issue in issues)
+
+
+def test_breaking_gate_accepts_enum_opened_as_known_values() -> None:
+    baseline = _document()
+    baseline_name = baseline["components"]["schemas"]["Item"]["properties"]["name"]
+    baseline_name.pop("type")
+    baseline_name["enum"] = ["old", "shared"]
+    current = copy.deepcopy(baseline)
+    current_name = current["components"]["schemas"]["Item"]["properties"]["name"]
+    current_name.pop("enum")
+    current_name["type"] = "string"
+    current_name["x-vibeocr-known-values"] = ["old", "shared", "new"]
+
+    assert detect_breaking_changes(baseline, current) == []
+
+
 def test_cli_returns_nonzero_for_breaking_baseline_current_pair(tmp_path: Path) -> None:
     baseline = tmp_path / "baseline.json"
     current = tmp_path / "current.json"

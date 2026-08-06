@@ -277,6 +277,32 @@ def _schema_types(schema: Mapping[str, Any]) -> frozenset[str]:
         return frozenset({"object"})
     if "items" in schema:
         return frozenset({"array"})
+    enum_values = schema.get("enum")
+    inferred_values = (
+        enum_values
+        if isinstance(enum_values, list) and enum_values
+        else [schema["const"]]
+        if "const" in schema
+        else []
+    )
+    if inferred_values:
+        inferred: set[str] = set()
+        for item in inferred_values:
+            if item is None:
+                inferred.add("null")
+            elif isinstance(item, bool):
+                inferred.add("boolean")
+            elif isinstance(item, int):
+                inferred.add("integer")
+            elif isinstance(item, float):
+                inferred.add("number")
+            elif isinstance(item, str):
+                inferred.add("string")
+            elif isinstance(item, list):
+                inferred.add("array")
+            elif isinstance(item, dict):
+                inferred.add("object")
+        return frozenset(inferred)
     return frozenset()
 
 
@@ -347,11 +373,7 @@ def _compare_schema(
 
     baseline_types = _schema_types(baseline_schema)
     current_types = _schema_types(current_schema)
-    incompatible_types = (
-        bool(current_types)
-        if direction == "request" and not baseline_types
-        else bool(baseline_types) and baseline_types != current_types
-    )
+    incompatible_types = baseline_types != current_types
     if incompatible_types:
         issues.append(
             f"{location}: type changed from "
@@ -442,7 +464,19 @@ def _compare_schema(
 
     baseline_enum = baseline_schema.get("enum")
     current_enum = current_schema.get("enum")
-    if isinstance(baseline_enum, list) and isinstance(current_enum, list):
+    baseline_has_enum = isinstance(baseline_enum, list)
+    current_has_enum = isinstance(current_enum, list)
+    opened_known_values = current_schema.get("x-vibeocr-known-values")
+    enum_was_opened = (
+        baseline_has_enum
+        and not current_has_enum
+        and isinstance(opened_known_values, list)
+        and all(item in opened_known_values for item in baseline_enum)
+    )
+    if baseline_has_enum != current_has_enum and not enum_was_opened:
+        change = "added" if current_has_enum else "removed"
+        issues.append(f"{location}: {direction} enum constraint was {change}")
+    elif baseline_has_enum and current_has_enum:
         removed_values = [item for item in baseline_enum if item not in current_enum]
         added_values = [item for item in current_enum if item not in baseline_enum]
         if removed_values:
