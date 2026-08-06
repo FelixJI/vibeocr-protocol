@@ -112,6 +112,7 @@ def test_result_entry_to_payload_defaults() -> None:
         "display_name": "page1.png",
         "payload": {},
         "error_code": None,
+        "payload_type": None,
     }
 
 

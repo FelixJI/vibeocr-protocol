@@ -68,6 +68,12 @@ class JobHandle:
                     if item.item_id in outcomes
                     else None
                 ),
+                payload_type=(
+                    outcomes[item.item_id].payload_type
+                    if item.item_id in outcomes
+                    and outcomes[item.item_id].state is ItemState.SUCCEEDED
+                    else None
+                ),
             )
             for item in self.ref.items
         ]
