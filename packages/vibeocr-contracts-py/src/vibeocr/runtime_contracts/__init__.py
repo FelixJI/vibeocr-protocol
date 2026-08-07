@@ -75,6 +75,12 @@ from .errors import (
     error_registry,
     load_error_registry,
 )
+from .ocr import (
+    OCR_RESULT_PAYLOAD_TYPE,
+    OcrResultV1,
+    OcrTextBlockV1,
+    parse_ocr_result_payload,
+)
 from .parser import (
     ContractError,
     JobStateTransitionError,
@@ -97,11 +103,25 @@ from .parser import (
     parse_runtime_status,
     parse_submit_request,
 )
+from .pdf import (
+    PdfDetectResult,
+    PdfDocumentMirror,
+    PdfModelDiff,
+    PdfMutationResult,
+    PdfOpenResult,
+    PdfPageInfoMirror,
+    PdfProgressEvent,
+    PdfProgressPhase,
+    PdfSaveResult,
+    TextBlockMirror,
+    TextLayerInfoMirror,
+)
 
 SCHEMA_VERSION = 2
 """Wire schema major version for the v2 protocol."""
 
 __all__ = [
+    "OCR_RESULT_PAYLOAD_TYPE",
     "SCHEMA_VERSION",
     "TERMINAL_ITEM_STATES",
     "TERMINAL_JOB_STATES",
@@ -124,8 +144,19 @@ __all__ = [
     "JobStateTransitionError",
     "JobSummary",
     "JobUpdate",
+    "OcrResultV1",
+    "OcrTextBlockV1",
     "PipelineSelection",
     "PipelineSpec",
+    "PdfDetectResult",
+    "PdfDocumentMirror",
+    "PdfModelDiff",
+    "PdfMutationResult",
+    "PdfOpenResult",
+    "PdfPageInfoMirror",
+    "PdfProgressEvent",
+    "PdfProgressPhase",
+    "PdfSaveResult",
     "ProgressSnapshot",
     "ProgressUnit",
     "ResidencyEntry",
@@ -158,6 +189,8 @@ __all__ = [
     "StageEvent",
     "SubmitItem",
     "SubmitRequest",
+    "TextBlockMirror",
+    "TextLayerInfoMirror",
     "UnknownJobError",
     "assert_item_transition",
     "assert_job_transition",
@@ -171,6 +204,7 @@ __all__ = [
     "parse_job_ref",
     "parse_job_snapshot",
     "parse_job_update",
+    "parse_ocr_result_payload",
     "parse_pipeline_selection",
     "parse_pipeline_spec",
     "parse_residency_entry",

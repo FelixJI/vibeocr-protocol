@@ -185,6 +185,32 @@ def test_breaking_gate_detects_new_required_request_field_and_type_change() -> N
     )
 
 
+def test_breaking_gate_detects_existing_type_becoming_unconstrained() -> None:
+    baseline = _document()
+    current = copy.deepcopy(baseline)
+    del current["components"]["schemas"]["Item"]["properties"]["name"]["type"]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "response 200 application/json.name: type changed" in issue for issue in issues
+    )
+
+
+def test_breaking_gate_detects_request_field_becoming_optional() -> None:
+    baseline = _document()
+    baseline["components"]["schemas"]["CreateItem"]["required"].append("count")
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["CreateItem"]["required"].remove("count")
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "request application/json.count: request field is no longer required" in issue
+        for issue in issues
+    )
+
+
 def test_breaking_gate_detects_new_required_operation_parameter() -> None:
     baseline = _document()
     current = copy.deepcopy(baseline)
@@ -215,7 +241,7 @@ def test_breaking_gate_detects_tightened_request_constraints() -> None:
     issues = detect_breaking_changes(baseline, current)
 
     assert any(
-        "request application/json.name: minLength tightened" in issue
+        "request application/json.name: minLength changed from 1 to 3" in issue
         for issue in issues
     )
 
@@ -290,6 +316,110 @@ def test_breaking_gate_detects_removed_response_status_and_field() -> None:
     )
 
 
+def test_breaking_gate_detects_response_field_becoming_required() -> None:
+    baseline = _document()
+    baseline["components"]["schemas"]["Item"]["properties"]["description"] = {
+        "type": "string"
+    }
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["Item"]["required"].append("description")
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "response 200 application/json.description: response field became required"
+        in issue
+        for issue in issues
+    )
+
+
+def test_breaking_gate_detects_enum_changes_in_both_deployment_directions() -> None:
+    baseline = _document()
+    baseline["components"]["schemas"]["CreateItem"]["properties"]["count"] = {
+        "type": "integer",
+        "enum": [1, 2],
+    }
+    baseline["components"]["schemas"]["Item"]["properties"]["name"]["enum"] = [
+        "old",
+        "shared",
+    ]
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["CreateItem"]["properties"]["count"][
+        "enum"
+    ].append(3)
+    current["components"]["schemas"]["Item"]["properties"]["name"]["enum"] = ["shared"]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any("request enum added values [3]" in issue for issue in issues)
+    assert any("response enum removed values ['old']" in issue for issue in issues)
+
+
+def test_breaking_gate_detects_type_constraint_presence_change() -> None:
+    baseline = _document()
+    del baseline["components"]["schemas"]["Item"]["properties"]["name"]["type"]
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["Item"]["properties"]["name"]["type"] = "string"
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any(
+        "response 200 application/json.name: type changed from ['any'] to ['string']"
+        in issue
+        for issue in issues
+    )
+
+
+def test_breaking_gate_detects_enum_constraint_presence_changes() -> None:
+    baseline = _document()
+    baseline["components"]["schemas"]["Item"]["properties"]["name"]["enum"] = [
+        "old",
+        "shared",
+    ]
+    current = copy.deepcopy(baseline)
+    current["components"]["schemas"]["CreateItem"]["properties"]["name"]["enum"] = [
+        "shared",
+    ]
+    del current["components"]["schemas"]["Item"]["properties"]["name"]["enum"]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any("request enum constraint was added" in issue for issue in issues)
+    assert any("response enum constraint was removed" in issue for issue in issues)
+
+
+def test_breaking_gate_accepts_enum_opened_as_known_values() -> None:
+    baseline = _document()
+    baseline_name = baseline["components"]["schemas"]["Item"]["properties"]["name"]
+    baseline_name.pop("type")
+    baseline_name["enum"] = ["old", "shared"]
+    current = copy.deepcopy(baseline)
+    current_name = current["components"]["schemas"]["Item"]["properties"]["name"]
+    current_name.pop("enum")
+    current_name["type"] = "string"
+    current_name["x-vibeocr-known-values"] = ["old", "shared", "new"]
+
+    assert detect_breaking_changes(baseline, current) == []
+
+
+def test_breaking_gate_rejects_request_enum_opened_as_known_values() -> None:
+    baseline = _document()
+    baseline_name = baseline["components"]["schemas"]["CreateItem"]["properties"][
+        "name"
+    ]
+    baseline_name.pop("type")
+    baseline_name["enum"] = ["old", "shared"]
+    current = copy.deepcopy(baseline)
+    current_name = current["components"]["schemas"]["CreateItem"]["properties"]["name"]
+    current_name.pop("enum")
+    current_name["type"] = "string"
+    current_name["x-vibeocr-known-values"] = ["old", "shared", "new"]
+
+    issues = detect_breaking_changes(baseline, current)
+
+    assert any("request enum constraint was removed" in issue for issue in issues)
+
+
 def test_cli_returns_nonzero_for_breaking_baseline_current_pair(tmp_path: Path) -> None:
     baseline = tmp_path / "baseline.json"
     current = tmp_path / "current.json"
@@ -318,7 +448,7 @@ def test_cli_returns_nonzero_for_breaking_baseline_current_pair(tmp_path: Path) 
     assert "type changed" in result.stderr
 
 
-def test_cli_accepts_compatible_baseline_current_pair(tmp_path: Path) -> None:
+def test_cli_accepts_optional_response_field_addition(tmp_path: Path) -> None:
     baseline = tmp_path / "baseline.json"
     current = tmp_path / "current.json"
     baseline.write_text(json.dumps(_document()), encoding="utf-8")

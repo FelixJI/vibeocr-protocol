@@ -513,6 +513,7 @@ class ResultEntry:
     display_name: str
     payload: dict[str, Any] = field(default_factory=dict)
     error_code: str | None = None
+    payload_type: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -520,6 +521,7 @@ class ResultEntry:
             "display_name": self.display_name,
             "payload": self.payload,
             "error_code": self.error_code,
+            "payload_type": self.payload_type,
         }
 
 

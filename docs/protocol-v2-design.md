@@ -14,14 +14,23 @@
 
 ## 兼容性方向
 
-兼容性取决于数据流方向：
+Protocol SDK 的 minor/package 版本不是 Runtime 的最低版本，Backend Release 内精确绑定的
+Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定用于构建复现、资产证明和
+离线安装闭包；客户端只按 Protocol major 和 capability 判断运行兼容性。
 
-- 服务端接收的请求必须严格。新增必填参数、收窄类型或约束、减少 `oneOf` / `anyOf`
-  分支，以及增加 `allOf` 约束都属于破坏性变更。
+同一 major 必须同时支持 Backend 先发布和客户端先发布。兼容性取决于数据流方向：
+
+- 服务端接收的既有请求必须保持双向兼容。改变必填性、类型、约束、枚举或
+  `oneOf` / `anyOf` / `allOf` 分支都属于破坏性变更。新增可选请求字段只能承载由
+  capability 保护的新行为；客户端在 Runtime 未声明该 capability 时必须省略该字段。
 - 客户端接收的响应必须容忍新增可选字段，并原样保留未知字段。删除字段、把可选字段
-  变为必填、扩大响应类型范围仍属于破坏性变更。
+  变为必填、改变既有字段的类型、约束、封闭枚举或组合分支仍属于破坏性变更。将封闭
+  `enum` 一次性迁移为同类型的 `x-vibeocr-known-values` 属于兼容性修复，但必须保留全部
+  旧值；该扩展只记录已知值，客户端仍须原样保留未知字符串。
 - 新增 capability 不要求旧客户端升级。旧客户端保留未知字符串，但只有理解该能力时
   才能使用它。
+- 新 SDK 可以先于实现该能力的 Backend 发布，但必须在 capability 缺失时隐藏、禁用或
+  使用兼容 fallback；不得用 SDK minor 与 Backend 精确绑定版本的大小关系代替协商。
 - 提高安全要求（例如公开操作改为需要认证）属于破坏性变更。
 
 这些规则由 `scripts/check_openapi_quality.py` 执行。真正改变既有语义时，应发布新的
