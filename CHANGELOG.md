@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0
+
+### Bug Fixes
+
+- **protocol:** 强化双向兼容门禁 (#25) (6cd43eb)
+- **ci:** 修复镜像标签同步并完善六仓治理 (#24) (49fac9b)
+
 ## 2.3.0
 
 ### Features
