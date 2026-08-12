@@ -86,7 +86,7 @@ scripts/
 ├── check-quality.ps1        # 本地质量入口
 └── automation.py            # CI/发布稳定入口
 tests/                       # Python schema、golden 与客户端测试
-dotnet-tests/                # .NET contracts/client tests
+tests/dotnet/                # .NET contracts/client tests
 docs/                        # 设计与源码阅读文档
 .ci/project.json             # 质量、构建与发布契约
 ```

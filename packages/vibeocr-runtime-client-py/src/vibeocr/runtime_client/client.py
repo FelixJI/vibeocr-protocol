@@ -52,11 +52,6 @@ from vibeocr.runtime_contracts.parser import (
     parse_runtime_maintenance_receipt,
     parse_runtime_maintenance_update,
 )
-from vibeocr.runtime_contracts.utils.http_log import (
-    guess_request_size,
-    guess_response_size,
-    log_http_response,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -1179,39 +1174,6 @@ class SupervisorClient:
             operation_id,
             value,
             status_code=response.status_code,
-        )
-
-    async def _log_http_response(self, response: Any) -> None:
-        """Log transport metadata without consuming streaming responses."""
-        request = response.request
-        try:
-            request_content = request.content
-        except Exception:
-            request_content = None
-        try:
-            response_content = response.content
-        except Exception:
-            response_content = None
-        elapsed_ms = None
-        try:
-            elapsed = getattr(response, "elapsed", None)
-            if elapsed is not None:
-                elapsed_ms = elapsed.total_seconds() * 1000.0
-        except Exception:
-            elapsed_ms = None
-        log_http_response(
-            logger=logger,
-            method=request.method,
-            url=str(request.url),
-            status_code=response.status_code,
-            reason=response.reason_phrase,
-            elapsed_ms=elapsed_ms,
-            request_bytes=guess_request_size(request_content),
-            response_bytes=guess_response_size(
-                dict(response.headers),
-                response_content,
-            ),
-            stream=not response.is_stream_consumed,
         )
 
 

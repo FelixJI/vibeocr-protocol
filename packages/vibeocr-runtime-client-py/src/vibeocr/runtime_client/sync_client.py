@@ -1,10 +1,9 @@
 """Synchronous transport for the generic supervisor job interface.
 
 PySide PDF workers are ``QThread`` instances and cannot await the async
-``SupervisorClient``.  This wrapper drives exactly the same
-submit/observe/command contract on the background loop already owned by the
-PDF supervisor client.  It deliberately does not expose recognition-specific
-or transport-private methods.
+``SupervisorClient``.  This wrapper drives the same product-neutral Supervisor
+operations on a shared background loop.  It does not expose transport-private
+methods.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class SyncSupervisorClient:
-    """Blocking façade over the three generic job operations."""
+    """Blocking façade over product-neutral Supervisor operations."""
 
     def __init__(
         self, *, base_url: str, session_token: str, instance_id: str | None = None

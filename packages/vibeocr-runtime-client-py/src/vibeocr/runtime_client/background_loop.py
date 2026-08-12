@@ -23,14 +23,48 @@ class BackgroundLoop:
         self._loop.run_forever()
 
     def stop(self) -> None:
+        if self._loop.is_closed():
+            return
         if self._loop.is_running():
+            shutdown = asyncio.run_coroutine_threadsafe(
+                self._cancel_pending_tasks(), self._loop
+            )
+            try:
+                shutdown.result(timeout=2.0)
+            except TimeoutError:
+                shutdown.cancel()
             self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join(timeout=2.0)
+        if not self._thread.is_alive():
+            self._loop.close()
+
+    async def _cancel_pending_tasks(self) -> None:
+        current = asyncio.current_task()
+        pending = [task for task in asyncio.all_tasks() if task is not current]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        await self._loop.shutdown_asyncgens()
 
     def run(self, coroutine: Any, timeout: float | None = None) -> Any:
         with self._lock:
-            future = asyncio.run_coroutine_threadsafe(coroutine, self._loop)
-            return future.result(timeout=timeout)
+            completed = threading.Event()
+
+            async def tracked() -> Any:
+                try:
+                    return await coroutine
+                finally:
+                    completed.set()
+
+            future = asyncio.run_coroutine_threadsafe(tracked(), self._loop)
+            try:
+                return future.result(timeout=timeout)
+            except TimeoutError:
+                if not future.done():
+                    future.cancel()
+                    completed.wait(timeout=2.0)
+                raise
 
     def iterate_stream(
         self, async_gen_factory: Any, timeout_per_item: float | None = None
@@ -49,14 +83,19 @@ class BackgroundLoop:
                 return None, True
 
         generator = holder["generator"]
-        while True:
-            value, done = self.run(
-                pull(generator),
-                timeout=timeout_per_item,
-            )
-            if done:
-                return
-            yield value
+        try:
+            while True:
+                value, done = self.run(
+                    pull(generator),
+                    timeout=timeout_per_item,
+                )
+                if done:
+                    return
+                yield value
+        finally:
+            close = getattr(generator, "aclose", None)
+            if close is not None:
+                self.run(close())
 
 
 _BACKGROUND_LOOP: BackgroundLoop | None = None
