@@ -156,23 +156,26 @@ def log_http_response(
     response_bytes: int | None = None,
     stream: bool = False,
 ) -> None:
-    """按等级输出 HTTP 结果日志。"""
-    message = format_http_transaction(
-        method=method,
-        url=url,
-        status_code=status_code,
-        reason=reason,
-        elapsed_ms=elapsed_ms,
-        request_bytes=request_bytes,
-        response_bytes=response_bytes,
-        stream=stream,
-    )
-    if status_code >= 500:
-        logger.error("%s", message)
-    elif status_code >= 400:
-        logger.warning("%s", message)
-    else:
-        logger.debug("%s", message)
+    """按等级输出 HTTP 结果日志；日志失败不得改变调用方控制流。"""
+    try:
+        message = format_http_transaction(
+            method=method,
+            url=url,
+            status_code=status_code,
+            reason=reason,
+            elapsed_ms=elapsed_ms,
+            request_bytes=request_bytes,
+            response_bytes=response_bytes,
+            stream=stream,
+        )
+        if status_code >= 500:
+            logger.error("%s", message)
+        elif status_code >= 400:
+            logger.warning("%s", message)
+        else:
+            logger.debug("%s", message)
+    except Exception:
+        return
 
 
 def guess_response_size(

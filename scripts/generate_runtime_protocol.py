@@ -12,6 +12,7 @@ import argparse
 import json
 import keyword
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
 
@@ -291,41 +292,122 @@ def _resolve_local_refs(
     return {**resolved, **siblings}
 
 
-def _python_type(schema: dict) -> str:
+_SCALAR_SCHEMA_TYPES = frozenset(
+    {"string", "integer", "number", "boolean", "null", "object"}
+)
+_PYTHON_SCALAR_TYPES = {
+    "string": "str",
+    "integer": "int",
+    "number": "float",
+    "boolean": "bool",
+    "null": "None",
+    "object": "dict[str, Any]",
+}
+_CSHARP_SCALAR_TYPES = {
+    "string": "string",
+    "integer": "int",
+    "number": "double",
+    "boolean": "bool",
+    "null": "JsonElement",
+    "object": "IReadOnlyDictionary<string, JsonElement>",
+}
+
+if set(_PYTHON_SCALAR_TYPES) != _SCALAR_SCHEMA_TYPES:
+    raise RuntimeError("Python scalar type mapping is incomplete")
+if set(_CSHARP_SCALAR_TYPES) != _SCALAR_SCHEMA_TYPES:
+    raise RuntimeError("C# scalar type mapping is incomplete")
+
+
+@dataclass(frozen=True, slots=True)
+class _SchemaType:
+    kind: str
+    name: str | None = None
+    children: tuple[_SchemaType, ...] = ()
+    values: tuple[object, ...] = ()
+
+    @property
+    def is_null(self) -> bool:
+        return (self.kind == "scalar" and self.name == "null") or (
+            self.kind == "literal"
+            and bool(self.values)
+            and all(value is None for value in self.values)
+        )
+
+    @property
+    def allows_null(self) -> bool:
+        if self.is_null:
+            return True
+        return self.kind == "union" and any(
+            child.allows_null for child in self.children
+        )
+
+
+def _analyze_schema_type(schema: dict) -> _SchemaType:
     if "$ref" in schema:
-        return schema["$ref"].rsplit("/", 1)[-1]
+        ref = schema["$ref"]
+        if not isinstance(ref, str):
+            raise ValueError("OpenAPI schema $ref must be a string")
+        return _SchemaType("reference", name=ref.rsplit("/", 1)[-1])
+
     choices = schema.get("oneOf") or schema.get("anyOf")
     if choices:
-        types = list(dict.fromkeys(_python_type(choice) for choice in choices))
-        return " | ".join(types)
+        if not isinstance(choices, list) or any(
+            not isinstance(choice, dict) for choice in choices
+        ):
+            raise ValueError("OpenAPI schema union choices must be objects")
+        return _SchemaType(
+            "union",
+            children=tuple(_analyze_schema_type(choice) for choice in choices),
+        )
+
     raw_type = schema.get("type")
     if isinstance(raw_type, list):
-        return " | ".join(
-            {
-                "null": "None",
-                "string": "str",
-                "integer": "int",
-                "number": "float",
-                "boolean": "bool",
-                "object": "dict[str, Any]",
-                "array": "list[Any]",
-            }.get(item, "Any")
-            for item in raw_type
+        return _SchemaType(
+            "union",
+            children=tuple(_analyze_schema_type({"type": item}) for item in raw_type),
         )
+
     if "enum" in schema:
-        return f"Literal[{', '.join(repr(value) for value in schema['enum'])}]"
+        values = schema["enum"]
+        if not isinstance(values, list):
+            raise ValueError("OpenAPI schema enum must be an array")
+        return _SchemaType("literal", values=tuple(values))
     if "const" in schema:
-        return f"Literal[{schema['const']!r}]"
+        return _SchemaType("literal", values=(schema["const"],))
+
     if raw_type == "array":
-        return f"list[{_python_type(schema.get('items', {}))}]"
-    return {
-        "string": "str",
-        "integer": "int",
-        "number": "float",
-        "boolean": "bool",
-        "null": "None",
-        "object": "dict[str, Any]",
-    }.get(raw_type, "Any")
+        items = schema.get("items", {})
+        if not isinstance(items, dict):
+            raise ValueError("OpenAPI array items must be a schema object")
+        return _SchemaType("array", children=(_analyze_schema_type(items),))
+    if raw_type is None:
+        return _SchemaType("any")
+    if raw_type not in _SCALAR_SCHEMA_TYPES:
+        raise ValueError(f"unsupported OpenAPI schema type: {raw_type}")
+    return _SchemaType("scalar", name=raw_type)
+
+
+def _render_python_type(schema_type: _SchemaType) -> str:
+    if schema_type.kind == "reference":
+        assert schema_type.name is not None
+        return schema_type.name
+    if schema_type.kind == "union":
+        types = list(
+            dict.fromkeys(_render_python_type(child) for child in schema_type.children)
+        )
+        return " | ".join(types)
+    if schema_type.kind == "literal":
+        return f"Literal[{', '.join(repr(value) for value in schema_type.values)}]"
+    if schema_type.kind == "array":
+        return f"list[{_render_python_type(schema_type.children[0])}]"
+    if schema_type.kind == "scalar":
+        assert schema_type.name is not None
+        return _PYTHON_SCALAR_TYPES[schema_type.name]
+    return "Any"
+
+
+def _python_type(schema: dict) -> str:
+    return _render_python_type(_analyze_schema_type(schema))
 
 
 def _python_wire_types(openapi: dict) -> str:
@@ -385,42 +467,27 @@ def _csharp_literal_type(values: list[object]) -> str:
     return "JsonElement"
 
 
-def _csharp_allows_null(schema: dict) -> bool:
-    raw_type = schema.get("type")
-    if isinstance(raw_type, list) and "null" in raw_type:
-        return True
-    choices = schema.get("oneOf") or schema.get("anyOf") or []
-    return any(choice.get("type") == "null" for choice in choices)
+def _render_csharp_type(schema_type: _SchemaType) -> str:
+    if schema_type.kind == "reference":
+        assert schema_type.name is not None
+        return schema_type.name
+    if schema_type.kind == "literal":
+        return _csharp_literal_type(list(schema_type.values))
+    if schema_type.kind == "union":
+        non_null = [child for child in schema_type.children if not child.is_null]
+        if len(non_null) == 1:
+            return _render_csharp_type(non_null[0])
+        return "JsonElement"
+    if schema_type.kind == "array":
+        return f"IReadOnlyList<{_render_csharp_type(schema_type.children[0])}>"
+    if schema_type.kind == "scalar":
+        assert schema_type.name is not None
+        return _CSHARP_SCALAR_TYPES[schema_type.name]
+    return "JsonElement"
 
 
 def _csharp_type(schema: dict) -> str:
-    if "$ref" in schema:
-        return schema["$ref"].rsplit("/", 1)[-1]
-    if "const" in schema:
-        return _csharp_literal_type([schema["const"]])
-    if "enum" in schema:
-        return _csharp_literal_type(schema["enum"])
-    choices = schema.get("oneOf") or schema.get("anyOf")
-    if choices:
-        non_null = [choice for choice in choices if choice.get("type") != "null"]
-        if len(non_null) == 1:
-            return _csharp_type(non_null[0])
-        return "JsonElement"
-    raw_type = schema.get("type")
-    if isinstance(raw_type, list):
-        non_null = [item for item in raw_type if item != "null"]
-        if len(non_null) == 1:
-            return _csharp_type({**schema, "type": non_null[0]})
-        return "JsonElement"
-    if raw_type == "array":
-        return f"IReadOnlyList<{_csharp_type(schema.get('items', {}))}>"
-    return {
-        "string": "string",
-        "integer": "int",
-        "number": "double",
-        "boolean": "bool",
-        "object": "IReadOnlyDictionary<string, JsonElement>",
-    }.get(raw_type, "JsonElement")
+    return _render_csharp_type(_analyze_schema_type(schema))
 
 
 def _csharp_wire_types(openapi: dict) -> str:
@@ -452,13 +519,14 @@ def _csharp_wire_types(openapi: dict) -> str:
         required = set(schema.get("required", []))
         fields: list[str] = []
         for field, field_schema in properties.items():
-            field_type = _csharp_type(field_schema)
+            schema_type = _analyze_schema_type(field_schema)
+            field_type = _render_csharp_type(schema_type)
             property_name = _pascal(field)
             is_required = field in required
             modifier = "required " if is_required else ""
             suffix = (
                 "?"
-                if (_csharp_allows_null(field_schema) or not is_required)
+                if (schema_type.allows_null or not is_required)
                 and not field_type.endswith("?")
                 else ""
             )
