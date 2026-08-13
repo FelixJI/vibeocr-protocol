@@ -10,6 +10,12 @@ from .client import (
     SupervisorClient,
     bind_operation_path,
 )
+from .runtime_host import (
+    RuntimeHostResponse,
+    RuntimeHostValidationError,
+    parse_runtime_host_response,
+    validate_runtime_host_response,
+)
 from .sync_client import SyncSupervisorClient
 
 __all__ = [
@@ -18,9 +24,13 @@ __all__ = [
     "RuntimeClientError",
     "RuntimeHttpClient",
     "RuntimeHttpResponse",
+    "RuntimeHostResponse",
+    "RuntimeHostValidationError",
     "SupervisorClient",
     "SyncSupervisorClient",
     "bind_operation_path",
     "get_background_loop",
+    "parse_runtime_host_response",
     "shutdown_background_loop",
+    "validate_runtime_host_response",
 ]
