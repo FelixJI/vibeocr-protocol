@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.5.0
+
+### Features
+
+- **client:** 提供 Runtime Host 响应解析接口 (#30) (acc1f1c)
+
+### Bug Fixes
+
+- **automation:** 避免污染 scripts 命名空间 (#29) (ee47794)
+
 ## 2.4.0
 
 ### Bug Fixes
