@@ -18,7 +18,7 @@ def test_python_version_pin_matches_the_workspace_runtime() -> None:
 def test_pytest_pin_includes_the_first_patched_release() -> None:
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert "pytest==9.0.3" in config["dependency-groups"]["dev"]
+    assert "pytest==9.1.1" in config["dependency-groups"]["dev"]
 
 
 def test_uv_lock_matches_workspace_project_versions() -> None:

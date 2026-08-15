@@ -1656,6 +1656,9 @@
               "string",
               "null"
             ]
+          },
+          "ocr_engine_catalog": {
+            "$ref": "#/components/schemas/OcrEngineCatalog"
           }
         },
         "additionalProperties": false
@@ -1912,7 +1915,12 @@
               "RUNTIME_IDENTITY_MISMATCH",
               "RUNTIME_BUSY",
               "RUNTIME_INSTALL_FAILED",
-              "RUNTIME_IO_ERROR"
+              "RUNTIME_IO_ERROR",
+              "OCR_ENGINE_UNKNOWN",
+              "OCR_ENGINE_UNAVAILABLE",
+              "OCR_ENGINE_PREPARATION_REQUIRED",
+              "OCR_ENGINE_NOT_VALID_FOR_PIPELINE",
+              "OCR_ENGINE_LANGUAGE_UNAVAILABLE"
             ]
           },
           "message": {
@@ -2065,7 +2073,8 @@
                 "runtime.component-repair.v1",
                 "runtime.capability-metadata.v1",
                 "runtime.events.sse.v1",
-                "runtime.events.ndjson.v1"
+                "runtime.events.ndjson.v1",
+                "ocr.engine-selection.v1"
               ]
             }
           },
@@ -2688,6 +2697,82 @@
         "type": "object",
         "additionalProperties": false
       },
+      "OcrEngineAvailability": {
+        "type": "string",
+        "description": "Availability of one OCR engine in the current runtime. 'ready' means jobs may select it now; 'preparation_required' means the user must prepare a runtime component (see required_component) before use; 'unavailable' means the engine cannot run in this runtime. The catalog expresses capability and state only; it never carries UI display text or the product default.",
+        "enum": [
+          "ready",
+          "preparation_required",
+          "unavailable"
+        ]
+      },
+      "OcrEngineCatalog": {
+        "type": "object",
+        "description": "Structured catalog of selectable plain-text OCR engines, carried by the ocr.engine-selection.v1 capability descriptor. Servers MUST list one descriptor per stable OcrEngineId with no duplicate ids. The catalog is not a frontend default: clients always send the user's explicit choice and fall back to the Backend default only when the field is omitted.",
+        "required": [
+          "engines"
+        ],
+        "properties": {
+          "engines": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/OcrEngineDescriptor"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "OcrEngineDescriptor": {
+        "type": "object",
+        "description": "Capability and availability state of one selectable OCR engine. reason_code is a stable machine-readable cause id that clients localize themselves; the Backend never ships display text. required_component names the runtime component id (runtime.component-repair.v1) the user must prepare, or null.",
+        "required": [
+          "id",
+          "availability",
+          "included_in_base",
+          "reason_code",
+          "required_component"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/OcrEngineId"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/OcrEngineAvailability"
+          },
+          "included_in_base": {
+            "type": "boolean",
+            "description": "Whether the engine ships with the base offline runtime instead of requiring a separate runtime component."
+          },
+          "reason_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "description": "Stable machine-readable reason why the engine is not 'ready'; null when the engine is ready. Clients localize this id and never receive display text."
+          },
+          "required_component": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "description": "Runtime component id the user must prepare before the engine becomes ready; null when no component is required."
+          }
+        },
+        "additionalProperties": false
+      },
+      "OcrEngineId": {
+        "type": "string",
+        "description": "Stable engine ids for the plain-text OCR pipeline. Unknown values MUST fail closed with OCR_ENGINE_UNKNOWN and MUST NOT silently fall back to another engine.",
+        "enum": [
+          "rapidocr",
+          "windows",
+          "paddleocr"
+        ]
+      },
       "OpenRequest": {
         "properties": {
           "path": {
@@ -3132,6 +3217,7 @@
       },
       "PipelineSelection": {
         "type": "object",
+        "description": "Frozen user-semantic pipeline selection for one logical job. The optional engine field selects the plain-text OCR engine and is only valid when pipeline_id is 'OCR': the server MUST reject it for any other pipeline with OCR_ENGINE_NOT_VALID_FOR_PIPELINE instead of silently ignoring it, and MUST fail closed on unknown values with OCR_ENGINE_UNKNOWN. Clients SHOULD always send the user's current selection; when the field is omitted the server applies its own default engine (rapidocr).",
         "required": [
           "pipeline_id",
           "options_version",
@@ -3156,6 +3242,9 @@
           },
           "options": {
             "type": "object"
+          },
+          "engine": {
+            "$ref": "#/components/schemas/OcrEngineId"
           }
         }
       },

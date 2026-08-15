@@ -92,6 +92,14 @@ public sealed record PipelineSelection
     public int OptionsVersion { get; init; } = 1;
     public IDictionary<string, JsonElement> Options { get; init; } =
         new Dictionary<string, JsonElement>();
+
+    /// <summary>
+    /// Explicit OCR engine for the plain-text OCR pipeline. Null omits the
+    /// wire field (the request schema rejects an explicit null) and lets the
+    /// Backend apply its own default engine.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OcrEngine? Engine { get; init; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

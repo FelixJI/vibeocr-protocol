@@ -62,6 +62,19 @@ public enum JobPriority
     [JsonStringEnumMemberName("background")] Background,
 }
 
+/// <summary>
+/// Stable engine ids for the plain-text OCR pipeline, mirroring the Python
+/// OcrEngine enum and the authoritative OcrEngineId OpenAPI schema. The
+/// Backend default for an omitted selection is rapidocr.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<OcrEngine>))]
+public enum OcrEngine
+{
+    [JsonStringEnumMemberName("rapidocr")] RapidOcr,
+    [JsonStringEnumMemberName("windows")] Windows,
+    [JsonStringEnumMemberName("paddleocr")] PaddleOcr,
+}
+
 [JsonConverter(typeof(JsonStringEnumConverter<JobCommandKind>))]
 public enum JobCommandKind
 {
@@ -216,6 +229,11 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("RUNTIME_BUSY")] RuntimeBusy,
     [JsonStringEnumMemberName("RUNTIME_INSTALL_FAILED")] RuntimeInstallFailed,
     [JsonStringEnumMemberName("RUNTIME_IO_ERROR")] RuntimeIoError,
+    [JsonStringEnumMemberName("OCR_ENGINE_UNKNOWN")] OcrEngineUnknown,
+    [JsonStringEnumMemberName("OCR_ENGINE_UNAVAILABLE")] OcrEngineUnavailable,
+    [JsonStringEnumMemberName("OCR_ENGINE_PREPARATION_REQUIRED")] OcrEnginePreparationRequired,
+    [JsonStringEnumMemberName("OCR_ENGINE_NOT_VALID_FOR_PIPELINE")] OcrEngineNotValidForPipeline,
+    [JsonStringEnumMemberName("OCR_ENGINE_LANGUAGE_UNAVAILABLE")] OcrEngineLanguageUnavailable,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceCommandKind>))]

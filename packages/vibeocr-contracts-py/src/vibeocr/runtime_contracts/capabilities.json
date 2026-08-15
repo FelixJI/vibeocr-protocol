@@ -12,7 +12,8 @@
     "runtime.component-repair.v1",
     "runtime.capability-metadata.v1",
     "runtime.events.sse.v1",
-    "runtime.events.ndjson.v1"
+    "runtime.events.ndjson.v1",
+    "ocr.engine-selection.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -107,6 +108,14 @@
       "description": "Replay and follow authenticated Runtime maintenance events as HTTP NDJSON after Supervisor readiness.",
       "lifecycle": "active",
       "introduced_in": "2.3.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "ocr.engine-selection.v1": {
+      "description": "Select the plain-text OCR engine explicitly on job submission and consume the structured engine catalog carried by capability descriptors.",
+      "lifecycle": "active",
+      "introduced_in": "2.6.0",
       "deprecated_in": null,
       "sunset_at": null,
       "replacement": null

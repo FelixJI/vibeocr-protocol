@@ -209,6 +209,41 @@
       "retryable": true,
       "message": "A transient local I/O error interrupted Runtime maintenance.",
       "runtime_host_code": "io_error"
+    },
+    {
+      "code": "OCR_ENGINE_UNKNOWN",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "The requested OCR engine id is not a stable OcrEngineId value; the request fails closed without falling back to another engine."
+    },
+    {
+      "code": "OCR_ENGINE_UNAVAILABLE",
+      "category": "capability",
+      "http_status": 426,
+      "retryable": false,
+      "message": "The selected OCR engine cannot run in this runtime; the response detail may list the currently selectable engine ids."
+    },
+    {
+      "code": "OCR_ENGINE_PREPARATION_REQUIRED",
+      "category": "capability",
+      "http_status": 428,
+      "retryable": false,
+      "message": "The selected OCR engine requires user preparation of a runtime component before use."
+    },
+    {
+      "code": "OCR_ENGINE_NOT_VALID_FOR_PIPELINE",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "The engine field is only valid for the plain-text OCR pipeline and was rejected instead of being silently ignored."
+    },
+    {
+      "code": "OCR_ENGINE_LANGUAGE_UNAVAILABLE",
+      "category": "capability",
+      "http_status": 426,
+      "retryable": false,
+      "message": "The selected OCR engine does not support the requested language; the response detail may list the currently selectable engine ids."
     }
   ]
 }

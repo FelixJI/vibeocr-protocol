@@ -20,7 +20,51 @@
     "draining": false,
     "capabilities": [
       "ocr.recognition.v2",
-      "pdf.edit.v2"
+      "pdf.edit.v2",
+      "ocr.engine-selection.v1"
+    ],
+    "capability_descriptors": [
+      {
+        "name": "ocr.recognition.v2",
+        "lifecycle": "active",
+        "introduced_in": "2.0.0",
+        "deprecated_in": null,
+        "sunset_at": null,
+        "replacement": null
+      },
+      {
+        "name": "ocr.engine-selection.v1",
+        "lifecycle": "active",
+        "introduced_in": "2.6.0",
+        "deprecated_in": null,
+        "sunset_at": null,
+        "replacement": null,
+        "ocr_engine_catalog": {
+          "engines": [
+            {
+              "id": "rapidocr",
+              "availability": "ready",
+              "included_in_base": true,
+              "reason_code": null,
+              "required_component": null
+            },
+            {
+              "id": "windows",
+              "availability": "preparation_required",
+              "included_in_base": false,
+              "reason_code": "runtime_component_missing",
+              "required_component": "winrt-ocr"
+            },
+            {
+              "id": "paddleocr",
+              "availability": "unavailable",
+              "included_in_base": false,
+              "reason_code": "unsupported_platform",
+              "required_component": null
+            }
+          ]
+        }
+      }
     ]
   },
   "multipart_manifest": {

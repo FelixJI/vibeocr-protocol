@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
+OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
+OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
 RuntimeComponentState = Literal['not_required', 'pending', 'installing', 'verifying', 'ready', 'failed', 'cancelled']
 RuntimeServiceState = Literal['ready', 'degraded', 'maintenance']
@@ -34,6 +36,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     deprecated_in: Required[str | None]
     sunset_at: Required[str | None]
     replacement: Required[str | None]
+    ocr_engine_catalog: NotRequired[OcrEngineCatalog]
 
 
 class CommandResult(TypedDict, total=False):
@@ -209,6 +212,18 @@ class MutateResponse(TypedDict, total=False):
     extra: NotRequired[dict[str, Any] | None]
 
 
+class OcrEngineCatalog(TypedDict, total=False):
+    engines: Required[list[OcrEngineDescriptor]]
+
+
+class OcrEngineDescriptor(TypedDict, total=False):
+    id: Required[OcrEngineId]
+    availability: Required[OcrEngineAvailability]
+    included_in_base: Required[bool]
+    reason_code: Required[str | None]
+    required_component: Required[str | None]
+
+
 class OpenRequest(TypedDict, total=False):
     path: Required[str]
 
@@ -313,6 +328,7 @@ class PipelineSelection(TypedDict, total=False):
     pipeline_id: Required[Literal['OCR', 'PP-StructureV3', 'MinerU', 'PaddleOCR-VL', 'TABLE_RECOGNITION', 'FORMULA_RECOGNITION']]
     options_version: Required[Literal[1]]
     options: Required[dict[str, Any]]
+    engine: NotRequired[OcrEngineId]
 
 
 class PipelineSpec(TypedDict, total=False):

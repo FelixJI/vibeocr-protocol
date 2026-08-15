@@ -85,6 +85,18 @@ class JobPriority(StrEnum):
     BACKGROUND = "background"
 
 
+class OcrEngine(StrEnum):
+    """Stable engine ids for the plain-text ``OCR`` pipeline.
+
+    Mirrors the authoritative ``OcrEngineId`` enum in ``openapi.yaml``; the
+    Backend default for an omitted selection is ``rapidocr``.
+    """
+
+    RAPIDOCR = "rapidocr"
+    WINDOWS = "windows"
+    PADDLEOCR = "paddleocr"
+
+
 class JobCommandKind(StrEnum):
     CANCEL = "cancel"
     RETRY = "retry"
@@ -378,18 +390,29 @@ class JobSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class PipelineSelection:
-    """Frozen user-semantic pipeline selection for one logical job."""
+    """Frozen user-semantic pipeline selection for one logical job.
+
+    ``engine`` is only valid for the plain-text ``OCR`` pipeline; the server
+    rejects it for other pipelines with ``OCR_ENGINE_NOT_VALID_FOR_PIPELINE``
+    and fails closed on unknown ids. Omitting it lets the server apply its own
+    default engine (``rapidocr``). The field is absent from the wire payload
+    when unset because the request schema does not accept an explicit null.
+    """
 
     pipeline_id: str
     options_version: int = 1
     options: dict[str, Any] = field(default_factory=dict)
+    engine: OcrEngine | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "pipeline_id": self.pipeline_id,
             "options_version": self.options_version,
             "options": self.options,
         }
+        if self.engine is not None:
+            payload["engine"] = self.engine.value
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -896,6 +919,7 @@ __all__ = [
     "JobState",
     "JobSummary",
     "JobUpdate",
+    "OcrEngine",
     "PipelineSelection",
     "PipelineSpec",
     "ProgressSnapshot",
