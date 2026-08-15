@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0
+
+### Features
+
+- **protocol:** 定义通用文本 OCR 引擎选择协议 (#32) (22d9c37)
+
 ## 2.5.0
 
 ### Features
