@@ -13,6 +13,7 @@ RUNTIME_COMPONENT_REPAIR_V1 = "runtime.component-repair.v1"
 RUNTIME_CAPABILITY_METADATA_V1 = "runtime.capability-metadata.v1"
 RUNTIME_EVENTS_SSE_V1 = "runtime.events.sse.v1"
 RUNTIME_EVENTS_NDJSON_V1 = "runtime.events.ndjson.v1"
+OCR_ENGINE_SELECTION_V1 = "ocr.engine-selection.v1"
 
 ALL_CAPABILITIES: tuple[str, ...] = (
     'ocr.recognition.v2',
@@ -27,6 +28,7 @@ ALL_CAPABILITIES: tuple[str, ...] = (
     'runtime.capability-metadata.v1',
     'runtime.events.sse.v1',
     'runtime.events.ndjson.v1',
+    'ocr.engine-selection.v1',
 )
 READY_ENVELOPE_VERSION = 1
 PROTOCOL_VERSION = 2

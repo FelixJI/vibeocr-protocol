@@ -158,5 +158,36 @@
       ]
     },
     "extra": {}
+  },
+  "pipeline_selection_engine": {
+    "pipeline_id": "OCR",
+    "options_version": 1,
+    "options": {"use_textline_orientation": true},
+    "engine": "windows"
+  },
+  "ocr_engine_catalog": {
+    "engines": [
+      {
+        "id": "rapidocr",
+        "availability": "ready",
+        "included_in_base": true,
+        "reason_code": null,
+        "required_component": null
+      },
+      {
+        "id": "windows",
+        "availability": "preparation_required",
+        "included_in_base": false,
+        "reason_code": "runtime_component_missing",
+        "required_component": "winrt-ocr"
+      },
+      {
+        "id": "paddleocr",
+        "availability": "unavailable",
+        "included_in_base": false,
+        "reason_code": "unsupported_platform",
+        "required_component": null
+      }
+    ]
   }
 }

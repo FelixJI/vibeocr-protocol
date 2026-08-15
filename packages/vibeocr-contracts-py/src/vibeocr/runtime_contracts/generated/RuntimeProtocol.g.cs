@@ -17,6 +17,7 @@ public static class RuntimeProtocol
     public const string RUNTIME_CAPABILITY_METADATA_V1 = "runtime.capability-metadata.v1";
     public const string RUNTIME_EVENTS_SSE_V1 = "runtime.events.sse.v1";
     public const string RUNTIME_EVENTS_NDJSON_V1 = "runtime.events.ndjson.v1";
+    public const string OCR_ENGINE_SELECTION_V1 = "ocr.engine-selection.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -34,7 +35,8 @@ public static class RuntimeProtocol
         "runtime.component-repair.v1",
         "runtime.capability-metadata.v1",
         "runtime.events.sse.v1",
-        "runtime.events.ndjson.v1"
+        "runtime.events.ndjson.v1",
+        "ocr.engine-selection.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
@@ -158,7 +160,12 @@ public enum RuntimeErrorCode
     RUNTIME_IDENTITY_MISMATCH,
     RUNTIME_BUSY,
     RUNTIME_INSTALL_FAILED,
-    RUNTIME_IO_ERROR
+    RUNTIME_IO_ERROR,
+    OCR_ENGINE_UNKNOWN,
+    OCR_ENGINE_UNAVAILABLE,
+    OCR_ENGINE_PREPARATION_REQUIRED,
+    OCR_ENGINE_NOT_VALID_FOR_PIPELINE,
+    OCR_ENGINE_LANGUAGE_UNAVAILABLE
 }
 
 public sealed record RuntimeReadyEnvelope(

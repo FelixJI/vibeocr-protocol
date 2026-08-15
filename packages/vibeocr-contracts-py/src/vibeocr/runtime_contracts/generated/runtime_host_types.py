@@ -5,6 +5,8 @@ from typing import Any, Literal, NotRequired, Required, TypedDict
 
 Accelerator = Literal['cpu', 'nvidia_cuda']
 IntegrityStatus = Literal['verified', 'not-installed']
+OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
+OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressUnit = Literal['steps', 'items', 'bytes']
 RuntimeHostErrorCode = Literal['invalid_request', 'invalid_binding', 'install_failed', 'lock_timeout', 'io_error']
 RuntimeHostEventStream = Literal['ndjson.v1', 'ndjson.v2']
@@ -23,6 +25,19 @@ class CapabilityDescriptor(TypedDict, total=False):
     deprecated_in: Required[str | None]
     sunset_at: Required[str | None]
     replacement: Required[str | None]
+    ocr_engine_catalog: NotRequired[OcrEngineCatalog]
+
+
+class OcrEngineCatalog(TypedDict, total=False):
+    engines: Required[list[OcrEngineDescriptor]]
+
+
+class OcrEngineDescriptor(TypedDict, total=False):
+    id: Required[OcrEngineId]
+    availability: Required[OcrEngineAvailability]
+    included_in_base: Required[bool]
+    reason_code: Required[str | None]
+    required_component: Required[str | None]
 
 
 class ProgressSnapshot(TypedDict, total=False):

@@ -48,6 +48,37 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
 - 原始安装日志不属于 wire contract。UI 使用稳定 `message_code`、功能 `component_id` 和
   可选脱敏 fallback，不能解析 pip 输出、索引 URL 或本地路径。
 
+## OCR 引擎选择（ocr.engine-selection.v1）
+
+通用文本 `OCR` pipeline 的引擎选择是强类型、可协商的 minor 扩展：
+
+- 稳定引擎 ID 只有 `rapidocr`、`windows`、`paddleocr`，唯一事实源是 OpenAPI
+  `OcrEngineId` 枚举；Python `dtos.OcrEngine`、生成 TypedDict/Literal 与 .NET
+  `OcrEngine`/`OcrEngineId` 枚举全部由它投影，wire value 完全一致。
+- `PipelineSelection.engine` 是可选请求字段。客户端应始终显式发送用户当前选择；
+  省略时由 Backend 应用服务端默认引擎（本项目约定 `rapidocr`）。未知值必须以
+  `OCR_ENGINE_UNKNOWN` fail closed，不得静默回退到其他引擎。
+- 该字段仅对 `pipeline_id == "OCR"` 合法。由于 `check_openapi_quality.py` 禁止对已
+  发布请求 schema 追加 `allOf`/条件约束，此限制不写入 schema，而是登记为服务端
+  conformance case：Backend 对其他 pipeline 返回 `OCR_ENGINE_NOT_VALID_FOR_PIPELINE`，
+  不静默忽略。
+- 运行时可用性目录 `OcrEngineCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
+  `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
+  `ocr_engine_catalog`，仅 `ocr.engine-selection.v1` descriptor 携带。每个
+  `OcrEngineDescriptor` 表达 `id`、`availability`（`ready` / `preparation_required` /
+  `unavailable`）、`included_in_base`、`reason_code`（稳定机器可读原因，UI 自行本地化）
+  与 `required_component`（对应 `runtime.component-repair.v1` 组件 ID，可空）。目录只
+  表达能力与状态，不表达产品默认值或展示文案。
+- 稳定错误码：`OCR_ENGINE_UNKNOWN`（validation/400）、
+  `OCR_ENGINE_NOT_VALID_FOR_PIPELINE`（validation/400）、
+  `OCR_ENGINE_UNAVAILABLE`（capability/426）、
+  `OCR_ENGINE_PREPARATION_REQUIRED`（capability/428）、
+  `OCR_ENGINE_LANGUAGE_UNAVAILABLE`（capability/426），全部不可重试。错误保持既有
+  `Error` 形状与 job/request 关联；Backend 可通过开放的 `detail` 对象附带当前可选引擎
+  ID，是否切换由用户决定，前端不得据此自动降级。
+- 未来新增引擎 ID 属于对请求/响应封闭枚举的追加，会被兼容门禁拦截；届时必须先在六仓
+  协调评估开放策略（`x-vibeocr-known-values` 或新 major），不得直接扩枚举。
+
 ## 错误合同
 
 HTTP v2 错误对象固定包含八个字段：`schema_version`、`instance_id`、`code`、

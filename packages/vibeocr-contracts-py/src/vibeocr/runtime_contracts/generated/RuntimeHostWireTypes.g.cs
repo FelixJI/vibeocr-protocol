@@ -39,6 +39,44 @@ public sealed class IntegrityStatusJsonConverter : JsonStringEnumConverter<Integ
     }
 }
 
+[JsonConverter(typeof(OcrEngineAvailabilityJsonConverter))]
+public enum OcrEngineAvailability
+{
+    [JsonStringEnumMemberName("ready")]
+    Ready,
+    [JsonStringEnumMemberName("preparation_required")]
+    PreparationRequired,
+    [JsonStringEnumMemberName("unavailable")]
+    Unavailable
+}
+
+public sealed class OcrEngineAvailabilityJsonConverter : JsonStringEnumConverter<OcrEngineAvailability>
+{
+    public OcrEngineAvailabilityJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(OcrEngineIdJsonConverter))]
+public enum OcrEngineId
+{
+    [JsonStringEnumMemberName("rapidocr")]
+    Rapidocr,
+    [JsonStringEnumMemberName("windows")]
+    Windows,
+    [JsonStringEnumMemberName("paddleocr")]
+    Paddleocr
+}
+
+public sealed class OcrEngineIdJsonConverter : JsonStringEnumConverter<OcrEngineId>
+{
+    public OcrEngineIdJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(ProgressUnitJsonConverter))]
 public enum ProgressUnit
 {
@@ -239,6 +277,33 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("replacement")]
     public required string? Replacement { get; init; }
+
+    [JsonPropertyName("ocr_engine_catalog")]
+    public OcrEngineCatalog? OcrEngineCatalog { get; init; }
+}
+
+public sealed record OcrEngineCatalog
+{
+    [JsonPropertyName("engines")]
+    public required IReadOnlyList<OcrEngineDescriptor> Engines { get; init; }
+}
+
+public sealed record OcrEngineDescriptor
+{
+    [JsonPropertyName("id")]
+    public required OcrEngineId Id { get; init; }
+
+    [JsonPropertyName("availability")]
+    public required OcrEngineAvailability Availability { get; init; }
+
+    [JsonPropertyName("included_in_base")]
+    public required bool IncludedInBase { get; init; }
+
+    [JsonPropertyName("reason_code")]
+    public required string? ReasonCode { get; init; }
+
+    [JsonPropertyName("required_component")]
+    public required string? RequiredComponent { get; init; }
 }
 
 public sealed record ProgressSnapshot
