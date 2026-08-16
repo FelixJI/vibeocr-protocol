@@ -113,6 +113,10 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
             }
 
     client = RecordingClient()
+    client.ensure_runtime(
+        operation_id="op-9",
+        install_component_ids=("paddleocr-cpu", "mineru-cpu"),
+    )
     client.repair_runtime(operation_id="op-1", component_ids=("ocr_engine",))
     client.retry_runtime(
         "op-0",
@@ -125,6 +129,17 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
         "startRuntimeMaintenance",
         {
             "json_body": {
+                "operation": "ensure",
+                "operation_id": "op-9",
+                "install_component_ids": ["paddleocr-cpu", "mineru-cpu"],
+            },
+            "timeout": 600.0,
+        },
+    )
+    assert client.calls[1] == (
+        "startRuntimeMaintenance",
+        {
+            "json_body": {
                 "operation": "repair",
                 "operation_id": "op-1",
                 "component_ids": ["ocr_engine"],
@@ -132,8 +147,8 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
             "timeout": 600.0,
         },
     )
-    assert client.calls[1][0] == "commandRuntimeMaintenance"
-    assert client.calls[1][1]["json_body"] == {
+    assert client.calls[2][0] == "commandRuntimeMaintenance"
+    assert client.calls[2][1]["json_body"] == {
         "command_id": "cmd-1",
         "command": "retry",
         "target_operation_id": "op-0",

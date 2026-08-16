@@ -79,6 +79,59 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
 - 未来新增引擎 ID 属于对请求/响应封闭枚举的追加，会被兼容门禁拦截；届时必须先在六仓
   协调评估开放策略（`x-vibeocr-known-values` 或新 major），不得直接扩枚举。
 
+## 下载源选择（runtime.download-sources.v1）
+
+依赖安装源与模型下载源的用户选择是可协商的 minor 扩展，复用引擎选择的目录模式：
+
+- 源目录 `DownloadSourceCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
+  `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
+  `download_source_catalog`，仅 `runtime.download-sources.v1` descriptor 携带。每个
+  `DownloadSourceDescriptor` 表达 `kind`（`package_index` / `model_registry`）、稳定
+  `id` 与事实性 `endpoint` base URL；目录不携带展示文案、本地化或产品默认值，id 在
+  整个目录内跨 kind 唯一（服务端 conformance case）。源清单由 Backend 发布声明，
+  自定义源 URL 不在协议范围内。
+- 选择统一为 `download_source_ids`（稳定 id 数组，`uniqueItems`）：
+  - HTTP `SettingsSnapshot` 持久化用户偏好，Runtime 的模型下载与 HTTP 维护安装读取
+    该设置；
+  - runtime-host `RuntimeHostRequest` 与 retry 用的 `RuntimeMaintenanceCommandRequest`
+    显式携带（Host 是一次性无状态 CLI）；observe 请求只读，不携带。
+- 客户端应始终发送用户当前选择；省略时由服务端应用默认（官方源）。未知 id 必须以
+  `DOWNLOAD_SOURCE_UNKNOWN`（validation/400，不可重试）fail closed，不得静默回退到
+  其他源。Runtime 未声明该 capability 时客户端必须省略字段（旧端请求 schema 对未知
+  字段封闭）。
+- Host 应把生效源反映到 `launch.environment`（例如 pip index 或模型 registry 的环境
+  变量）；变量名与下载实现仍是 Backend 细节，不属于 wire contract。
+- 未来向 `DownloadSourceKind` 封闭枚举追加值会被兼容门禁拦截；届时必须先在六仓协调
+  评估开放策略，不得直接扩枚举。
+
+## 组件选择（runtime.component-selection.v1）
+
+离线引擎依赖（如 paddleOCR、MinerU）的手动安装范围选择是可协商的 minor 扩展：
+
+- 变体目录 `ComponentVariantCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
+  `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
+  `component_variant_catalog`，仅 `runtime.component-selection.v1` descriptor 携带。
+  每个 `ComponentVariantDescriptor` 表达 `engine_id`（Backend 发布声明的稳定分组 id，
+  不进请求；纯文本 OCR 引擎应复用 `OcrEngineId` wire 值）、`accelerator`
+  （cpu/nvidia_cuda，须与目标 Runtime 一致）与 `component_id`
+  （`runtime.component-repair.v1` 组件 id）。目录只列可选安装变体，不列 base runtime
+  组件；(engine_id, accelerator) 组合唯一是服务端 conformance case。
+- 选择是 capability 保护的新可选字段 `install_component_ids`（稳定组件 id 数组），
+  落在四个 envelope：runtime-host `RuntimeHostRequest` 与 retry 用的
+  `RuntimeMaintenanceCommandRequest`、HTTP `RuntimeMaintenanceRequest` 与
+  `RuntimeMaintenanceCommandRequest`。它不复用既有 `component_ids`——后者保留
+  repair 范围语义；旧端对 ensure+未知行为静默按默认全装，违背用户意图且不可检测，
+  新字段让旧端 fail closed。
+- 语义：显式列表 = 手动选择安装范围，Backend 安装其依赖闭包（base + 共享依赖 +
+  所选），并沿用 maintenance snapshot 的 `requested_component_ids` /
+  `effective_component_ids` 如实上报（requested 回显安装选择，effective 为闭包）；
+  "全装" = 显式列出所选 accelerator 的全部目录 component id；省略 = 服务端默认集合
+  （现状：整 profile）。Runtime 未声明该 capability 时客户端必须省略字段。未知 id
+  必须以 `RUNTIME_COMPONENT_UNKNOWN`（validation/400，不可重试）fail closed，不得
+  静默安装其他范围。
+- 引擎可用性状态不在此目录重复表达：就绪状态沿用 `OcrEngineCatalog`（OCR 引擎）与
+  `GET /v2/runtime/status` 的组件 desired/actual 状态。
+
 ## 错误合同
 
 HTTP v2 错误对象固定包含八个字段：`schema_version`、`instance_id`、`code`、

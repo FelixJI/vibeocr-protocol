@@ -196,6 +196,12 @@ repair request 可带稳定、去重的 `component_ids`。省略时修复全部 
 
 repair 只在存在可修复 drift 时执行；已 in-sync 的幂等 repair 返回现有 ready 状态，不重建。
 
+> 修订（2026-08-16，`runtime.component-selection.v1`）：component 选择语义从 repair 扩展到
+> ensure——手动安装范围走新的 capability 保护字段 `install_component_ids`（四个 envelope），
+> 而不是复用本节的 `component_ids`（后者保留 repair 范围语义）。闭包计算与
+> requested/effective 如实上报规则不变：ensure 的 requested 回显安装选择，effective 为
+> base + 共享依赖 + 所选的依赖闭包；未知 id 以 `RUNTIME_COMPONENT_UNKNOWN` fail closed。
+
 ## 兼容与迁移
 
 1. Protocol 先发布新的 v2 minor；新增 request envelope、路由、capability 与 response optional
