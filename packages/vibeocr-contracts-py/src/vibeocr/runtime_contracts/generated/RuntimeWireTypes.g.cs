@@ -5,6 +5,23 @@ using System.Text.Json.Serialization;
 
 namespace VibeOCR.Runtime.Contracts.Generated.Wire;
 
+[JsonConverter(typeof(DownloadSourceKindJsonConverter))]
+public enum DownloadSourceKind
+{
+    [JsonStringEnumMemberName("package_index")]
+    PackageIndex,
+    [JsonStringEnumMemberName("model_registry")]
+    ModelRegistry
+}
+
+public sealed class DownloadSourceKindJsonConverter : JsonStringEnumConverter<DownloadSourceKind>
+{
+    public DownloadSourceKindJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(OcrEngineAvailabilityJsonConverter))]
 public enum OcrEngineAvailability
 {
@@ -183,6 +200,12 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("ocr_engine_catalog")]
     public OcrEngineCatalog? OcrEngineCatalog { get; init; }
+
+    [JsonPropertyName("download_source_catalog")]
+    public DownloadSourceCatalog? DownloadSourceCatalog { get; init; }
+
+    [JsonPropertyName("component_variant_catalog")]
+    public ComponentVariantCatalog? ComponentVariantCatalog { get; init; }
 }
 
 public sealed record CommandResult
@@ -206,6 +229,24 @@ public sealed record CommandResult
     public required JobRef? JobRef { get; init; }
 }
 
+public sealed record ComponentVariantCatalog
+{
+    [JsonPropertyName("variants")]
+    public required IReadOnlyList<ComponentVariantDescriptor> Variants { get; init; }
+}
+
+public sealed record ComponentVariantDescriptor
+{
+    [JsonPropertyName("engine_id")]
+    public required string EngineId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required string Accelerator { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
+}
+
 public sealed record DeletePagesRequest
 {
     [JsonPropertyName("pages")]
@@ -222,6 +263,24 @@ public sealed record DetectTextLayersResponse
 {
     [JsonPropertyName("text_layers")]
     public required IReadOnlyList<TextLayerInfoMirror> TextLayers { get; init; }
+}
+
+public sealed record DownloadSourceCatalog
+{
+    [JsonPropertyName("sources")]
+    public required IReadOnlyList<DownloadSourceDescriptor> Sources { get; init; }
+}
+
+public sealed record DownloadSourceDescriptor
+{
+    [JsonPropertyName("kind")]
+    public required DownloadSourceKind Kind { get; init; }
+
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("endpoint")]
+    public required string Endpoint { get; init; }
 }
 
 public sealed record Error
@@ -1077,6 +1136,9 @@ public sealed record RuntimeMaintenanceCommandRequest
 
     [JsonPropertyName("expected_sequence")]
     public int? ExpectedSequence { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
 }
 
 public sealed record RuntimeMaintenanceEvent
@@ -1134,6 +1196,9 @@ public sealed record RuntimeMaintenanceRequest
 
     [JsonPropertyName("component_ids")]
     public IReadOnlyList<string>? ComponentIds { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
 
     [JsonPropertyName("required_capabilities")]
     public IReadOnlyList<string>? RequiredCapabilities { get; init; }
@@ -1317,6 +1382,9 @@ public sealed record SettingsSnapshot
 
     [JsonPropertyName("extra")]
     public required IReadOnlyDictionary<string, JsonElement> Extra { get; init; }
+
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 }
 
 public sealed record StageEvent

@@ -222,12 +222,24 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                       'allOf': [{'if': {'properties': {'command': {'const': 'retry'}},
                                                         'required': ['command']},
                                                  'then': {'required': ['new_operation_id']}}],
+                                      'description': 'Runtime maintenance command request. On '
+                                                     'retry, install_component_ids '
+                                                     '(runtime.component-selection.v1) explicitly '
+                                                     're-selects a still-compatible install scope; '
+                                                     "omitting it reuses the source operation's "
+                                                     'normalized intent. Clients MUST omit the '
+                                                     'field when the runtime does not declare the '
+                                                     'capability.',
                                       'properties': {'command': {'enum': ['cancel', 'retry'],
                                                                  'type': 'string'},
                                                      'command_id': {'minLength': 1,
                                                                     'type': 'string'},
                                                      'expected_sequence': {'minimum': 0,
                                                                            'type': 'integer'},
+                                                     'install_component_ids': {'items': {'minLength': 1,
+                                                                                         'type': 'string'},
+                                                                               'type': 'array',
+                                                                               'uniqueItems': True},
                                                      'new_operation_id': {'minLength': 1,
                                                                           'type': 'string'},
                                                      'target_operation_id': {'minLength': 1,
@@ -235,10 +247,27 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                       'required': ['command_id', 'command', 'target_operation_id'],
                                       'type': 'object'},
  'RuntimeMaintenanceRequest': {'additionalProperties': False,
+                               'description': 'Runtime maintenance start request. '
+                                              'install_component_ids '
+                                              '(runtime.component-selection.v1) is the manual '
+                                              'install scope for ensure: the server installs the '
+                                              'dependency closure of the listed component ids and '
+                                              'reports requested/effective component ids honestly; '
+                                              'omitting it selects the server default set, and '
+                                              'unknown ids fail closed with '
+                                              'RUNTIME_COMPONENT_UNKNOWN instead of silently '
+                                              'falling back. Clients MUST omit the field when the '
+                                              'runtime does not declare the capability. '
+                                              'component_ids keeps its repair-scope meaning from '
+                                              'runtime.component-repair.v1.',
                                'properties': {'component_ids': {'items': {'minLength': 1,
                                                                           'type': 'string'},
                                                                 'type': 'array',
                                                                 'uniqueItems': True},
+                                              'install_component_ids': {'items': {'minLength': 1,
+                                                                                  'type': 'string'},
+                                                                        'type': 'array',
+                                                                        'uniqueItems': True},
                                               'operation': {'enum': ['inspect', 'ensure', 'repair'],
                                                             'type': 'string'},
                                               'operation_id': {'minLength': 1, 'type': 'string'},
@@ -274,7 +303,20 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                         'type': 'boolean'}},
                  'type': 'object'},
  'SettingsSnapshot': {'additionalProperties': False,
-                      'properties': {'extra': {'additionalProperties': True, 'type': 'object'},
+                      'description': 'Backend settings snapshot/exchange. download_source_ids '
+                                     "persists the user's download source selection "
+                                     '(runtime.download-sources.v1): the runtime applies it to '
+                                     'model downloads and HTTP maintenance installs. Clients '
+                                     "SHOULD always send the user's current selection when the "
+                                     'capability is declared and MUST omit the field otherwise; '
+                                     'the server applies its own default (official) sources when '
+                                     'the field is omitted and fails closed with '
+                                     'DOWNLOAD_SOURCE_UNKNOWN for ids missing from its catalog.',
+                      'properties': {'download_source_ids': {'items': {'minLength': 1,
+                                                                       'type': 'string'},
+                                                             'type': 'array',
+                                                             'uniqueItems': True},
+                                     'extra': {'additionalProperties': True, 'type': 'object'},
                                      'residency': {'additionalProperties': False,
                                                    'properties': {'default_ttl_seconds': {'minimum': 0,
                                                                                           'type': 'integer'},
@@ -1779,12 +1821,424 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                            'runtime.capability-metadata.v1',
                                                                                            'runtime.events.sse.v1',
                                                                                            'runtime.events.ndjson.v1',
-                                                                                           'ocr.engine-selection.v1']},
+                                                                                           'ocr.engine-selection.v1',
+                                                                                           'runtime.download-sources.v1',
+                                                                                           'runtime.component-selection.v1']},
                                                       'type': 'array',
                                                       'uniqueItems': True},
                                      'capability_descriptors': {'items': {'additionalProperties': False,
-                                                                          'properties': {'deprecated_in': {'type': ['string',
+                                                                          'properties': {'component_variant_catalog': {'additionalProperties': False,
+                                                                                                                       'description': 'Structured '
+                                                                                                                                      'catalog '
+                                                                                                                                      'of '
+                                                                                                                                      'installable '
+                                                                                                                                      'offline-engine '
+                                                                                                                                      'dependency '
+                                                                                                                                      'variants, '
+                                                                                                                                      'carried '
+                                                                                                                                      'by '
+                                                                                                                                      'the '
+                                                                                                                                      'runtime.component-selection.v1 '
+                                                                                                                                      'capability '
+                                                                                                                                      'descriptor. '
+                                                                                                                                      'Servers '
+                                                                                                                                      'MUST '
+                                                                                                                                      'NOT '
+                                                                                                                                      'list '
+                                                                                                                                      'two '
+                                                                                                                                      'variants '
+                                                                                                                                      'with '
+                                                                                                                                      'the '
+                                                                                                                                      'same '
+                                                                                                                                      'engine_id '
+                                                                                                                                      'and '
+                                                                                                                                      'accelerator, '
+                                                                                                                                      'and '
+                                                                                                                                      'MUST '
+                                                                                                                                      'NOT '
+                                                                                                                                      'list '
+                                                                                                                                      'base '
+                                                                                                                                      'runtime '
+                                                                                                                                      'components '
+                                                                                                                                      'that '
+                                                                                                                                      'are '
+                                                                                                                                      'not '
+                                                                                                                                      'selectable. '
+                                                                                                                                      'The '
+                                                                                                                                      'catalog '
+                                                                                                                                      'lists '
+                                                                                                                                      'selectable '
+                                                                                                                                      'variants '
+                                                                                                                                      'only: '
+                                                                                                                                      'clients '
+                                                                                                                                      'map '
+                                                                                                                                      'the '
+                                                                                                                                      "user's "
+                                                                                                                                      'engine '
+                                                                                                                                      'and '
+                                                                                                                                      'accelerator '
+                                                                                                                                      'choice '
+                                                                                                                                      'to '
+                                                                                                                                      'component '
+                                                                                                                                      'ids '
+                                                                                                                                      'and '
+                                                                                                                                      'send '
+                                                                                                                                      'them '
+                                                                                                                                      'as '
+                                                                                                                                      'install_component_ids.',
+                                                                                                                       'properties': {'variants': {'items': {'additionalProperties': False,
+                                                                                                                                                             'description': 'One '
+                                                                                                                                                                            'installable '
+                                                                                                                                                                            'variant '
+                                                                                                                                                                            'of '
+                                                                                                                                                                            'an '
+                                                                                                                                                                            'offline '
+                                                                                                                                                                            'engine '
+                                                                                                                                                                            'dependency '
+                                                                                                                                                                            'for '
+                                                                                                                                                                            'a '
+                                                                                                                                                                            'given '
+                                                                                                                                                                            'accelerator. '
+                                                                                                                                                                            'engine_id '
+                                                                                                                                                                            'is '
+                                                                                                                                                                            'a '
+                                                                                                                                                                            'stable '
+                                                                                                                                                                            'grouping '
+                                                                                                                                                                            'id '
+                                                                                                                                                                            'declared '
+                                                                                                                                                                            'by '
+                                                                                                                                                                            'the '
+                                                                                                                                                                            'Backend '
+                                                                                                                                                                            'release '
+                                                                                                                                                                            '(for '
+                                                                                                                                                                            'example '
+                                                                                                                                                                            'paddleocr '
+                                                                                                                                                                            'or '
+                                                                                                                                                                            'mineru); '
+                                                                                                                                                                            'it '
+                                                                                                                                                                            'never '
+                                                                                                                                                                            'appears '
+                                                                                                                                                                            'in '
+                                                                                                                                                                            'requests, '
+                                                                                                                                                                            'and '
+                                                                                                                                                                            'engines '
+                                                                                                                                                                            'that '
+                                                                                                                                                                            'are '
+                                                                                                                                                                            'also '
+                                                                                                                                                                            'plain-text '
+                                                                                                                                                                            'OCR '
+                                                                                                                                                                            'engines '
+                                                                                                                                                                            'SHOULD '
+                                                                                                                                                                            'reuse '
+                                                                                                                                                                            'the '
+                                                                                                                                                                            'OcrEngineId '
+                                                                                                                                                                            'wire '
+                                                                                                                                                                            'values. '
+                                                                                                                                                                            'component_id '
+                                                                                                                                                                            'is '
+                                                                                                                                                                            'the '
+                                                                                                                                                                            'runtime.component-repair.v1 '
+                                                                                                                                                                            'component '
+                                                                                                                                                                            'id '
+                                                                                                                                                                            'the '
+                                                                                                                                                                            'client '
+                                                                                                                                                                            'requests '
+                                                                                                                                                                            'via '
+                                                                                                                                                                            'install_component_ids. '
+                                                                                                                                                                            'The '
+                                                                                                                                                                            'descriptor '
+                                                                                                                                                                            'never '
+                                                                                                                                                                            'carries '
+                                                                                                                                                                            'display '
+                                                                                                                                                                            'text '
+                                                                                                                                                                            'or '
+                                                                                                                                                                            'product '
+                                                                                                                                                                            'defaults.',
+                                                                                                                                                             'properties': {'accelerator': {'description': 'Accelerator '
+                                                                                                                                                                                                           'this '
+                                                                                                                                                                                                           'variant '
+                                                                                                                                                                                                           'is '
+                                                                                                                                                                                                           'built '
+                                                                                                                                                                                                           'for; '
+                                                                                                                                                                                                           'it '
+                                                                                                                                                                                                           'must '
+                                                                                                                                                                                                           'match '
+                                                                                                                                                                                                           'the '
+                                                                                                                                                                                                           'accelerator '
+                                                                                                                                                                                                           'of '
+                                                                                                                                                                                                           'the '
+                                                                                                                                                                                                           'Runtime '
+                                                                                                                                                                                                           'the '
+                                                                                                                                                                                                           'selection '
+                                                                                                                                                                                                           'installs '
+                                                                                                                                                                                                           'into.',
+                                                                                                                                                                                            'enum': ['cpu',
+                                                                                                                                                                                                     'nvidia_cuda'],
+                                                                                                                                                                                            'type': 'string'},
+                                                                                                                                                                            'component_id': {'description': 'Runtime '
+                                                                                                                                                                                                            'component '
+                                                                                                                                                                                                            'id '
+                                                                                                                                                                                                            'implementing '
+                                                                                                                                                                                                            'this '
+                                                                                                                                                                                                            'variant; '
+                                                                                                                                                                                                            'selections '
+                                                                                                                                                                                                            'reference '
+                                                                                                                                                                                                            'it '
+                                                                                                                                                                                                            'via '
+                                                                                                                                                                                                            'install_component_ids '
+                                                                                                                                                                                                            'and '
+                                                                                                                                                                                                            'unknown '
+                                                                                                                                                                                                            'ids '
+                                                                                                                                                                                                            'fail '
+                                                                                                                                                                                                            'closed '
+                                                                                                                                                                                                            'with '
+                                                                                                                                                                                                            'RUNTIME_COMPONENT_UNKNOWN.',
+                                                                                                                                                                                             'minLength': 1,
+                                                                                                                                                                                             'type': 'string'},
+                                                                                                                                                                            'engine_id': {'description': 'Stable '
+                                                                                                                                                                                                         'machine-readable '
+                                                                                                                                                                                                         'engine '
+                                                                                                                                                                                                         'grouping '
+                                                                                                                                                                                                         'id '
+                                                                                                                                                                                                         'defined '
+                                                                                                                                                                                                         'by '
+                                                                                                                                                                                                         'the '
+                                                                                                                                                                                                         'Backend '
+                                                                                                                                                                                                         'release; '
+                                                                                                                                                                                                         'clients '
+                                                                                                                                                                                                         'group '
+                                                                                                                                                                                                         'catalog '
+                                                                                                                                                                                                         'entries '
+                                                                                                                                                                                                         'by '
+                                                                                                                                                                                                         'it '
+                                                                                                                                                                                                         'and '
+                                                                                                                                                                                                         'never '
+                                                                                                                                                                                                         'send '
+                                                                                                                                                                                                         'it '
+                                                                                                                                                                                                         'back.',
+                                                                                                                                                                                          'minLength': 1,
+                                                                                                                                                                                          'type': 'string'}},
+                                                                                                                                                             'required': ['engine_id',
+                                                                                                                                                                          'accelerator',
+                                                                                                                                                                          'component_id'],
+                                                                                                                                                             'type': 'object'},
+                                                                                                                                                   'minItems': 1,
+                                                                                                                                                   'type': 'array',
+                                                                                                                                                   'uniqueItems': True}},
+                                                                                                                       'required': ['variants'],
+                                                                                                                       'type': 'object'},
+                                                                                         'deprecated_in': {'type': ['string',
                                                                                                                     'null']},
+                                                                                         'download_source_catalog': {'additionalProperties': False,
+                                                                                                                     'description': 'Structured '
+                                                                                                                                    'catalog '
+                                                                                                                                    'of '
+                                                                                                                                    'selectable '
+                                                                                                                                    'download '
+                                                                                                                                    'sources, '
+                                                                                                                                    'carried '
+                                                                                                                                    'by '
+                                                                                                                                    'the '
+                                                                                                                                    'runtime.download-sources.v1 '
+                                                                                                                                    'capability '
+                                                                                                                                    'descriptor. '
+                                                                                                                                    'Servers '
+                                                                                                                                    'MUST '
+                                                                                                                                    'NOT '
+                                                                                                                                    'list '
+                                                                                                                                    'two '
+                                                                                                                                    'sources '
+                                                                                                                                    'with '
+                                                                                                                                    'the '
+                                                                                                                                    'same '
+                                                                                                                                    'id '
+                                                                                                                                    'across '
+                                                                                                                                    'kinds. '
+                                                                                                                                    'The '
+                                                                                                                                    'catalog '
+                                                                                                                                    'lists '
+                                                                                                                                    'selectable '
+                                                                                                                                    'sources '
+                                                                                                                                    'only: '
+                                                                                                                                    'clients '
+                                                                                                                                    'always '
+                                                                                                                                    'send '
+                                                                                                                                    'the '
+                                                                                                                                    "user's "
+                                                                                                                                    'explicit '
+                                                                                                                                    'selection '
+                                                                                                                                    'and '
+                                                                                                                                    'fall '
+                                                                                                                                    'back '
+                                                                                                                                    'to '
+                                                                                                                                    'the '
+                                                                                                                                    'server '
+                                                                                                                                    'default '
+                                                                                                                                    '(official '
+                                                                                                                                    'sources) '
+                                                                                                                                    'only '
+                                                                                                                                    'when '
+                                                                                                                                    'the '
+                                                                                                                                    'selection '
+                                                                                                                                    'is '
+                                                                                                                                    'omitted.',
+                                                                                                                     'properties': {'sources': {'items': {'additionalProperties': False,
+                                                                                                                                                          'description': 'One '
+                                                                                                                                                                         'selectable '
+                                                                                                                                                                         'download '
+                                                                                                                                                                         'source '
+                                                                                                                                                                         'declared '
+                                                                                                                                                                         'by '
+                                                                                                                                                                         'the '
+                                                                                                                                                                         'Backend '
+                                                                                                                                                                         'release. '
+                                                                                                                                                                         'id '
+                                                                                                                                                                         'is '
+                                                                                                                                                                         'a '
+                                                                                                                                                                         'stable '
+                                                                                                                                                                         'source '
+                                                                                                                                                                         'id '
+                                                                                                                                                                         'the '
+                                                                                                                                                                         'client '
+                                                                                                                                                                         'echoes '
+                                                                                                                                                                         'back '
+                                                                                                                                                                         'in '
+                                                                                                                                                                         'download_source_ids '
+                                                                                                                                                                         'selections; '
+                                                                                                                                                                         'ids '
+                                                                                                                                                                         'are '
+                                                                                                                                                                         'unique '
+                                                                                                                                                                         'across '
+                                                                                                                                                                         'the '
+                                                                                                                                                                         'whole '
+                                                                                                                                                                         'catalog. '
+                                                                                                                                                                         'endpoint '
+                                                                                                                                                                         'is '
+                                                                                                                                                                         'the '
+                                                                                                                                                                         'factual '
+                                                                                                                                                                         'base '
+                                                                                                                                                                         'URL '
+                                                                                                                                                                         'clients '
+                                                                                                                                                                         'may '
+                                                                                                                                                                         'surface '
+                                                                                                                                                                         'to '
+                                                                                                                                                                         'users; '
+                                                                                                                                                                         'the '
+                                                                                                                                                                         'catalog '
+                                                                                                                                                                         'never '
+                                                                                                                                                                         'carries '
+                                                                                                                                                                         'display '
+                                                                                                                                                                         'text, '
+                                                                                                                                                                         'localization '
+                                                                                                                                                                         'or '
+                                                                                                                                                                         'product '
+                                                                                                                                                                         'defaults.',
+                                                                                                                                                          'properties': {'endpoint': {'description': 'Factual '
+                                                                                                                                                                                                     'base '
+                                                                                                                                                                                                     'URL '
+                                                                                                                                                                                                     'of '
+                                                                                                                                                                                                     'the '
+                                                                                                                                                                                                     'source '
+                                                                                                                                                                                                     '(for '
+                                                                                                                                                                                                     'example '
+                                                                                                                                                                                                     'a '
+                                                                                                                                                                                                     'PyPI '
+                                                                                                                                                                                                     'simple '
+                                                                                                                                                                                                     'index '
+                                                                                                                                                                                                     'or '
+                                                                                                                                                                                                     'a '
+                                                                                                                                                                                                     'model '
+                                                                                                                                                                                                     'registry '
+                                                                                                                                                                                                     'endpoint); '
+                                                                                                                                                                                                     'clients '
+                                                                                                                                                                                                     'may '
+                                                                                                                                                                                                     'render '
+                                                                                                                                                                                                     'it '
+                                                                                                                                                                                                     'verbatim '
+                                                                                                                                                                                                     'but '
+                                                                                                                                                                                                     'must '
+                                                                                                                                                                                                     'not '
+                                                                                                                                                                                                     'parse '
+                                                                                                                                                                                                     'it.',
+                                                                                                                                                                                      'minLength': 1,
+                                                                                                                                                                                      'type': 'string'},
+                                                                                                                                                                         'id': {'description': 'Stable '
+                                                                                                                                                                                               'machine-readable '
+                                                                                                                                                                                               'source '
+                                                                                                                                                                                               'id '
+                                                                                                                                                                                               'defined '
+                                                                                                                                                                                               'by '
+                                                                                                                                                                                               'the '
+                                                                                                                                                                                               'Backend '
+                                                                                                                                                                                               'release; '
+                                                                                                                                                                                               'selections '
+                                                                                                                                                                                               'reference '
+                                                                                                                                                                                               'it '
+                                                                                                                                                                                               'and '
+                                                                                                                                                                                               'unknown '
+                                                                                                                                                                                               'ids '
+                                                                                                                                                                                               'fail '
+                                                                                                                                                                                               'closed '
+                                                                                                                                                                                               'with '
+                                                                                                                                                                                               'DOWNLOAD_SOURCE_UNKNOWN.',
+                                                                                                                                                                                'minLength': 1,
+                                                                                                                                                                                'type': 'string'},
+                                                                                                                                                                         'kind': {'description': 'Kinds '
+                                                                                                                                                                                                 'of '
+                                                                                                                                                                                                 'downloadable '
+                                                                                                                                                                                                 'artifacts '
+                                                                                                                                                                                                 'a '
+                                                                                                                                                                                                 'catalog '
+                                                                                                                                                                                                 'entry '
+                                                                                                                                                                                                 'serves: '
+                                                                                                                                                                                                 'package_index '
+                                                                                                                                                                                                 'feeds '
+                                                                                                                                                                                                 'dependency '
+                                                                                                                                                                                                 'installation '
+                                                                                                                                                                                                 'performed '
+                                                                                                                                                                                                 'by '
+                                                                                                                                                                                                 'the '
+                                                                                                                                                                                                 'Runtime '
+                                                                                                                                                                                                 'Host '
+                                                                                                                                                                                                 'or '
+                                                                                                                                                                                                 'runtime '
+                                                                                                                                                                                                 'maintenance, '
+                                                                                                                                                                                                 'model_registry '
+                                                                                                                                                                                                 'feeds '
+                                                                                                                                                                                                 'model '
+                                                                                                                                                                                                 'downloads '
+                                                                                                                                                                                                 'performed '
+                                                                                                                                                                                                 'by '
+                                                                                                                                                                                                 'the '
+                                                                                                                                                                                                 'runtime. '
+                                                                                                                                                                                                 'Adding '
+                                                                                                                                                                                                 'a '
+                                                                                                                                                                                                 'new '
+                                                                                                                                                                                                 'kind '
+                                                                                                                                                                                                 'extends '
+                                                                                                                                                                                                 'a '
+                                                                                                                                                                                                 'closed '
+                                                                                                                                                                                                 'enum '
+                                                                                                                                                                                                 'and '
+                                                                                                                                                                                                 'requires '
+                                                                                                                                                                                                 'six-repository '
+                                                                                                                                                                                                 'coordination '
+                                                                                                                                                                                                 'before '
+                                                                                                                                                                                                 'the '
+                                                                                                                                                                                                 'next '
+                                                                                                                                                                                                 'release.',
+                                                                                                                                                                                  'enum': ['package_index',
+                                                                                                                                                                                           'model_registry'],
+                                                                                                                                                                                  'type': 'string'}},
+                                                                                                                                                          'required': ['kind',
+                                                                                                                                                                       'id',
+                                                                                                                                                                       'endpoint'],
+                                                                                                                                                          'type': 'object'},
+                                                                                                                                                'minItems': 1,
+                                                                                                                                                'type': 'array',
+                                                                                                                                                'uniqueItems': True}},
+                                                                                                                     'required': ['sources'],
+                                                                                                                     'type': 'object'},
                                                                                          'introduced_in': {'minLength': 1,
                                                                                                            'type': 'string'},
                                                                                          'lifecycle': {'enum': ['active',
@@ -2296,7 +2750,19 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                    'maintenance'],
                       'type': 'object'},
  'getSettings': {'additionalProperties': False,
-                 'properties': {'extra': {'additionalProperties': True, 'type': 'object'},
+                 'description': 'Backend settings snapshot/exchange. download_source_ids persists '
+                                "the user's download source selection "
+                                '(runtime.download-sources.v1): the runtime applies it to model '
+                                'downloads and HTTP maintenance installs. Clients SHOULD always '
+                                "send the user's current selection when the capability is declared "
+                                'and MUST omit the field otherwise; the server applies its own '
+                                'default (official) sources when the field is omitted and fails '
+                                'closed with DOWNLOAD_SOURCE_UNKNOWN for ids missing from its '
+                                'catalog.',
+                 'properties': {'download_source_ids': {'items': {'minLength': 1, 'type': 'string'},
+                                                        'type': 'array',
+                                                        'uniqueItems': True},
+                                'extra': {'additionalProperties': True, 'type': 'object'},
                                 'residency': {'additionalProperties': False,
                                               'properties': {'default_ttl_seconds': {'minimum': 0,
                                                                                      'type': 'integer'},
@@ -4137,7 +4603,19 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                  'vram_used_mb'],
                     'type': 'object'},
  'putSettings': {'additionalProperties': False,
-                 'properties': {'extra': {'additionalProperties': True, 'type': 'object'},
+                 'description': 'Backend settings snapshot/exchange. download_source_ids persists '
+                                "the user's download source selection "
+                                '(runtime.download-sources.v1): the runtime applies it to model '
+                                'downloads and HTTP maintenance installs. Clients SHOULD always '
+                                "send the user's current selection when the capability is declared "
+                                'and MUST omit the field otherwise; the server applies its own '
+                                'default (official) sources when the field is omitted and fails '
+                                'closed with DOWNLOAD_SOURCE_UNKNOWN for ids missing from its '
+                                'catalog.',
+                 'properties': {'download_source_ids': {'items': {'minLength': 1, 'type': 'string'},
+                                                        'type': 'array',
+                                                        'uniqueItems': True},
+                                'extra': {'additionalProperties': True, 'type': 'object'},
                                 'residency': {'additionalProperties': False,
                                               'properties': {'default_ttl_seconds': {'minimum': 0,
                                                                                      'type': 'integer'},

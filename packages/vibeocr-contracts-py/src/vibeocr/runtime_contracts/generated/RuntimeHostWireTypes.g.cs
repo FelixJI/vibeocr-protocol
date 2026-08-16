@@ -22,6 +22,23 @@ public sealed class AcceleratorJsonConverter : JsonStringEnumConverter<Accelerat
     }
 }
 
+[JsonConverter(typeof(DownloadSourceKindJsonConverter))]
+public enum DownloadSourceKind
+{
+    [JsonStringEnumMemberName("package_index")]
+    PackageIndex,
+    [JsonStringEnumMemberName("model_registry")]
+    ModelRegistry
+}
+
+public sealed class DownloadSourceKindJsonConverter : JsonStringEnumConverter<DownloadSourceKind>
+{
+    public DownloadSourceKindJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(IntegrityStatusJsonConverter))]
 public enum IntegrityStatus
 {
@@ -280,6 +297,48 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("ocr_engine_catalog")]
     public OcrEngineCatalog? OcrEngineCatalog { get; init; }
+
+    [JsonPropertyName("download_source_catalog")]
+    public DownloadSourceCatalog? DownloadSourceCatalog { get; init; }
+
+    [JsonPropertyName("component_variant_catalog")]
+    public ComponentVariantCatalog? ComponentVariantCatalog { get; init; }
+}
+
+public sealed record ComponentVariantCatalog
+{
+    [JsonPropertyName("variants")]
+    public required IReadOnlyList<ComponentVariantDescriptor> Variants { get; init; }
+}
+
+public sealed record ComponentVariantDescriptor
+{
+    [JsonPropertyName("engine_id")]
+    public required string EngineId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required Accelerator Accelerator { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
+}
+
+public sealed record DownloadSourceCatalog
+{
+    [JsonPropertyName("sources")]
+    public required IReadOnlyList<DownloadSourceDescriptor> Sources { get; init; }
+}
+
+public sealed record DownloadSourceDescriptor
+{
+    [JsonPropertyName("kind")]
+    public required DownloadSourceKind Kind { get; init; }
+
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("endpoint")]
+    public required string Endpoint { get; init; }
 }
 
 public sealed record OcrEngineCatalog
@@ -434,6 +493,12 @@ public sealed record RuntimeHostRequest
     [JsonPropertyName("required_capabilities")]
     public IReadOnlyList<string>? RequiredCapabilities { get; init; }
 
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
+
     [JsonPropertyName("accepted_event_streams")]
     public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
 }
@@ -526,6 +591,12 @@ public sealed record RuntimeMaintenanceCommandRequest
 
     [JsonPropertyName("product_id")]
     public string? ProductId { get; init; }
+
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
 
     [JsonPropertyName("accepted_event_streams")]
     public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
