@@ -19,10 +19,11 @@
 - 生成文件、版本派生文件和 lock 必须由仓库脚本更新；不得手改生成物后跳过生成/一致性检查。会删除或重建目录的脚本只可作用于仓库声明的固定输出目录。
 - 不通过降低覆盖率、跳过与变更相关的 E2E、吞掉错误、添加无依据重试、删除有明确边界契约的校验或禁用安全检查来使 CI 变绿。修复针对根因；存在稳定且合适的测试 seam 时补充能在旧实现上失败的回归契约，不为勾选条目制造脆弱测试。
 - Python 环境统一由 `uv` 管理：使用仓库锁定配置通过 `uv sync --frozen ...`（或项目明确声明的 `uv venv`）创建/更新仓库内 `.venv`，所有 Python 入口通过 `uv run python ...` 或仓库封装脚本调用。禁止直接用系统 `python`/`pip` 安装项目依赖，禁止把依赖散装到全局或用户 `site-packages`。
-- 依赖与工具链下载尽量使用国内镜像源（uv 经 `UV_DEFAULT_INDEX` 或用户级配置指向 PyPI 镜像，NuGet、npm registry、Go `GOPROXY` 同理），优先复用既有环境、lock 与本地缓存，不随意新建 Python、Node 或 .NET 环境；确需使用海外官方源（镜像缺失、内容不一致或需发布验证）时先向用户说明并确认。镜像配置放在用户级配置或环境变量，不提交会改变 CI 依赖解析与 lock 一致性的仓库级镜像地址。
-- 下载或远端访问失败先做最小诊断：区分镜像源故障与海外网络不可达，按结果换源、等待或征询用户，不盲目重试海外源。GitHub 的 git/gh 交互没有可靠国内镜像，失败时如实报告，不自行改用第三方加速代理；发布资产下载与校验仍按官方 Release 和 checksum 契约执行。
-- 本机已有的依赖或 SDK 版本高于项目 pin/lock 时，优先用项目声明的更新脚本把要求升到本地版本并完整运行质量入口，而不是再下载旧版本迁就项目；升级走普通 PR，不手改版本源或绕过 lock 生成，也不因新版本告警而降低检查标准。
-- 校验与防御按可复现故障、平台契约和实际影响设计。默认面对正常协作者和常规故障，不预设潜入者、破坏者或对抗性场景；除发布资产、外部下载和更新包等确有字节完整性契约的边界外，不新增多层 hash、SHA-256 或 identity 比对，不为基本不可能发生的 case 反复叠加检查、重试、冻结或人工 gate。已有校验若说不清来源、边界和消费者，应优先简化。
+- 依赖解析和工具链版本服从项目声明的配置、lock 与生成脚本。可复用本机可信下载缓存及已配置镜像，但不得为适配本机网络擅自修改仓库级 registry/index、lock 中的来源、Git remote 或 CI 配置。
+- 下载或远端访问失败时先做最小诊断，不盲目重试，也不自行使用未经授权的第三方代理。确需改变仓库依赖来源时，作为独立变更说明其对 CI、lock 与供应链一致性的影响。
+- 普通依赖及 lock 始终以仓库声明为准，不因本机已有更高版本而升级。SDK 或工具链缺少仓库固定版本、但本机已有更高稳定版本时，先检查项目的 roll-forward、lock、CI 与兼容性契约：允许兼容前滚的可直接复用；要求精确版本的，不静默修改 pin，而是向用户说明安装固定版本与独立升级 SDK 两种方案。升级须使用项目声明方式走普通 PR，并运行完整质量入口。
+- SHA-256、hash 或 identity 比对不是普通正确性或安全校验的默认手段，只在发布资产、外部下载、更新包、跨系统资产交接或故障取证等存在明确字节完整性契约的边界使用。新增前必须能指出权威摘要的生产者、校验消费者、失败处理及其防止的可复现故障；缺少任一项则不新增。
+- 不存在上述契约时，不对本地源码、生成文件、配置、目录、临时文件、缓存、日志、数据库或同一流水线内已受 Git/构建步骤约束的数据，为“多一层保险”重复计算 SHA-256，也不把手工 hash 当作默认 review 或交付证据。优先使用语义校验、解析/契约测试、Git tree/diff、精确资产清单或既有单一 checksum；已有多层 hash/identity 若没有独立消费者或边界，应简化而非继续叠加。
 
 ### CI/CD 架构保护
 
@@ -38,7 +39,7 @@
 - 目标版本基线取当前版本、稳定 `v*` tag 与已发布正式 Release 的最大值；draft/prerelease 不参与。只有 tag、没有正式 Release 的稳定版本也会推进下一目标，不能复用或回退。
 - `refs/tags/v*` 不可更新/删除且无 bypass；main 禁止 force-push/删除。发布候选必须绑定 source SHA、版本、项目 identity、精确资产集合、SHA-256 与 SPDX 2.3 SBOM。已有正式 Release 只允许在 tag/source/identity 一致时补齐或修复资产，否则 fail closed。
 - Changelog 由 squash 后的 Conventional Commit 生成。`feat`、`fix`、`perf`、`deps`、`revert` 和 breaking change 默认可见；包括 `security`、`build` 在内的其他类型默认隐藏。不要为进入 changelog 伪造 type；确需覆盖时用 `Changelog: include` 或 `Changelog: skip`。
-- 正式 Release 发布完成后，不在本地重复下载资产做二次校验；资产完整性由发布流水线内的 checksums 与 attestation 保证，本地仅在用户明确要求或排查具体故障时按需下载单个资产核对。
+- 正式 Release 完成后，以 CD 成功状态、source SHA、Release 资产清单、checksums 和 attestations 作为交付证据；流水线已完成逐资产校验时，不在本地重复下载全部资产。仅在用户明确要求或排查具体发布故障时，按项目脚本抽检相关资产。
 
 ### 代码质量与验证
 
@@ -52,7 +53,7 @@
 - Commit 使用 `<type>(<scope>): <简体中文动词短语>`，例如 `fix(ci): 修复候选产物绑定`、`docs(agents): 补充仓库治理规则`。一个 commit 只表达一个完整意图。
 - PR 标题采用中文 Conventional Commit；正文至少包含背景与根因、变更内容、影响与风险、精确验证命令及结果。UI 可见改动附截图；未执行项说明原因，pending 不得写成 passed。
 - 只允许 squash merge。合并前必须通过严格同步 `main` 的 `required` check，处理所有 review conversation，不使用 admin/bypass 绕过保护。普通 PR 合并后确认 `main` CI 与 CD 哨兵成功且未意外发布；`automation/release` PR 合并后则必须确认 CD 完成正式发布。
-- worktree 只在工作树干净且 PR 已确认 `MERGED` 后移除。由于只允许 squash merge，必须验证 PR 的 `mergeCommit` 可从最新远端 `main` 到达，并用 `git diff --quiet <branch-head> <mergeCommit>` 确认 tree 等价；不能要求分支 HEAD 本身是 `main` 祖先。远端分支删除不等于本地提交可安全删除。worktree 创建位置必须固定可预期：agent 为本仓新建的 worktree 统一放在仓库内 `.worktrees/<slug>`（并纳入仓库忽略规则），工具托管的 worktree 保持其固定根目录、按仓隔离，不与其他仓库混放；删除分支前先移除其 worktree，清理后不留空目录。
+- 工具托管的 worktree 使用工具固定位置；手工创建的 worktree 统一放在各仓库共同父目录下的 `.worktrees/<repo>/<slug>`，按仓隔离，不放进仓库工作树、`build/` 或系统临时目录。worktree 只在工作树干净且 PR 已确认 `MERGED` 后移除。由于只允许 squash merge，必须验证 PR 的 `mergeCommit` 可从最新远端 `main` 到达，并用 `git diff --quiet <branch-head> <mergeCommit>` 确认 tree 等价；不能要求分支 HEAD 本身是 `main` 祖先。先使用 `git worktree remove` 移除 worktree，再执行 `git worktree prune` 和安全删除分支；验证失败时保留现场，不递归删除目录或 `.git`。
 
 ### Secret 与远端治理
 
