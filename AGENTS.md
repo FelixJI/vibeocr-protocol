@@ -21,6 +21,7 @@
 - Python 环境统一由 `uv` 管理：使用仓库锁定配置通过 `uv sync --frozen ...`（或项目明确声明的 `uv venv`）创建/更新仓库内 `.venv`，所有 Python 入口通过 `uv run python ...` 或仓库封装脚本调用。禁止直接用系统 `python`/`pip` 安装项目依赖，禁止把依赖散装到全局或用户 `site-packages`。
 - 依赖与工具链下载尽量使用国内镜像源（uv 经 `UV_DEFAULT_INDEX` 或用户级配置指向 PyPI 镜像，NuGet、npm registry、Go `GOPROXY` 同理），优先复用既有环境、lock 与本地缓存，不随意新建 Python、Node 或 .NET 环境；确需使用海外官方源（镜像缺失、内容不一致或需发布验证）时先向用户说明并确认。镜像配置放在用户级配置或环境变量，不提交会改变 CI 依赖解析与 lock 一致性的仓库级镜像地址。
 - 下载或远端访问失败先做最小诊断：区分镜像源故障与海外网络不可达，按结果换源、等待或征询用户，不盲目重试海外源。GitHub 的 git/gh 交互没有可靠国内镜像，失败时如实报告，不自行改用第三方加速代理；发布资产下载与校验仍按官方 Release 和 checksum 契约执行。
+- 本机已有的依赖或 SDK 版本高于项目 pin/lock 时，优先用项目声明的更新脚本把要求升到本地版本并完整运行质量入口，而不是再下载旧版本迁就项目；升级走普通 PR，不手改版本源或绕过 lock 生成，也不因新版本告警而降低检查标准。
 - 校验与防御按可复现故障、平台契约和实际影响设计。默认面对正常协作者和常规故障，不预设潜入者、破坏者或对抗性场景；除发布资产、外部下载和更新包等确有字节完整性契约的边界外，不新增多层 hash、SHA-256 或 identity 比对，不为基本不可能发生的 case 反复叠加检查、重试、冻结或人工 gate。已有校验若说不清来源、边界和消费者，应优先简化。
 
 ### CI/CD 架构保护
@@ -37,6 +38,7 @@
 - 目标版本基线取当前版本、稳定 `v*` tag 与已发布正式 Release 的最大值；draft/prerelease 不参与。只有 tag、没有正式 Release 的稳定版本也会推进下一目标，不能复用或回退。
 - `refs/tags/v*` 不可更新/删除且无 bypass；main 禁止 force-push/删除。发布候选必须绑定 source SHA、版本、项目 identity、精确资产集合、SHA-256 与 SPDX 2.3 SBOM。已有正式 Release 只允许在 tag/source/identity 一致时补齐或修复资产，否则 fail closed。
 - Changelog 由 squash 后的 Conventional Commit 生成。`feat`、`fix`、`perf`、`deps`、`revert` 和 breaking change 默认可见；包括 `security`、`build` 在内的其他类型默认隐藏。不要为进入 changelog 伪造 type；确需覆盖时用 `Changelog: include` 或 `Changelog: skip`。
+- 正式 Release 发布完成后，不在本地重复下载资产做二次校验；资产完整性由发布流水线内的 checksums 与 attestation 保证，本地仅在用户明确要求或排查具体故障时按需下载单个资产核对。
 
 ### 代码质量与验证
 
@@ -50,7 +52,7 @@
 - Commit 使用 `<type>(<scope>): <简体中文动词短语>`，例如 `fix(ci): 修复候选产物绑定`、`docs(agents): 补充仓库治理规则`。一个 commit 只表达一个完整意图。
 - PR 标题采用中文 Conventional Commit；正文至少包含背景与根因、变更内容、影响与风险、精确验证命令及结果。UI 可见改动附截图；未执行项说明原因，pending 不得写成 passed。
 - 只允许 squash merge。合并前必须通过严格同步 `main` 的 `required` check，处理所有 review conversation，不使用 admin/bypass 绕过保护。普通 PR 合并后确认 `main` CI 与 CD 哨兵成功且未意外发布；`automation/release` PR 合并后则必须确认 CD 完成正式发布。
-- worktree 只在工作树干净且 PR 已确认 `MERGED` 后移除。由于只允许 squash merge，必须验证 PR 的 `mergeCommit` 可从最新远端 `main` 到达，并用 `git diff --quiet <branch-head> <mergeCommit>` 确认 tree 等价；不能要求分支 HEAD 本身是 `main` 祖先。远端分支删除不等于本地提交可安全删除。
+- worktree 只在工作树干净且 PR 已确认 `MERGED` 后移除。由于只允许 squash merge，必须验证 PR 的 `mergeCommit` 可从最新远端 `main` 到达，并用 `git diff --quiet <branch-head> <mergeCommit>` 确认 tree 等价；不能要求分支 HEAD 本身是 `main` 祖先。远端分支删除不等于本地提交可安全删除。worktree 创建位置必须固定可预期：agent 为本仓新建的 worktree 统一放在仓库内 `.worktrees/<slug>`（并纳入仓库忽略规则），工具托管的 worktree 保持其固定根目录、按仓隔离，不与其他仓库混放；删除分支前先移除其 worktree，清理后不留空目录。
 
 ### Secret 与远端治理
 
