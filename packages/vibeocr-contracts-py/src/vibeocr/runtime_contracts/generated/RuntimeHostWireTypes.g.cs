@@ -300,6 +300,27 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("download_source_catalog")]
     public DownloadSourceCatalog? DownloadSourceCatalog { get; init; }
+
+    [JsonPropertyName("component_variant_catalog")]
+    public ComponentVariantCatalog? ComponentVariantCatalog { get; init; }
+}
+
+public sealed record ComponentVariantCatalog
+{
+    [JsonPropertyName("variants")]
+    public required IReadOnlyList<ComponentVariantDescriptor> Variants { get; init; }
+}
+
+public sealed record ComponentVariantDescriptor
+{
+    [JsonPropertyName("engine_id")]
+    public required string EngineId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required Accelerator Accelerator { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
 }
 
 public sealed record DownloadSourceCatalog
@@ -475,6 +496,9 @@ public sealed record RuntimeHostRequest
     [JsonPropertyName("download_source_ids")]
     public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
+
     [JsonPropertyName("accepted_event_streams")]
     public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
 }
@@ -570,6 +594,9 @@ public sealed record RuntimeMaintenanceCommandRequest
 
     [JsonPropertyName("download_source_ids")]
     public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
 
     [JsonPropertyName("accepted_event_streams")]
     public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }

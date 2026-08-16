@@ -203,6 +203,9 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("download_source_catalog")]
     public DownloadSourceCatalog? DownloadSourceCatalog { get; init; }
+
+    [JsonPropertyName("component_variant_catalog")]
+    public ComponentVariantCatalog? ComponentVariantCatalog { get; init; }
 }
 
 public sealed record CommandResult
@@ -224,6 +227,24 @@ public sealed record CommandResult
 
     [JsonPropertyName("job_ref")]
     public required JobRef? JobRef { get; init; }
+}
+
+public sealed record ComponentVariantCatalog
+{
+    [JsonPropertyName("variants")]
+    public required IReadOnlyList<ComponentVariantDescriptor> Variants { get; init; }
+}
+
+public sealed record ComponentVariantDescriptor
+{
+    [JsonPropertyName("engine_id")]
+    public required string EngineId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required string Accelerator { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
 }
 
 public sealed record DeletePagesRequest
@@ -1115,6 +1136,9 @@ public sealed record RuntimeMaintenanceCommandRequest
 
     [JsonPropertyName("expected_sequence")]
     public int? ExpectedSequence { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
 }
 
 public sealed record RuntimeMaintenanceEvent
@@ -1172,6 +1196,9 @@ public sealed record RuntimeMaintenanceRequest
 
     [JsonPropertyName("component_ids")]
     public IReadOnlyList<string>? ComponentIds { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
 
     [JsonPropertyName("required_capabilities")]
     public IReadOnlyList<string>? RequiredCapabilities { get; init; }

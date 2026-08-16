@@ -19,6 +19,7 @@ public static class RuntimeProtocol
     public const string RUNTIME_EVENTS_NDJSON_V1 = "runtime.events.ndjson.v1";
     public const string OCR_ENGINE_SELECTION_V1 = "ocr.engine-selection.v1";
     public const string RUNTIME_DOWNLOAD_SOURCES_V1 = "runtime.download-sources.v1";
+    public const string RUNTIME_COMPONENT_SELECTION_V1 = "runtime.component-selection.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -38,7 +39,8 @@ public static class RuntimeProtocol
         "runtime.events.sse.v1",
         "runtime.events.ndjson.v1",
         "ocr.engine-selection.v1",
-        "runtime.download-sources.v1"
+        "runtime.download-sources.v1",
+        "runtime.component-selection.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
@@ -168,7 +170,8 @@ public enum RuntimeErrorCode
     OCR_ENGINE_PREPARATION_REQUIRED,
     OCR_ENGINE_NOT_VALID_FOR_PIPELINE,
     OCR_ENGINE_LANGUAGE_UNAVAILABLE,
-    DOWNLOAD_SOURCE_UNKNOWN
+    DOWNLOAD_SOURCE_UNKNOWN,
+    RUNTIME_COMPONENT_UNKNOWN
 }
 
 public sealed record RuntimeReadyEnvelope(

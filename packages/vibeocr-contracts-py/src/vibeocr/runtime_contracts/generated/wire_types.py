@@ -39,6 +39,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     replacement: Required[str | None]
     ocr_engine_catalog: NotRequired[OcrEngineCatalog]
     download_source_catalog: NotRequired[DownloadSourceCatalog]
+    component_variant_catalog: NotRequired[ComponentVariantCatalog]
 
 
 class CommandResult(TypedDict, total=False):
@@ -48,6 +49,16 @@ class CommandResult(TypedDict, total=False):
     kind: Required[Literal['cancel', 'retry', 'forget']]
     cancel_mode: Required[str | None]
     job_ref: Required[None | JobRef]
+
+
+class ComponentVariantCatalog(TypedDict, total=False):
+    variants: Required[list[ComponentVariantDescriptor]]
+
+
+class ComponentVariantDescriptor(TypedDict, total=False):
+    engine_id: Required[str]
+    accelerator: Required[Literal['cpu', 'nvidia_cuda']]
+    component_id: Required[str]
 
 
 class DeletePagesRequest(TypedDict, total=False):
@@ -459,6 +470,7 @@ class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
     target_operation_id: Required[str]
     new_operation_id: NotRequired[str]
     expected_sequence: NotRequired[int]
+    install_component_ids: NotRequired[list[str]]
 
 
 class RuntimeMaintenanceEvent(TypedDict, total=False):
@@ -484,6 +496,7 @@ class RuntimeMaintenanceRequest(TypedDict, total=False):
     operation: Required[Literal['inspect', 'ensure', 'repair']]
     profile_id: NotRequired[str]
     component_ids: NotRequired[list[str]]
+    install_component_ids: NotRequired[list[str]]
     required_capabilities: NotRequired[list[str]]
 
 

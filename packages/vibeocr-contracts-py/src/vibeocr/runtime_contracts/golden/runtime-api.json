@@ -22,7 +22,8 @@
       "ocr.recognition.v2",
       "pdf.edit.v2",
       "ocr.engine-selection.v1",
-      "runtime.download-sources.v1"
+      "runtime.download-sources.v1",
+      "runtime.component-selection.v1"
     ],
     "capability_descriptors": [
       {
@@ -94,6 +95,38 @@
               "kind": "model_registry",
               "id": "hf-mirror",
               "endpoint": "https://hf-mirror.com"
+            }
+          ]
+        }
+      },
+      {
+        "name": "runtime.component-selection.v1",
+        "lifecycle": "active",
+        "introduced_in": "2.7.0",
+        "deprecated_in": null,
+        "sunset_at": null,
+        "replacement": null,
+        "component_variant_catalog": {
+          "variants": [
+            {
+              "engine_id": "paddleocr",
+              "accelerator": "cpu",
+              "component_id": "paddleocr-cpu"
+            },
+            {
+              "engine_id": "paddleocr",
+              "accelerator": "nvidia_cuda",
+              "component_id": "paddleocr-cuda"
+            },
+            {
+              "engine_id": "mineru",
+              "accelerator": "cpu",
+              "component_id": "mineru-cpu"
+            },
+            {
+              "engine_id": "mineru",
+              "accelerator": "nvidia_cuda",
+              "component_id": "mineru-cuda"
             }
           ]
         }

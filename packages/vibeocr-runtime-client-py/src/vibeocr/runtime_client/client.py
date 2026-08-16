@@ -446,12 +446,16 @@ class RuntimeHttpClient:
         )
 
     def ensure_runtime(
-        self, *, operation_id: str | None = None
+        self,
+        *,
+        operation_id: str | None = None,
+        install_component_ids: Iterable[str] = (),
     ) -> RuntimeMaintenanceReceipt:
         return self.start_runtime_maintenance(
             RuntimeMaintenanceRequest(
                 operation=RuntimeMaintenanceOperation.ENSURE,
                 operation_id=operation_id,
+                install_component_ids=tuple(install_component_ids),
             )
         )
 
@@ -962,12 +966,16 @@ class SupervisorClient:
         )
 
     async def ensure_runtime(
-        self, *, operation_id: str | None = None
+        self,
+        *,
+        operation_id: str | None = None,
+        install_component_ids: Iterable[str] = (),
     ) -> RuntimeMaintenanceReceipt:
         return await self.start_runtime_maintenance(
             RuntimeMaintenanceRequest(
                 operation=RuntimeMaintenanceOperation.ENSURE,
                 operation_id=operation_id,
+                install_component_ids=tuple(install_component_ids),
             )
         )
 

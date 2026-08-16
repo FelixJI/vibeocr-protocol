@@ -6,7 +6,7 @@
 - **Accelerator**：Runtime 的安装计划。Protocol v2 支持 `cpu` 与 `nvidia_cuda`；它不是目录名，也不表示多个 Runtime 并存。
 - **Runtime Host**：后端发布的单一控制面可执行文件。它通过 Protocol v2 的一次性 JSON CLI 执行检查、安装、修复并返回启动契约。
 - **Supervisor**：由 Runtime 中的 Python 启动的本机 HTTP 数据面，实现正式 OpenAPI。
-- **Frontend**：Classic 或 Next。它只选择 Accelerator、调用 Runtime Host、持有 Supervisor 进程并通过生成的 HTTP 客户端访问数据面。
+- **Frontend**：Classic 或 Next。它选择 Accelerator 与可选安装组件范围（`runtime.component-selection.v1`）、调用 Runtime Host、持有 Supervisor 进程并通过生成的 HTTP 客户端访问数据面。
 
 ## 不变量
 

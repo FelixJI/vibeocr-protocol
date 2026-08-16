@@ -14,7 +14,8 @@
     "runtime.events.sse.v1",
     "runtime.events.ndjson.v1",
     "ocr.engine-selection.v1",
-    "runtime.download-sources.v1"
+    "runtime.download-sources.v1",
+    "runtime.component-selection.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -123,6 +124,14 @@
     },
     "runtime.download-sources.v1": {
       "description": "Select download sources for dependency installation and model downloads from the Backend-declared source catalog, carried by capability descriptors and exchanged as stable source ids.",
+      "lifecycle": "active",
+      "introduced_in": "2.7.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.component-selection.v1": {
+      "description": "Manually select the install scope of offline-engine dependencies from the Backend-declared variant catalog, exchanged as install_component_ids with the dependency closure reported honestly.",
       "lifecycle": "active",
       "introduced_in": "2.7.0",
       "deprecated_in": null,

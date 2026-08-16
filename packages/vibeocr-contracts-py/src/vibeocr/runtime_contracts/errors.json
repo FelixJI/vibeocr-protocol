@@ -251,6 +251,13 @@
       "http_status": 400,
       "retryable": false,
       "message": "A selected download source id is not in the runtime.download-sources.v1 catalog; the request fails closed without falling back to another source."
+    },
+    {
+      "code": "RUNTIME_COMPONENT_UNKNOWN",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "A selected install component id is not in the runtime.component-selection.v1 catalog; the request fails closed without silently installing a different scope."
     }
   ]
 }

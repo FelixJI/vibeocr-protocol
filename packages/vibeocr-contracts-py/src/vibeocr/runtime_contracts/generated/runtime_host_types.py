@@ -28,6 +28,17 @@ class CapabilityDescriptor(TypedDict, total=False):
     replacement: Required[str | None]
     ocr_engine_catalog: NotRequired[OcrEngineCatalog]
     download_source_catalog: NotRequired[DownloadSourceCatalog]
+    component_variant_catalog: NotRequired[ComponentVariantCatalog]
+
+
+class ComponentVariantCatalog(TypedDict, total=False):
+    variants: Required[list[ComponentVariantDescriptor]]
+
+
+class ComponentVariantDescriptor(TypedDict, total=False):
+    engine_id: Required[str]
+    accelerator: Required[Accelerator]
+    component_id: Required[str]
 
 
 class DownloadSourceCatalog(TypedDict, total=False):
@@ -104,6 +115,7 @@ class RuntimeHostRequest(TypedDict, total=False):
     component_ids: NotRequired[list[str]]
     required_capabilities: NotRequired[list[str]]
     download_source_ids: NotRequired[list[str]]
+    install_component_ids: NotRequired[list[str]]
     accepted_event_streams: NotRequired[list[RuntimeHostEventStream]]
 
 
@@ -142,6 +154,7 @@ class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
     layout_manifest: NotRequired[str]
     product_id: NotRequired[str]
     download_source_ids: NotRequired[list[str]]
+    install_component_ids: NotRequired[list[str]]
     accepted_event_streams: NotRequired[list[RuntimeHostEventStream]]
 
 
