@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
+DownloadSourceKind = Literal['package_index', 'model_registry']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
@@ -37,6 +38,8 @@ class CapabilityDescriptor(TypedDict, total=False):
     sunset_at: Required[str | None]
     replacement: Required[str | None]
     ocr_engine_catalog: NotRequired[OcrEngineCatalog]
+    download_source_catalog: NotRequired[DownloadSourceCatalog]
+    component_variant_catalog: NotRequired[ComponentVariantCatalog]
 
 
 class CommandResult(TypedDict, total=False):
@@ -46,6 +49,16 @@ class CommandResult(TypedDict, total=False):
     kind: Required[Literal['cancel', 'retry', 'forget']]
     cancel_mode: Required[str | None]
     job_ref: Required[None | JobRef]
+
+
+class ComponentVariantCatalog(TypedDict, total=False):
+    variants: Required[list[ComponentVariantDescriptor]]
+
+
+class ComponentVariantDescriptor(TypedDict, total=False):
+    engine_id: Required[str]
+    accelerator: Required[Literal['cpu', 'nvidia_cuda']]
+    component_id: Required[str]
 
 
 class DeletePagesRequest(TypedDict, total=False):
@@ -58,6 +71,16 @@ class DetectTextLayersRequest(TypedDict, total=False):
 
 class DetectTextLayersResponse(TypedDict, total=False):
     text_layers: Required[list[TextLayerInfoMirror]]
+
+
+class DownloadSourceCatalog(TypedDict, total=False):
+    sources: Required[list[DownloadSourceDescriptor]]
+
+
+class DownloadSourceDescriptor(TypedDict, total=False):
+    kind: Required[DownloadSourceKind]
+    id: Required[str]
+    endpoint: Required[str]
 
 
 class Error(TypedDict, total=False):
@@ -447,6 +470,7 @@ class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
     target_operation_id: Required[str]
     new_operation_id: NotRequired[str]
     expected_sequence: NotRequired[int]
+    install_component_ids: NotRequired[list[str]]
 
 
 class RuntimeMaintenanceEvent(TypedDict, total=False):
@@ -472,6 +496,7 @@ class RuntimeMaintenanceRequest(TypedDict, total=False):
     operation: Required[Literal['inspect', 'ensure', 'repair']]
     profile_id: NotRequired[str]
     component_ids: NotRequired[list[str]]
+    install_component_ids: NotRequired[list[str]]
     required_capabilities: NotRequired[list[str]]
 
 
@@ -555,6 +580,7 @@ class SettingsSnapshot(TypedDict, total=False):
     schema_version: Required[Literal[2]]
     residency: Required[SettingsResidency]
     extra: Required[dict[str, Any]]
+    download_source_ids: NotRequired[list[str]]
 
 
 class StageEvent(TypedDict, total=False):

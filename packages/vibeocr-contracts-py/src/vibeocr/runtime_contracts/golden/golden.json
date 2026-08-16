@@ -189,5 +189,61 @@
         "required_component": null
       }
     ]
+  },
+  "download_source_selection": [
+    "pypi-tuna",
+    "hf-mirror"
+  ],
+  "download_source_catalog": {
+    "sources": [
+      {
+        "kind": "package_index",
+        "id": "pypi-official",
+        "endpoint": "https://pypi.org/simple"
+      },
+      {
+        "kind": "package_index",
+        "id": "pypi-tuna",
+        "endpoint": "https://pypi.tuna.tsinghua.edu.cn/simple"
+      },
+      {
+        "kind": "model_registry",
+        "id": "hf-official",
+        "endpoint": "https://huggingface.co"
+      },
+      {
+        "kind": "model_registry",
+        "id": "hf-mirror",
+        "endpoint": "https://hf-mirror.com"
+      }
+    ]
+  },
+  "install_selection": [
+    "paddleocr-cpu",
+    "mineru-cpu"
+  ],
+  "component_variant_catalog": {
+    "variants": [
+      {
+        "engine_id": "paddleocr",
+        "accelerator": "cpu",
+        "component_id": "paddleocr-cpu"
+      },
+      {
+        "engine_id": "paddleocr",
+        "accelerator": "nvidia_cuda",
+        "component_id": "paddleocr-cuda"
+      },
+      {
+        "engine_id": "mineru",
+        "accelerator": "cpu",
+        "component_id": "mineru-cpu"
+      },
+      {
+        "engine_id": "mineru",
+        "accelerator": "nvidia_cuda",
+        "component_id": "mineru-cuda"
+      }
+    ]
   }
 }

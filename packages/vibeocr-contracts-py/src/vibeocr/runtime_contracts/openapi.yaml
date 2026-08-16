@@ -1659,6 +1659,12 @@
           },
           "ocr_engine_catalog": {
             "$ref": "#/components/schemas/OcrEngineCatalog"
+          },
+          "download_source_catalog": {
+            "$ref": "#/components/schemas/DownloadSourceCatalog"
+          },
+          "component_variant_catalog": {
+            "$ref": "#/components/schemas/ComponentVariantCatalog"
           }
         },
         "additionalProperties": false
@@ -1816,6 +1822,54 @@
         },
         "additionalProperties": false
       },
+      "ComponentVariantCatalog": {
+        "type": "object",
+        "description": "Structured catalog of installable offline-engine dependency variants, carried by the runtime.component-selection.v1 capability descriptor. Servers MUST NOT list two variants with the same engine_id and accelerator, and MUST NOT list base runtime components that are not selectable. The catalog lists selectable variants only: clients map the user's engine and accelerator choice to component ids and send them as install_component_ids.",
+        "required": [
+          "variants"
+        ],
+        "properties": {
+          "variants": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/ComponentVariantDescriptor"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ComponentVariantDescriptor": {
+        "type": "object",
+        "description": "One installable variant of an offline engine dependency for a given accelerator. engine_id is a stable grouping id declared by the Backend release (for example paddleocr or mineru); it never appears in requests, and engines that are also plain-text OCR engines SHOULD reuse the OcrEngineId wire values. component_id is the runtime.component-repair.v1 component id the client requests via install_component_ids. The descriptor never carries display text or product defaults.",
+        "required": [
+          "engine_id",
+          "accelerator",
+          "component_id"
+        ],
+        "properties": {
+          "engine_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable machine-readable engine grouping id defined by the Backend release; clients group catalog entries by it and never send it back."
+          },
+          "accelerator": {
+            "type": "string",
+            "enum": [
+              "cpu",
+              "nvidia_cuda"
+            ],
+            "description": "Accelerator this variant is built for; it must match the accelerator of the Runtime the selection installs into."
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Runtime component id implementing this variant; selections reference it via install_component_ids and unknown ids fail closed with RUNTIME_COMPONENT_UNKNOWN."
+          }
+        },
+        "additionalProperties": false
+      },
       "DeletePagesRequest": {
         "properties": {
           "pages": {
@@ -1860,6 +1914,57 @@
         ],
         "type": "object",
         "additionalProperties": false
+      },
+      "DownloadSourceCatalog": {
+        "type": "object",
+        "description": "Structured catalog of selectable download sources, carried by the runtime.download-sources.v1 capability descriptor. Servers MUST NOT list two sources with the same id across kinds. The catalog lists selectable sources only: clients always send the user's explicit selection and fall back to the server default (official sources) only when the selection is omitted.",
+        "required": [
+          "sources"
+        ],
+        "properties": {
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/DownloadSourceDescriptor"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DownloadSourceDescriptor": {
+        "type": "object",
+        "description": "One selectable download source declared by the Backend release. id is a stable source id the client echoes back in download_source_ids selections; ids are unique across the whole catalog. endpoint is the factual base URL clients may surface to users; the catalog never carries display text, localization or product defaults.",
+        "required": [
+          "kind",
+          "id",
+          "endpoint"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/DownloadSourceKind"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable machine-readable source id defined by the Backend release; selections reference it and unknown ids fail closed with DOWNLOAD_SOURCE_UNKNOWN."
+          },
+          "endpoint": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Factual base URL of the source (for example a PyPI simple index or a model registry endpoint); clients may render it verbatim but must not parse it."
+          }
+        },
+        "additionalProperties": false
+      },
+      "DownloadSourceKind": {
+        "type": "string",
+        "description": "Kinds of downloadable artifacts a catalog entry serves: package_index feeds dependency installation performed by the Runtime Host or runtime maintenance, model_registry feeds model downloads performed by the runtime. Adding a new kind extends a closed enum and requires six-repository coordination before the next release.",
+        "enum": [
+          "package_index",
+          "model_registry"
+        ]
       },
       "Error": {
         "type": "object",
@@ -1920,7 +2025,9 @@
               "OCR_ENGINE_UNAVAILABLE",
               "OCR_ENGINE_PREPARATION_REQUIRED",
               "OCR_ENGINE_NOT_VALID_FOR_PIPELINE",
-              "OCR_ENGINE_LANGUAGE_UNAVAILABLE"
+              "OCR_ENGINE_LANGUAGE_UNAVAILABLE",
+              "DOWNLOAD_SOURCE_UNKNOWN",
+              "RUNTIME_COMPONENT_UNKNOWN"
             ]
           },
           "message": {
@@ -2074,7 +2181,9 @@
                 "runtime.capability-metadata.v1",
                 "runtime.events.sse.v1",
                 "runtime.events.ndjson.v1",
-                "ocr.engine-selection.v1"
+                "ocr.engine-selection.v1",
+                "runtime.download-sources.v1",
+                "runtime.component-selection.v1"
               ]
             }
           },
@@ -3729,6 +3838,7 @@
       },
       "RuntimeMaintenanceRequest": {
         "type": "object",
+        "description": "Runtime maintenance start request. install_component_ids (runtime.component-selection.v1) is the manual install scope for ensure: the server installs the dependency closure of the listed component ids and reports requested/effective component ids honestly; omitting it selects the server default set, and unknown ids fail closed with RUNTIME_COMPONENT_UNKNOWN instead of silently falling back. Clients MUST omit the field when the runtime does not declare the capability. component_ids keeps its repair-scope meaning from runtime.component-repair.v1.",
         "required": [
           "operation"
         ],
@@ -3757,6 +3867,14 @@
               "minLength": 1
             }
           },
+          "install_component_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "required_capabilities": {
             "type": "array",
             "uniqueItems": true,
@@ -3770,6 +3888,7 @@
       },
       "RuntimeMaintenanceCommandRequest": {
         "type": "object",
+        "description": "Runtime maintenance command request. On retry, install_component_ids (runtime.component-selection.v1) explicitly re-selects a still-compatible install scope; omitting it reuses the source operation's normalized intent. Clients MUST omit the field when the runtime does not declare the capability.",
         "required": [
           "command_id",
           "command",
@@ -3798,6 +3917,14 @@
           "expected_sequence": {
             "type": "integer",
             "minimum": 0
+          },
+          "install_component_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "allOf": [
@@ -4365,6 +4492,7 @@
       },
       "SettingsSnapshot": {
         "type": "object",
+        "description": "Backend settings snapshot/exchange. download_source_ids persists the user's download source selection (runtime.download-sources.v1): the runtime applies it to model downloads and HTTP maintenance installs. Clients SHOULD always send the user's current selection when the capability is declared and MUST omit the field otherwise; the server applies its own default (official) sources when the field is omitted and fails closed with DOWNLOAD_SOURCE_UNKNOWN for ids missing from its catalog.",
         "required": [
           "schema_version",
           "residency",
@@ -4380,6 +4508,14 @@
           "extra": {
             "type": "object",
             "additionalProperties": true
+          },
+          "download_source_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "additionalProperties": false

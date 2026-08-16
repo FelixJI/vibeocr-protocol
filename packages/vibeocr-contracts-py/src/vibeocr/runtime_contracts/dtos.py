@@ -625,10 +625,20 @@ class RuntimeSourceIdentity:
 
 @dataclass(frozen=True, slots=True)
 class RuntimeMaintenanceRequest:
+    """HTTP runtime maintenance start request.
+
+    ``install_component_ids`` is the manual install scope for ``ensure``
+    (``runtime.component-selection.v1``): the server installs the dependency
+    closure of the listed ids and reports requested/effective ids honestly.
+    It is absent from the wire payload when empty and must be omitted when
+    the runtime does not declare the capability; unknown ids fail closed.
+    """
+
     operation: RuntimeMaintenanceOperation
     operation_id: str | None = None
     profile_id: str | None = None
     component_ids: tuple[str, ...] = ()
+    install_component_ids: tuple[str, ...] = ()
     required_capabilities: tuple[str, ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
@@ -639,6 +649,8 @@ class RuntimeMaintenanceRequest:
             payload["profile_id"] = self.profile_id
         if self.component_ids:
             payload["component_ids"] = list(self.component_ids)
+        if self.install_component_ids:
+            payload["install_component_ids"] = list(self.install_component_ids)
         if self.required_capabilities:
             payload["required_capabilities"] = list(self.required_capabilities)
         return payload
@@ -651,6 +663,7 @@ class RuntimeMaintenanceCommand:
     target_operation_id: str
     new_operation_id: str | None = None
     expected_sequence: int | None = None
+    install_component_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -669,6 +682,8 @@ class RuntimeMaintenanceCommand:
             payload["new_operation_id"] = self.new_operation_id
         if self.expected_sequence is not None:
             payload["expected_sequence"] = self.expected_sequence
+        if self.install_component_ids:
+            payload["install_component_ids"] = list(self.install_component_ids)
         return payload
 
 
@@ -863,15 +878,23 @@ class RuntimeStatusSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class SettingsSnapshot:
-    """Backend settings snapshot/exchange. Transport-neutral."""
+    """Backend settings snapshot/exchange. Transport-neutral.
+
+    ``download_source_ids`` persists the user's download source selection
+    (``runtime.download-sources.v1``): the runtime applies it to model
+    downloads and HTTP maintenance installs. The field is absent from the
+    wire payload when empty and must be omitted when the runtime does not
+    declare the capability; unknown ids fail closed server-side.
+    """
 
     schema_version: int = SCHEMA_VERSION
     default_ttl_seconds: int = 300
     pipelines: tuple[PipelineSpec, ...] = ()
     extra: dict[str, Any] = field(default_factory=dict)
+    download_source_ids: tuple[str, ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "schema_version": self.schema_version,
             "residency": {
                 "default_ttl_seconds": self.default_ttl_seconds,
@@ -879,6 +902,9 @@ class SettingsSnapshot:
             },
             "extra": self.extra,
         }
+        if self.download_source_ids:
+            payload["download_source_ids"] = list(self.download_source_ids)
+        return payload
 
 
 # ---------------------------------------------------------------------------
