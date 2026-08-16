@@ -225,22 +225,22 @@
   "component_variant_catalog": {
     "variants": [
       {
-        "engine_id": "paddleocr",
+        "feature_id": "paddleocr",
         "accelerator": "cpu",
         "component_id": "paddleocr-cpu"
       },
       {
-        "engine_id": "paddleocr",
+        "feature_id": "paddleocr",
         "accelerator": "nvidia_cuda",
         "component_id": "paddleocr-cuda"
       },
       {
-        "engine_id": "mineru",
+        "feature_id": "mineru",
         "accelerator": "cpu",
         "component_id": "mineru-cpu"
       },
       {
-        "engine_id": "mineru",
+        "feature_id": "mineru",
         "accelerator": "nvidia_cuda",
         "component_id": "mineru-cuda"
       }

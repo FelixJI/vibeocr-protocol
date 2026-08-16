@@ -30,9 +30,9 @@
 
 - UI 选择模型 = 既有 `accelerator`（全局，一个 Runtime 一个加速器，切换即原子替换）
   + `install_component_ids`（引擎×加速器变体经目录映射为组件 id）。
-- 目录 `engine_id` 是 Backend 发布声明的开放稳定字符串，仅作分组键，不进请求；
+- 目录 `feature_id` 是 Backend 发布声明的开放稳定能力族字符串，仅作分组键，不进请求；
   conformance：纯文本 OCR 引擎复用 `OcrEngineId` wire 值；目录不列 base 组件；
-  (engine_id, accelerator) 组合唯一。
+  (feature_id, accelerator) 组合唯一。
 - 显式列表 = 安装其依赖闭包并经 `requested/effective_component_ids` 如实上报；
   "全装" = 显式列出所选 accelerator 的全部目录 component id；省略 = 服务端默认集合。
 - 未知 id 以 `RUNTIME_COMPONENT_UNKNOWN`（validation/400/不可重试）fail closed，
@@ -60,7 +60,7 @@
 ## 5. 验收标准
 
 - [x] 变体三字段跨 OpenAPI/runtime-host/双语言生成绑定单一来源。
-- [x] `install_component_ids` 在四个 envelope 可选、空省略、严格数组。
+- [x] `install_component_ids` 在四个 envelope 可选；空数组显式表示不选可选重组件，省略表示 Backend 默认集合。
 - [x] capability 四处注册（capabilities.json、generated、Health、bootstrap）。
 - [x] `RUNTIME_COMPONENT_UNKNOWN` 注册表与生成投影一致、fail closed。
 - [x] golden 目录经 CapabilityDescriptor schema 校验，旧 descriptor wire 形状不变。

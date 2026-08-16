@@ -217,6 +217,11 @@ def test_engine_selection_error_codes_are_registered_and_fail_closed() -> None:
     assert "selectable engine ids" in entries["OCR_ENGINE_UNAVAILABLE"]["message"]
 
 
+def test_submit_job_declares_engine_capability_negotiation_responses() -> None:
+    responses = _spec()["paths"]["/v2/jobs"]["post"]["responses"]
+    assert {"400", "403", "426", "428"}.issubset(responses)
+
+
 def test_generated_bindings_expose_strongly_typed_engine_selection() -> None:
     hints = typing.get_type_hints(wire_types.PipelineSelection)
     assert hints["engine"] == wire_types.OcrEngineId

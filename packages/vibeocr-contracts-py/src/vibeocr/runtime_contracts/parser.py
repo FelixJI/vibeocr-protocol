@@ -833,6 +833,14 @@ def _parse_runtime_maintenance_status(payload: Any) -> RuntimeMaintenanceStatus:
             payload.get("effective_component_ids"),
             "effective_component_ids",
         ),
+        requested_download_source_ids=_parse_component_ids(
+            payload.get("requested_download_source_ids"),
+            "requested_download_source_ids",
+        ),
+        effective_download_source_ids=_parse_component_ids(
+            payload.get("effective_download_source_ids"),
+            "effective_download_source_ids",
+        ),
         source=(
             _parse_runtime_source_identity(payload["source"])
             if payload.get("source") is not None

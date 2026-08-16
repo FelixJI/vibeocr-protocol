@@ -91,18 +91,20 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
   整个目录内跨 kind 唯一（服务端 conformance case）。源清单由 Backend 发布声明，
   自定义源 URL 不在协议范围内。
 - 选择统一为 `download_source_ids`（稳定 id 数组，`uniqueItems`）：
-  - HTTP `SettingsSnapshot` 持久化用户偏好，Runtime 的模型下载与 HTTP 维护安装读取
-    该设置；
+  - HTTP `SettingsSnapshot` 持久化用户默认偏好；HTTP maintenance start/retry 可显式
+    携带，并把 requested/effective source ids 固化在 operation status；省略时在开始
+    瞬间快照 Settings/Backend default，后续设置变化不影响当前操作；
   - runtime-host `RuntimeHostRequest` 与 retry 用的 `RuntimeMaintenanceCommandRequest`
     显式携带（Host 是一次性无状态 CLI）；observe 请求只读，不携带。
-- 客户端应始终发送用户当前选择；省略时由服务端应用默认（官方源）。未知 id 必须以
+- 每种 source kind 至多选择一个 id，数组顺序没有优先级语义。客户端应始终发送用户
+  当前选择；省略时由服务端应用 Backend 发布声明的默认源。未知 id 必须以
   `DOWNLOAD_SOURCE_UNKNOWN`（validation/400，不可重试）fail closed，不得静默回退到
   其他源。Runtime 未声明该 capability 时客户端必须省略字段（旧端请求 schema 对未知
   字段封闭）。
 - Host 应把生效源反映到 `launch.environment`（例如 pip index 或模型 registry 的环境
   变量）；变量名与下载实现仍是 Backend 细节，不属于 wire contract。
-- 未来向 `DownloadSourceKind` 封闭枚举追加值会被兼容门禁拦截；届时必须先在六仓协调
-  评估开放策略，不得直接扩枚举。
+- `DownloadSourceKind` 是带 known-values 的开放响应字符串；客户端保留未知值，只对已理解
+  的 kind 提供选择 UI，避免 minor 扩展破坏旧 SDK。
 
 ## 组件选择（runtime.component-selection.v1）
 
@@ -111,11 +113,11 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
 - 变体目录 `ComponentVariantCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
   `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
   `component_variant_catalog`，仅 `runtime.component-selection.v1` descriptor 携带。
-  每个 `ComponentVariantDescriptor` 表达 `engine_id`（Backend 发布声明的稳定分组 id，
-  不进请求；纯文本 OCR 引擎应复用 `OcrEngineId` wire 值）、`accelerator`
+  每个 `ComponentVariantDescriptor` 表达 `feature_id`（Backend 发布声明的稳定能力族 id，
+  不进请求；同时属于纯文本 OCR 的能力应复用 `OcrEngineId` wire 值）、`accelerator`
   （cpu/nvidia_cuda，须与目标 Runtime 一致）与 `component_id`
   （`runtime.component-repair.v1` 组件 id）。目录只列可选安装变体，不列 base runtime
-  组件；(engine_id, accelerator) 组合唯一是服务端 conformance case。
+  组件；(feature_id, accelerator) 组合唯一是服务端 conformance case。
 - 选择是 capability 保护的新可选字段 `install_component_ids`（稳定组件 id 数组），
   落在四个 envelope：runtime-host `RuntimeHostRequest` 与 retry 用的
   `RuntimeMaintenanceCommandRequest`、HTTP `RuntimeMaintenanceRequest` 与

@@ -109,6 +109,12 @@
           },
           "403": {
             "$ref": "#/components/responses/Error"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error"
+          },
+          "428": {
+            "$ref": "#/components/responses/Error"
           }
         }
       }
@@ -1824,7 +1830,7 @@
       },
       "ComponentVariantCatalog": {
         "type": "object",
-        "description": "Structured catalog of installable offline-engine dependency variants, carried by the runtime.component-selection.v1 capability descriptor. Servers MUST NOT list two variants with the same engine_id and accelerator, and MUST NOT list base runtime components that are not selectable. The catalog lists selectable variants only: clients map the user's engine and accelerator choice to component ids and send them as install_component_ids.",
+        "description": "Structured catalog of optional feature dependency variants, carried by the runtime.component-selection.v1 capability descriptor. Servers MUST NOT list two variants with the same feature_id and accelerator, and MUST NOT list base runtime components that are not selectable. The catalog lists selectable variants only: clients map the user's feature and accelerator choice to component ids and send them as install_component_ids.",
         "required": [
           "variants"
         ],
@@ -1842,17 +1848,17 @@
       },
       "ComponentVariantDescriptor": {
         "type": "object",
-        "description": "One installable variant of an offline engine dependency for a given accelerator. engine_id is a stable grouping id declared by the Backend release (for example paddleocr or mineru); it never appears in requests, and engines that are also plain-text OCR engines SHOULD reuse the OcrEngineId wire values. component_id is the runtime.component-repair.v1 component id the client requests via install_component_ids. The descriptor never carries display text or product defaults.",
+        "description": "One installable variant of an optional feature dependency for a given accelerator. feature_id is a stable capability-family grouping id declared by the Backend release (for example paddleocr or mineru); it never appears in requests, and features that are also plain-text OCR engines SHOULD reuse the OcrEngineId wire values. component_id is the runtime.component-repair.v1 component id the client requests via install_component_ids. The descriptor never carries display text or product defaults.",
         "required": [
-          "engine_id",
+          "feature_id",
           "accelerator",
           "component_id"
         ],
         "properties": {
-          "engine_id": {
+          "feature_id": {
             "type": "string",
             "minLength": 1,
-            "description": "Stable machine-readable engine grouping id defined by the Backend release; clients group catalog entries by it and never send it back."
+            "description": "Stable machine-readable feature grouping id defined by the Backend release; clients group catalog entries by it and never send it back."
           },
           "accelerator": {
             "type": "string",
@@ -1917,7 +1923,7 @@
       },
       "DownloadSourceCatalog": {
         "type": "object",
-        "description": "Structured catalog of selectable download sources, carried by the runtime.download-sources.v1 capability descriptor. Servers MUST NOT list two sources with the same id across kinds. The catalog lists selectable sources only: clients always send the user's explicit selection and fall back to the server default (official sources) only when the selection is omitted.",
+        "description": "Structured catalog of selectable download sources, carried by the runtime.download-sources.v1 capability descriptor. Servers MUST NOT list two sources with the same id across kinds. A selection contains at most one id for each source kind and array order has no priority meaning. Clients send the user's explicit selection; omission delegates to the Backend-declared default sources.",
         "required": [
           "sources"
         ],
@@ -1960,8 +1966,8 @@
       },
       "DownloadSourceKind": {
         "type": "string",
-        "description": "Kinds of downloadable artifacts a catalog entry serves: package_index feeds dependency installation performed by the Runtime Host or runtime maintenance, model_registry feeds model downloads performed by the runtime. Adding a new kind extends a closed enum and requires six-repository coordination before the next release.",
-        "enum": [
+        "description": "Open source-kind identifier. Known values describe package indexes used by Runtime maintenance and model registries used by the runtime. Clients preserve unknown response values and only offer selection UI for kinds they understand.",
+        "x-vibeocr-known-values": [
           "package_index",
           "model_registry"
         ]
@@ -3838,7 +3844,7 @@
       },
       "RuntimeMaintenanceRequest": {
         "type": "object",
-        "description": "Runtime maintenance start request. install_component_ids (runtime.component-selection.v1) is the manual install scope for ensure: the server installs the dependency closure of the listed component ids and reports requested/effective component ids honestly; omitting it selects the server default set, and unknown ids fail closed with RUNTIME_COMPONENT_UNKNOWN instead of silently falling back. Clients MUST omit the field when the runtime does not declare the capability. component_ids keeps its repair-scope meaning from runtime.component-repair.v1.",
+        "description": "Runtime maintenance start request. For ensure, install_component_ids is the manual optional-component scope: an empty array explicitly selects no optional components, omission selects the Backend default, and unknown ids fail closed with RUNTIME_COMPONENT_UNKNOWN. download_source_ids snapshots at most one source per kind into the operation; omission snapshots the current Backend setting/default. Clients MUST omit both fields when their capability is absent; they are invalid for inspect/repair. component_ids keeps its repair-scope meaning.",
         "required": [
           "operation"
         ],
@@ -3875,6 +3881,15 @@
               "minLength": 1
             }
           },
+          "download_source_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "required_capabilities": {
             "type": "array",
             "uniqueItems": true,
@@ -3884,11 +3899,36 @@
             }
           }
         },
+        "allOf": [
+          {
+            "if": {
+              "anyOf": [
+                {
+                  "required": [
+                    "install_component_ids"
+                  ]
+                },
+                {
+                  "required": [
+                    "download_source_ids"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "properties": {
+                "operation": {
+                  "const": "ensure"
+                }
+              }
+            }
+          }
+        ],
         "additionalProperties": false
       },
       "RuntimeMaintenanceCommandRequest": {
         "type": "object",
-        "description": "Runtime maintenance command request. On retry, install_component_ids (runtime.component-selection.v1) explicitly re-selects a still-compatible install scope; omitting it reuses the source operation's normalized intent. Clients MUST omit the field when the runtime does not declare the capability.",
+        "description": "Runtime maintenance command request. On retry, install_component_ids and download_source_ids may explicitly replace the source operation's normalized component/source intent; omission reuses it. An empty install_component_ids array explicitly selects no optional components. Selection fields are invalid for cancel and MUST be omitted when their capability is absent.",
         "required": [
           "command_id",
           "command",
@@ -3925,6 +3965,15 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "download_source_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "allOf": [
@@ -3943,6 +3992,29 @@
               "required": [
                 "new_operation_id"
               ]
+            }
+          },
+          {
+            "if": {
+              "anyOf": [
+                {
+                  "required": [
+                    "install_component_ids"
+                  ]
+                },
+                {
+                  "required": [
+                    "download_source_ids"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "properties": {
+                "command": {
+                  "const": "retry"
+                }
+              }
             }
           }
         ],
@@ -4300,6 +4372,24 @@
               "minLength": 1
             }
           },
+          "requested_download_source_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "effective_download_source_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "source": {
             "$ref": "#/components/schemas/RuntimeSourceIdentity"
           }
@@ -4492,7 +4582,7 @@
       },
       "SettingsSnapshot": {
         "type": "object",
-        "description": "Backend settings snapshot/exchange. download_source_ids persists the user's download source selection (runtime.download-sources.v1): the runtime applies it to model downloads and HTTP maintenance installs. Clients SHOULD always send the user's current selection when the capability is declared and MUST omit the field otherwise; the server applies its own default (official) sources when the field is omitted and fails closed with DOWNLOAD_SOURCE_UNKNOWN for ids missing from its catalog.",
+        "description": "Backend settings snapshot/exchange. download_source_ids persists at most one selected source per kind; array order has no priority meaning. Maintenance start snapshots this preference into its operation intent. Clients SHOULD send the current selection when the capability is declared and MUST omit it otherwise; omission delegates to Backend-declared defaults and unknown ids fail closed with DOWNLOAD_SOURCE_UNKNOWN.",
         "required": [
           "schema_version",
           "residency",
@@ -4511,6 +4601,7 @@
           },
           "download_source_ids": {
             "type": "array",
+            "minItems": 1,
             "uniqueItems": true,
             "items": {
               "type": "string",

@@ -103,3 +103,31 @@ def test_python_and_csharp_codegen_project_the_same_schema_semantics() -> None:
         "public JsonElement? Unconstrained { get; init; }",
     ):
         assert field in csharp
+
+
+def test_codegen_projects_open_scalar_aliases_without_a_phantom_csharp_type() -> None:
+    document = {
+        "components": {
+            "schemas": {
+                "OpenKind": {
+                    "type": "string",
+                    "x-vibeocr-known-values": ["known"],
+                },
+                "Projection": {
+                    "type": "object",
+                    "properties": {
+                        "kind": {"$ref": "#/components/schemas/OpenKind"},
+                    },
+                    "required": ["kind"],
+                },
+            }
+        }
+    }
+
+    python = _python_wire_types(document)
+    csharp = _csharp_wire_types(document)
+
+    assert "OpenKind = str" in python
+    assert "kind: Required[OpenKind]" in python
+    assert "public required string Kind { get; init; }" in csharp
+    assert "OpenKind" not in csharp

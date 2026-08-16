@@ -25,11 +25,11 @@ public sealed class ComponentSelectionContractTests
 
         var catalog = JsonSerializer.Deserialize<Wire.ComponentVariantCatalog>(fixture.GetRawText())!;
         Assert.Equal(4, catalog.Variants.Count);
-        Assert.Equal("paddleocr", catalog.Variants[0].EngineId);
+        Assert.Equal("paddleocr", catalog.Variants[0].FeatureId);
         Assert.Equal("cpu", catalog.Variants[0].Accelerator);
         Assert.Equal("paddleocr-cpu", catalog.Variants[0].ComponentId);
         Assert.Equal("nvidia_cuda", catalog.Variants[1].Accelerator);
-        Assert.Equal("mineru", catalog.Variants[2].EngineId);
+        Assert.Equal("mineru", catalog.Variants[2].FeatureId);
         Assert.Equal("mineru-cuda", catalog.Variants[3].ComponentId);
 
         AssertDeepRoundTrip(
@@ -85,7 +85,7 @@ public sealed class ComponentSelectionContractTests
             [
                 new Wire.ComponentVariantDescriptor
                 {
-                    EngineId = "mineru",
+                    FeatureId = "mineru",
                     Accelerator = "nvidia_cuda",
                     ComponentId = "mineru-cuda",
                 },
@@ -122,7 +122,7 @@ public sealed class ComponentSelectionContractTests
     {
         var descriptor = new Host.ComponentVariantDescriptor
         {
-            EngineId = "paddleocr",
+            FeatureId = "paddleocr",
             Accelerator = Host.Accelerator.NvidiaCuda,
             ComponentId = "paddleocr-cuda",
         };

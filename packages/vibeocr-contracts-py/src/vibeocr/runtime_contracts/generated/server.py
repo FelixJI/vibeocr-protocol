@@ -221,19 +221,29 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
  'RuntimeMaintenanceCommandRequest': {'additionalProperties': False,
                                       'allOf': [{'if': {'properties': {'command': {'const': 'retry'}},
                                                         'required': ['command']},
-                                                 'then': {'required': ['new_operation_id']}}],
+                                                 'then': {'required': ['new_operation_id']}},
+                                                {'if': {'anyOf': [{'required': ['install_component_ids']},
+                                                                  {'required': ['download_source_ids']}]},
+                                                 'then': {'properties': {'command': {'const': 'retry'}}}}],
                                       'description': 'Runtime maintenance command request. On '
-                                                     'retry, install_component_ids '
-                                                     '(runtime.component-selection.v1) explicitly '
-                                                     're-selects a still-compatible install scope; '
-                                                     "omitting it reuses the source operation's "
-                                                     'normalized intent. Clients MUST omit the '
-                                                     'field when the runtime does not declare the '
-                                                     'capability.',
+                                                     'retry, install_component_ids and '
+                                                     'download_source_ids may explicitly replace '
+                                                     "the source operation's normalized "
+                                                     'component/source intent; omission reuses it. '
+                                                     'An empty install_component_ids array '
+                                                     'explicitly selects no optional components. '
+                                                     'Selection fields are invalid for cancel and '
+                                                     'MUST be omitted when their capability is '
+                                                     'absent.',
                                       'properties': {'command': {'enum': ['cancel', 'retry'],
                                                                  'type': 'string'},
                                                      'command_id': {'minLength': 1,
                                                                     'type': 'string'},
+                                                     'download_source_ids': {'items': {'minLength': 1,
+                                                                                       'type': 'string'},
+                                                                             'minItems': 1,
+                                                                             'type': 'array',
+                                                                             'uniqueItems': True},
                                                      'expected_sequence': {'minimum': 0,
                                                                            'type': 'integer'},
                                                      'install_component_ids': {'items': {'minLength': 1,
@@ -247,23 +257,30 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                       'required': ['command_id', 'command', 'target_operation_id'],
                                       'type': 'object'},
  'RuntimeMaintenanceRequest': {'additionalProperties': False,
-                               'description': 'Runtime maintenance start request. '
-                                              'install_component_ids '
-                                              '(runtime.component-selection.v1) is the manual '
-                                              'install scope for ensure: the server installs the '
-                                              'dependency closure of the listed component ids and '
-                                              'reports requested/effective component ids honestly; '
-                                              'omitting it selects the server default set, and '
-                                              'unknown ids fail closed with '
-                                              'RUNTIME_COMPONENT_UNKNOWN instead of silently '
-                                              'falling back. Clients MUST omit the field when the '
-                                              'runtime does not declare the capability. '
-                                              'component_ids keeps its repair-scope meaning from '
-                                              'runtime.component-repair.v1.',
+                               'allOf': [{'if': {'anyOf': [{'required': ['install_component_ids']},
+                                                           {'required': ['download_source_ids']}]},
+                                          'then': {'properties': {'operation': {'const': 'ensure'}}}}],
+                               'description': 'Runtime maintenance start request. For ensure, '
+                                              'install_component_ids is the manual '
+                                              'optional-component scope: an empty array explicitly '
+                                              'selects no optional components, omission selects '
+                                              'the Backend default, and unknown ids fail closed '
+                                              'with RUNTIME_COMPONENT_UNKNOWN. download_source_ids '
+                                              'snapshots at most one source per kind into the '
+                                              'operation; omission snapshots the current Backend '
+                                              'setting/default. Clients MUST omit both fields when '
+                                              'their capability is absent; they are invalid for '
+                                              'inspect/repair. component_ids keeps its '
+                                              'repair-scope meaning.',
                                'properties': {'component_ids': {'items': {'minLength': 1,
                                                                           'type': 'string'},
                                                                 'type': 'array',
                                                                 'uniqueItems': True},
+                                              'download_source_ids': {'items': {'minLength': 1,
+                                                                                'type': 'string'},
+                                                                      'minItems': 1,
+                                                                      'type': 'array',
+                                                                      'uniqueItems': True},
                                               'install_component_ids': {'items': {'minLength': 1,
                                                                                   'type': 'string'},
                                                                         'type': 'array',
@@ -304,16 +321,16 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                  'type': 'object'},
  'SettingsSnapshot': {'additionalProperties': False,
                       'description': 'Backend settings snapshot/exchange. download_source_ids '
-                                     "persists the user's download source selection "
-                                     '(runtime.download-sources.v1): the runtime applies it to '
-                                     'model downloads and HTTP maintenance installs. Clients '
-                                     "SHOULD always send the user's current selection when the "
-                                     'capability is declared and MUST omit the field otherwise; '
-                                     'the server applies its own default (official) sources when '
-                                     'the field is omitted and fails closed with '
-                                     'DOWNLOAD_SOURCE_UNKNOWN for ids missing from its catalog.',
+                                     'persists at most one selected source per kind; array order '
+                                     'has no priority meaning. Maintenance start snapshots this '
+                                     'preference into its operation intent. Clients SHOULD send '
+                                     'the current selection when the capability is declared and '
+                                     'MUST omit it otherwise; omission delegates to '
+                                     'Backend-declared defaults and unknown ids fail closed with '
+                                     'DOWNLOAD_SOURCE_UNKNOWN.',
                       'properties': {'download_source_ids': {'items': {'minLength': 1,
                                                                        'type': 'string'},
+                                                             'minItems': 1,
                                                              'type': 'array',
                                                              'uniqueItems': True},
                                      'extra': {'additionalProperties': True, 'type': 'object'},
@@ -1141,6 +1158,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                 'type': 'string'},
                                                                                                       'type': 'array',
                                                                                                       'uniqueItems': True},
+                                                                          'effective_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                      'type': 'string'},
+                                                                                                            'minItems': 1,
+                                                                                                            'type': 'array',
+                                                                                                            'uniqueItems': True},
                                                                           'message_code': {'type': ['string',
                                                                                                     'null']},
                                                                           'operation': {'enum': ['inspect',
@@ -1190,6 +1212,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                 'type': 'string'},
                                                                                                       'type': 'array',
                                                                                                       'uniqueItems': True},
+                                                                          'requested_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                      'type': 'string'},
+                                                                                                            'minItems': 1,
+                                                                                                            'type': 'array',
+                                                                                                            'uniqueItems': True},
                                                                           'sequence': {'minimum': 0,
                                                                                        'type': 'integer'},
                                                                           'source': {'additionalProperties': False,
@@ -1831,8 +1858,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                        'description': 'Structured '
                                                                                                                                       'catalog '
                                                                                                                                       'of '
-                                                                                                                                      'installable '
-                                                                                                                                      'offline-engine '
+                                                                                                                                      'optional '
+                                                                                                                                      'feature '
                                                                                                                                       'dependency '
                                                                                                                                       'variants, '
                                                                                                                                       'carried '
@@ -1850,7 +1877,7 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                       'with '
                                                                                                                                       'the '
                                                                                                                                       'same '
-                                                                                                                                      'engine_id '
+                                                                                                                                      'feature_id '
                                                                                                                                       'and '
                                                                                                                                       'accelerator, '
                                                                                                                                       'and '
@@ -1874,7 +1901,7 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                       'map '
                                                                                                                                       'the '
                                                                                                                                       "user's "
-                                                                                                                                      'engine '
+                                                                                                                                      'feature '
                                                                                                                                       'and '
                                                                                                                                       'accelerator '
                                                                                                                                       'choice '
@@ -1892,17 +1919,18 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                                             'variant '
                                                                                                                                                                             'of '
                                                                                                                                                                             'an '
-                                                                                                                                                                            'offline '
-                                                                                                                                                                            'engine '
+                                                                                                                                                                            'optional '
+                                                                                                                                                                            'feature '
                                                                                                                                                                             'dependency '
                                                                                                                                                                             'for '
                                                                                                                                                                             'a '
                                                                                                                                                                             'given '
                                                                                                                                                                             'accelerator. '
-                                                                                                                                                                            'engine_id '
+                                                                                                                                                                            'feature_id '
                                                                                                                                                                             'is '
                                                                                                                                                                             'a '
                                                                                                                                                                             'stable '
+                                                                                                                                                                            'capability-family '
                                                                                                                                                                             'grouping '
                                                                                                                                                                             'id '
                                                                                                                                                                             'declared '
@@ -1921,7 +1949,7 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                                             'in '
                                                                                                                                                                             'requests, '
                                                                                                                                                                             'and '
-                                                                                                                                                                            'engines '
+                                                                                                                                                                            'features '
                                                                                                                                                                             'that '
                                                                                                                                                                             'are '
                                                                                                                                                                             'also '
@@ -1995,30 +2023,30 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                                                                             'RUNTIME_COMPONENT_UNKNOWN.',
                                                                                                                                                                                              'minLength': 1,
                                                                                                                                                                                              'type': 'string'},
-                                                                                                                                                                            'engine_id': {'description': 'Stable '
-                                                                                                                                                                                                         'machine-readable '
-                                                                                                                                                                                                         'engine '
-                                                                                                                                                                                                         'grouping '
-                                                                                                                                                                                                         'id '
-                                                                                                                                                                                                         'defined '
-                                                                                                                                                                                                         'by '
-                                                                                                                                                                                                         'the '
-                                                                                                                                                                                                         'Backend '
-                                                                                                                                                                                                         'release; '
-                                                                                                                                                                                                         'clients '
-                                                                                                                                                                                                         'group '
-                                                                                                                                                                                                         'catalog '
-                                                                                                                                                                                                         'entries '
-                                                                                                                                                                                                         'by '
-                                                                                                                                                                                                         'it '
-                                                                                                                                                                                                         'and '
-                                                                                                                                                                                                         'never '
-                                                                                                                                                                                                         'send '
-                                                                                                                                                                                                         'it '
-                                                                                                                                                                                                         'back.',
-                                                                                                                                                                                          'minLength': 1,
-                                                                                                                                                                                          'type': 'string'}},
-                                                                                                                                                             'required': ['engine_id',
+                                                                                                                                                                            'feature_id': {'description': 'Stable '
+                                                                                                                                                                                                          'machine-readable '
+                                                                                                                                                                                                          'feature '
+                                                                                                                                                                                                          'grouping '
+                                                                                                                                                                                                          'id '
+                                                                                                                                                                                                          'defined '
+                                                                                                                                                                                                          'by '
+                                                                                                                                                                                                          'the '
+                                                                                                                                                                                                          'Backend '
+                                                                                                                                                                                                          'release; '
+                                                                                                                                                                                                          'clients '
+                                                                                                                                                                                                          'group '
+                                                                                                                                                                                                          'catalog '
+                                                                                                                                                                                                          'entries '
+                                                                                                                                                                                                          'by '
+                                                                                                                                                                                                          'it '
+                                                                                                                                                                                                          'and '
+                                                                                                                                                                                                          'never '
+                                                                                                                                                                                                          'send '
+                                                                                                                                                                                                          'it '
+                                                                                                                                                                                                          'back.',
+                                                                                                                                                                                           'minLength': 1,
+                                                                                                                                                                                           'type': 'string'}},
+                                                                                                                                                             'required': ['feature_id',
                                                                                                                                                                           'accelerator',
                                                                                                                                                                           'component_id'],
                                                                                                                                                              'type': 'object'},
@@ -2054,34 +2082,37 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                     'id '
                                                                                                                                     'across '
                                                                                                                                     'kinds. '
-                                                                                                                                    'The '
-                                                                                                                                    'catalog '
-                                                                                                                                    'lists '
-                                                                                                                                    'selectable '
-                                                                                                                                    'sources '
-                                                                                                                                    'only: '
-                                                                                                                                    'clients '
-                                                                                                                                    'always '
+                                                                                                                                    'A '
+                                                                                                                                    'selection '
+                                                                                                                                    'contains '
+                                                                                                                                    'at '
+                                                                                                                                    'most '
+                                                                                                                                    'one '
+                                                                                                                                    'id '
+                                                                                                                                    'for '
+                                                                                                                                    'each '
+                                                                                                                                    'source '
+                                                                                                                                    'kind '
+                                                                                                                                    'and '
+                                                                                                                                    'array '
+                                                                                                                                    'order '
+                                                                                                                                    'has '
+                                                                                                                                    'no '
+                                                                                                                                    'priority '
+                                                                                                                                    'meaning. '
+                                                                                                                                    'Clients '
                                                                                                                                     'send '
                                                                                                                                     'the '
                                                                                                                                     "user's "
                                                                                                                                     'explicit '
-                                                                                                                                    'selection '
-                                                                                                                                    'and '
-                                                                                                                                    'fall '
-                                                                                                                                    'back '
+                                                                                                                                    'selection; '
+                                                                                                                                    'omission '
+                                                                                                                                    'delegates '
                                                                                                                                     'to '
                                                                                                                                     'the '
-                                                                                                                                    'server '
+                                                                                                                                    'Backend-declared '
                                                                                                                                     'default '
-                                                                                                                                    '(official '
-                                                                                                                                    'sources) '
-                                                                                                                                    'only '
-                                                                                                                                    'when '
-                                                                                                                                    'the '
-                                                                                                                                    'selection '
-                                                                                                                                    'is '
-                                                                                                                                    'omitted.',
+                                                                                                                                    'sources.',
                                                                                                                      'properties': {'sources': {'items': {'additionalProperties': False,
                                                                                                                                                           'description': 'One '
                                                                                                                                                                          'selectable '
@@ -2183,53 +2214,42 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                                                                'DOWNLOAD_SOURCE_UNKNOWN.',
                                                                                                                                                                                 'minLength': 1,
                                                                                                                                                                                 'type': 'string'},
-                                                                                                                                                                         'kind': {'description': 'Kinds '
-                                                                                                                                                                                                 'of '
-                                                                                                                                                                                                 'downloadable '
-                                                                                                                                                                                                 'artifacts '
-                                                                                                                                                                                                 'a '
-                                                                                                                                                                                                 'catalog '
-                                                                                                                                                                                                 'entry '
-                                                                                                                                                                                                 'serves: '
-                                                                                                                                                                                                 'package_index '
-                                                                                                                                                                                                 'feeds '
-                                                                                                                                                                                                 'dependency '
-                                                                                                                                                                                                 'installation '
-                                                                                                                                                                                                 'performed '
+                                                                                                                                                                         'kind': {'description': 'Open '
+                                                                                                                                                                                                 'source-kind '
+                                                                                                                                                                                                 'identifier. '
+                                                                                                                                                                                                 'Known '
+                                                                                                                                                                                                 'values '
+                                                                                                                                                                                                 'describe '
+                                                                                                                                                                                                 'package '
+                                                                                                                                                                                                 'indexes '
+                                                                                                                                                                                                 'used '
                                                                                                                                                                                                  'by '
-                                                                                                                                                                                                 'the '
                                                                                                                                                                                                  'Runtime '
-                                                                                                                                                                                                 'Host '
-                                                                                                                                                                                                 'or '
-                                                                                                                                                                                                 'runtime '
-                                                                                                                                                                                                 'maintenance, '
-                                                                                                                                                                                                 'model_registry '
-                                                                                                                                                                                                 'feeds '
+                                                                                                                                                                                                 'maintenance '
+                                                                                                                                                                                                 'and '
                                                                                                                                                                                                  'model '
-                                                                                                                                                                                                 'downloads '
-                                                                                                                                                                                                 'performed '
+                                                                                                                                                                                                 'registries '
+                                                                                                                                                                                                 'used '
                                                                                                                                                                                                  'by '
                                                                                                                                                                                                  'the '
                                                                                                                                                                                                  'runtime. '
-                                                                                                                                                                                                 'Adding '
-                                                                                                                                                                                                 'a '
-                                                                                                                                                                                                 'new '
-                                                                                                                                                                                                 'kind '
-                                                                                                                                                                                                 'extends '
-                                                                                                                                                                                                 'a '
-                                                                                                                                                                                                 'closed '
-                                                                                                                                                                                                 'enum '
+                                                                                                                                                                                                 'Clients '
+                                                                                                                                                                                                 'preserve '
+                                                                                                                                                                                                 'unknown '
+                                                                                                                                                                                                 'response '
+                                                                                                                                                                                                 'values '
                                                                                                                                                                                                  'and '
-                                                                                                                                                                                                 'requires '
-                                                                                                                                                                                                 'six-repository '
-                                                                                                                                                                                                 'coordination '
-                                                                                                                                                                                                 'before '
-                                                                                                                                                                                                 'the '
-                                                                                                                                                                                                 'next '
-                                                                                                                                                                                                 'release.',
-                                                                                                                                                                                  'enum': ['package_index',
-                                                                                                                                                                                           'model_registry'],
-                                                                                                                                                                                  'type': 'string'}},
+                                                                                                                                                                                                 'only '
+                                                                                                                                                                                                 'offer '
+                                                                                                                                                                                                 'selection '
+                                                                                                                                                                                                 'UI '
+                                                                                                                                                                                                 'for '
+                                                                                                                                                                                                 'kinds '
+                                                                                                                                                                                                 'they '
+                                                                                                                                                                                                 'understand.',
+                                                                                                                                                                                  'type': 'string',
+                                                                                                                                                                                  'x-vibeocr-known-values': ['package_index',
+                                                                                                                                                                                                             'model_registry']}},
                                                                                                                                                           'required': ['kind',
                                                                                                                                                                        'id',
                                                                                                                                                                        'endpoint'],
@@ -2590,6 +2610,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                      'type': 'string'},
                                                                                                            'type': 'array',
                                                                                                            'uniqueItems': True},
+                                                                               'effective_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                           'type': 'string'},
+                                                                                                                 'minItems': 1,
+                                                                                                                 'type': 'array',
+                                                                                                                 'uniqueItems': True},
                                                                                'message_code': {'type': ['string',
                                                                                                          'null']},
                                                                                'operation': {'enum': ['inspect',
@@ -2639,6 +2664,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                      'type': 'string'},
                                                                                                            'type': 'array',
                                                                                                            'uniqueItems': True},
+                                                                               'requested_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                           'type': 'string'},
+                                                                                                                 'minItems': 1,
+                                                                                                                 'type': 'array',
+                                                                                                                 'uniqueItems': True},
                                                                                'sequence': {'minimum': 0,
                                                                                             'type': 'integer'},
                                                                                'source': {'additionalProperties': False,
@@ -2751,15 +2781,14 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                       'type': 'object'},
  'getSettings': {'additionalProperties': False,
                  'description': 'Backend settings snapshot/exchange. download_source_ids persists '
-                                "the user's download source selection "
-                                '(runtime.download-sources.v1): the runtime applies it to model '
-                                'downloads and HTTP maintenance installs. Clients SHOULD always '
-                                "send the user's current selection when the capability is declared "
-                                'and MUST omit the field otherwise; the server applies its own '
-                                'default (official) sources when the field is omitted and fails '
-                                'closed with DOWNLOAD_SOURCE_UNKNOWN for ids missing from its '
-                                'catalog.',
+                                'at most one selected source per kind; array order has no priority '
+                                'meaning. Maintenance start snapshots this preference into its '
+                                'operation intent. Clients SHOULD send the current selection when '
+                                'the capability is declared and MUST omit it otherwise; omission '
+                                'delegates to Backend-declared defaults and unknown ids fail '
+                                'closed with DOWNLOAD_SOURCE_UNKNOWN.',
                  'properties': {'download_source_ids': {'items': {'minLength': 1, 'type': 'string'},
+                                                        'minItems': 1,
                                                         'type': 'array',
                                                         'uniqueItems': True},
                                 'extra': {'additionalProperties': True, 'type': 'object'},
@@ -4187,6 +4216,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                     'type': 'string'},
                                                                                                                                           'type': 'array',
                                                                                                                                           'uniqueItems': True},
+                                                                                                              'effective_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                                                          'type': 'string'},
+                                                                                                                                                'minItems': 1,
+                                                                                                                                                'type': 'array',
+                                                                                                                                                'uniqueItems': True},
                                                                                                               'message_code': {'type': ['string',
                                                                                                                                         'null']},
                                                                                                               'operation': {'enum': ['inspect',
@@ -4236,6 +4270,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                     'type': 'string'},
                                                                                                                                           'type': 'array',
                                                                                                                                           'uniqueItems': True},
+                                                                                                              'requested_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                                                          'type': 'string'},
+                                                                                                                                                'minItems': 1,
+                                                                                                                                                'type': 'array',
+                                                                                                                                                'uniqueItems': True},
                                                                                                               'sequence': {'minimum': 0,
                                                                                                                            'type': 'integer'},
                                                                                                               'source': {'additionalProperties': False,
@@ -4289,6 +4328,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                 'type': 'string'},
                                                                                                       'type': 'array',
                                                                                                       'uniqueItems': True},
+                                                                          'effective_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                      'type': 'string'},
+                                                                                                            'minItems': 1,
+                                                                                                            'type': 'array',
+                                                                                                            'uniqueItems': True},
                                                                           'message_code': {'type': ['string',
                                                                                                     'null']},
                                                                           'operation': {'enum': ['inspect',
@@ -4338,6 +4382,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                 'type': 'string'},
                                                                                                       'type': 'array',
                                                                                                       'uniqueItems': True},
+                                                                          'requested_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                      'type': 'string'},
+                                                                                                            'minItems': 1,
+                                                                                                            'type': 'array',
+                                                                                                            'uniqueItems': True},
                                                                           'sequence': {'minimum': 0,
                                                                                        'type': 'integer'},
                                                                           'source': {'additionalProperties': False,
@@ -4604,15 +4653,14 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                     'type': 'object'},
  'putSettings': {'additionalProperties': False,
                  'description': 'Backend settings snapshot/exchange. download_source_ids persists '
-                                "the user's download source selection "
-                                '(runtime.download-sources.v1): the runtime applies it to model '
-                                'downloads and HTTP maintenance installs. Clients SHOULD always '
-                                "send the user's current selection when the capability is declared "
-                                'and MUST omit the field otherwise; the server applies its own '
-                                'default (official) sources when the field is omitted and fails '
-                                'closed with DOWNLOAD_SOURCE_UNKNOWN for ids missing from its '
-                                'catalog.',
+                                'at most one selected source per kind; array order has no priority '
+                                'meaning. Maintenance start snapshots this preference into its '
+                                'operation intent. Clients SHOULD send the current selection when '
+                                'the capability is declared and MUST omit it otherwise; omission '
+                                'delegates to Backend-declared defaults and unknown ids fail '
+                                'closed with DOWNLOAD_SOURCE_UNKNOWN.',
                  'properties': {'download_source_ids': {'items': {'minLength': 1, 'type': 'string'},
+                                                        'minItems': 1,
                                                         'type': 'array',
                                                         'uniqueItems': True},
                                 'extra': {'additionalProperties': True, 'type': 'object'},
@@ -6119,6 +6167,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                               'type': 'string'},
                                                                                                     'type': 'array',
                                                                                                     'uniqueItems': True},
+                                                                        'effective_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                    'type': 'string'},
+                                                                                                          'minItems': 1,
+                                                                                                          'type': 'array',
+                                                                                                          'uniqueItems': True},
                                                                         'message_code': {'type': ['string',
                                                                                                   'null']},
                                                                         'operation': {'enum': ['inspect',
@@ -6168,6 +6221,11 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                               'type': 'string'},
                                                                                                     'type': 'array',
                                                                                                     'uniqueItems': True},
+                                                                        'requested_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                    'type': 'string'},
+                                                                                                          'minItems': 1,
+                                                                                                          'type': 'array',
+                                                                                                          'uniqueItems': True},
                                                                         'sequence': {'minimum': 0,
                                                                                      'type': 'integer'},
                                                                         'source': {'additionalProperties': False,
@@ -6666,7 +6724,9 @@ ROUTE_CONTRACTS: dict[tuple[str, str], dict[str, Any]] = {('GET', '/v2/health'):
                                         'required': True},
                         'responses': {'400': {'$ref': '#/components/responses/Error'},
                                       '401': {'$ref': '#/components/responses/Error'},
-                                      '403': {'$ref': '#/components/responses/Error'}}},
+                                      '403': {'$ref': '#/components/responses/Error'},
+                                      '426': {'$ref': '#/components/responses/Error'},
+                                      '428': {'$ref': '#/components/responses/Error'}}},
  ('POST', '/v2/jobs/command'): {'requestBody': {'content': {'application/json': {'schema': {'$ref': '#/components/schemas/JobCommand'}}},
                                                 'required': True},
                                 'responses': {'400': {'$ref': '#/components/responses/Error'},

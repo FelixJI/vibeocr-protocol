@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
 Accelerator = Literal['cpu', 'nvidia_cuda']
-DownloadSourceKind = Literal['package_index', 'model_registry']
+DownloadSourceKind = str
 IntegrityStatus = Literal['verified', 'not-installed']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
@@ -36,7 +36,7 @@ class ComponentVariantCatalog(TypedDict, total=False):
 
 
 class ComponentVariantDescriptor(TypedDict, total=False):
-    engine_id: Required[str]
+    feature_id: Required[str]
     accelerator: Required[Accelerator]
     component_id: Required[str]
 

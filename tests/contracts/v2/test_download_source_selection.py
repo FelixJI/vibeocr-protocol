@@ -65,6 +65,15 @@ def _settings_snapshot_validator() -> jsonschema.Draft202012Validator:
     )
 
 
+def _component_schema_validator(name: str) -> jsonschema.Draft202012Validator:
+    return jsonschema.Draft202012Validator(
+        {
+            "$ref": f"#/components/schemas/{name}",
+            "components": _spec()["components"],
+        }
+    )
+
+
 def _host_request_validator() -> jsonschema.Draft202012Validator:
     return jsonschema.Draft202012Validator(
         {
@@ -88,18 +97,16 @@ def _host_request(selection: list | None) -> dict:
 
 
 def test_source_kinds_are_single_sourced_across_layers() -> None:
-    spec_enum = _spec()["components"]["schemas"]["DownloadSourceKind"]["enum"]
-    assert tuple(spec_enum) == DOWNLOAD_SOURCE_KINDS
-    host_enum = _host_schema()["$defs"]["DownloadSourceKind"]["enum"]
-    assert host_enum == list(DOWNLOAD_SOURCE_KINDS)
-    assert set(typing.get_args(wire_types.DownloadSourceKind)) == set(
-        DOWNLOAD_SOURCE_KINDS
-    )
+    spec_kind = _spec()["components"]["schemas"]["DownloadSourceKind"]
+    assert tuple(spec_kind["x-vibeocr-known-values"]) == DOWNLOAD_SOURCE_KINDS
+    assert "enum" not in spec_kind
+    host_kind = _host_schema()["$defs"]["DownloadSourceKind"]
+    assert tuple(host_kind["x-vibeocr-known-values"]) == DOWNLOAD_SOURCE_KINDS
+    assert "enum" not in host_kind
+    assert wire_types.DownloadSourceKind is str
     from vibeocr.runtime_contracts.generated import runtime_host_types
 
-    assert set(typing.get_args(runtime_host_types.DownloadSourceKind)) == set(
-        DOWNLOAD_SOURCE_KINDS
-    )
+    assert runtime_host_types.DownloadSourceKind is str
 
 
 def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> None:
@@ -126,6 +133,8 @@ def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> 
         _settings_snapshot_validator().validate({**legacy, "download_source_ids": [""]})
     with pytest.raises(jsonschema.ValidationError):
         _settings_snapshot_validator().validate({**legacy, "download_source_ids": [1]})
+    with pytest.raises(jsonschema.ValidationError):
+        _settings_snapshot_validator().validate({**legacy, "download_source_ids": []})
 
     schema = _spec()["components"]["schemas"]["SettingsSnapshot"]
     assert "download_source_ids" in schema["properties"]
@@ -134,6 +143,61 @@ def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> 
     assert "DOWNLOAD_SOURCE_UNKNOWN" in description
     assert "MUST omit" in description
 
+    status = _spec()["components"]["schemas"]["RuntimeMaintenanceStatus"]
+    assert {
+        "requested_download_source_ids",
+        "effective_download_source_ids",
+    }.issubset(status["properties"])
+
+
+def test_http_maintenance_snapshots_source_selection_and_rejects_wrong_operations() -> (
+    None
+):
+    request = dtos.RuntimeMaintenanceRequest(
+        operation=dtos.RuntimeMaintenanceOperation.ENSURE,
+        download_source_ids=("pypi-tuna", "hf-mirror"),
+    )
+    payload = request.to_payload()
+    assert payload["download_source_ids"] == ["pypi-tuna", "hf-mirror"]
+    _component_schema_validator("RuntimeMaintenanceRequest").validate(payload)
+
+    command = dtos.RuntimeMaintenanceCommand(
+        command_id="command-1",
+        command=dtos.RuntimeMaintenanceCommandKind.RETRY,
+        target_operation_id="op-1",
+        new_operation_id="op-2",
+        download_source_ids=("pypi-official", "hf-official"),
+    )
+    _component_schema_validator("RuntimeMaintenanceCommandRequest").validate(
+        command.to_payload()
+    )
+
+    with pytest.raises(ValueError, match="require ensure"):
+        dtos.RuntimeMaintenanceRequest(
+            operation=dtos.RuntimeMaintenanceOperation.INSPECT,
+            download_source_ids=("pypi-tuna",),
+        )
+    with pytest.raises(ValueError, match="require retry"):
+        dtos.RuntimeMaintenanceCommand(
+            command_id="command-2",
+            command=dtos.RuntimeMaintenanceCommandKind.CANCEL,
+            target_operation_id="op-1",
+            download_source_ids=("pypi-tuna",),
+        )
+    with pytest.raises(ValueError, match="must be non-empty"):
+        dtos.RuntimeMaintenanceRequest(
+            operation=dtos.RuntimeMaintenanceOperation.ENSURE,
+            download_source_ids=(),
+        )
+    with pytest.raises(ValueError, match="must be non-empty"):
+        dtos.RuntimeMaintenanceCommand(
+            command_id="command-3",
+            command=dtos.RuntimeMaintenanceCommandKind.RETRY,
+            target_operation_id="op-1",
+            new_operation_id="op-3",
+            download_source_ids=(),
+        )
+
 
 def test_runtime_host_requests_carry_optional_selection() -> None:
     host = _host_schema()
@@ -141,6 +205,7 @@ def test_runtime_host_requests_carry_optional_selection() -> None:
         properties = host["$defs"][envelope]["properties"]
         assert properties["download_source_ids"] == {
             "type": "array",
+            "minItems": 1,
             "uniqueItems": True,
             "items": {"type": "string", "minLength": 1},
         }
@@ -155,6 +220,8 @@ def test_runtime_host_requests_carry_optional_selection() -> None:
     _host_request_validator().validate(_host_request(None))
     with pytest.raises(jsonschema.ValidationError):
         _host_request_validator().validate(_host_request(["pypi-tuna", "pypi-tuna"]))
+    with pytest.raises(jsonschema.ValidationError):
+        _host_request_validator().validate(_host_request([]))
 
 
 def test_download_source_catalog_rides_on_health_descriptor() -> None:
@@ -259,7 +326,7 @@ def test_generated_bindings_expose_strongly_typed_source_selection() -> None:
     assert hints["download_source_ids"] == list[str]
     assert "download_source_ids" in wire_types.SettingsSnapshot.__optional_keys__
     descriptor_hints = typing.get_type_hints(wire_types.DownloadSourceDescriptor)
-    assert descriptor_hints["kind"] == wire_types.DownloadSourceKind
+    assert descriptor_hints["kind"] is str
 
     csharp_wire = (V2 / "generated/RuntimeWireTypes.g.cs").read_text(encoding="utf-8")
     settings_record = csharp_wire.split("public sealed record SettingsSnapshot", 1)[
@@ -273,15 +340,11 @@ def test_generated_bindings_expose_strongly_typed_source_selection() -> None:
     descriptor_record = csharp_wire.split(
         "public sealed record DownloadSourceDescriptor", 1
     )[1].split("\n}", 1)[0]
-    assert "public required DownloadSourceKind Kind { get; init; }" in descriptor_record
+    assert "public required string Kind { get; init; }" in descriptor_record
     assert "public required string Id { get; init; }" in descriptor_record
     assert "public required string Endpoint { get; init; }" in descriptor_record
 
-    enum_block = csharp_wire.split("public enum DownloadSourceKind", 1)[1].split(
-        "}", 1
-    )[0]
-    for value in DOWNLOAD_SOURCE_KINDS:
-        assert f'"{value}"' in enum_block
+    assert "public enum DownloadSourceKind" not in csharp_wire
 
     host_wire = (V2 / "generated/RuntimeHostWireTypes.g.cs").read_text(encoding="utf-8")
     request_record = host_wire.split("public sealed record RuntimeHostRequest", 1)[

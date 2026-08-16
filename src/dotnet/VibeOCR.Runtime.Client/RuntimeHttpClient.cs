@@ -202,6 +202,20 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
         RuntimeMaintenanceRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.DownloadSourceIds is { Count: 0 })
+        {
+            throw new ArgumentException(
+                "download_source_ids must be non-empty when provided.",
+                nameof(request));
+        }
+        if (request.Operation != RuntimeMaintenanceOperation.Ensure
+            && (request.InstallComponentIds is not null
+                || request.DownloadSourceIds is not null))
+        {
+            throw new ArgumentException(
+                "Install and download source selection require ensure.",
+                nameof(request));
+        }
         using StringContent content = new(
             HttpV2Json.Serialize(request), Encoding.UTF8, "application/json");
         using HttpResponseMessage response = await PostAsync(
@@ -222,6 +236,20 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
             && string.IsNullOrWhiteSpace(command.NewOperationId))
         {
             throw new ArgumentException("Retry requires new_operation_id.", nameof(command));
+        }
+        if (command.DownloadSourceIds is { Count: 0 })
+        {
+            throw new ArgumentException(
+                "download_source_ids must be non-empty when provided.",
+                nameof(command));
+        }
+        if (command.Command != RuntimeMaintenanceCommandKind.Retry
+            && (command.InstallComponentIds is not null
+                || command.DownloadSourceIds is not null))
+        {
+            throw new ArgumentException(
+                "Install and download source selection require retry.",
+                nameof(command));
         }
         using StringContent content = new(
             HttpV2Json.Serialize(command), Encoding.UTF8, "application/json");
@@ -313,11 +341,20 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
     public Task<RuntimeMaintenanceReceipt> EnsureRuntimeAsync(
         string? operationId,
         CancellationToken cancellationToken) =>
+        EnsureRuntimeAsync(operationId, null, null, cancellationToken);
+
+    public Task<RuntimeMaintenanceReceipt> EnsureRuntimeAsync(
+        string? operationId,
+        IReadOnlyList<string>? installComponentIds,
+        IReadOnlyList<string>? downloadSourceIds,
+        CancellationToken cancellationToken) =>
         StartRuntimeMaintenanceAsync(
             new RuntimeMaintenanceRequest
             {
                 OperationId = operationId,
                 Operation = RuntimeMaintenanceOperation.Ensure,
+                InstallComponentIds = installComponentIds,
+                DownloadSourceIds = downloadSourceIds,
             },
             cancellationToken);
 
@@ -355,6 +392,23 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
         string newOperationId,
         int? expectedSequence,
         CancellationToken cancellationToken) =>
+        RetryRuntimeAsync(
+            operationId,
+            commandId,
+            newOperationId,
+            expectedSequence,
+            null,
+            null,
+            cancellationToken);
+
+    public Task<RuntimeMaintenanceReceipt> RetryRuntimeAsync(
+        string operationId,
+        string commandId,
+        string newOperationId,
+        int? expectedSequence,
+        IReadOnlyList<string>? installComponentIds,
+        IReadOnlyList<string>? downloadSourceIds,
+        CancellationToken cancellationToken) =>
         CommandRuntimeMaintenanceAsync(
             new RuntimeMaintenanceCommand
             {
@@ -363,6 +417,8 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                 TargetOperationId = operationId,
                 NewOperationId = newOperationId,
                 ExpectedSequence = expectedSequence,
+                InstallComponentIds = installComponentIds,
+                DownloadSourceIds = downloadSourceIds,
             },
             cancellationToken);
 

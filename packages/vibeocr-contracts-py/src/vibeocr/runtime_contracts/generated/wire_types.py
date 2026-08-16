@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
-DownloadSourceKind = Literal['package_index', 'model_registry']
+DownloadSourceKind = str
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
@@ -56,7 +56,7 @@ class ComponentVariantCatalog(TypedDict, total=False):
 
 
 class ComponentVariantDescriptor(TypedDict, total=False):
-    engine_id: Required[str]
+    feature_id: Required[str]
     accelerator: Required[Literal['cpu', 'nvidia_cuda']]
     component_id: Required[str]
 
@@ -471,6 +471,7 @@ class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
     new_operation_id: NotRequired[str]
     expected_sequence: NotRequired[int]
     install_component_ids: NotRequired[list[str]]
+    download_source_ids: NotRequired[list[str]]
 
 
 class RuntimeMaintenanceEvent(TypedDict, total=False):
@@ -497,6 +498,7 @@ class RuntimeMaintenanceRequest(TypedDict, total=False):
     profile_id: NotRequired[str]
     component_ids: NotRequired[list[str]]
     install_component_ids: NotRequired[list[str]]
+    download_source_ids: NotRequired[list[str]]
     required_capabilities: NotRequired[list[str]]
 
 
@@ -514,6 +516,8 @@ class RuntimeMaintenanceStatus(TypedDict, total=False):
     message_code: NotRequired[str | None]
     requested_component_ids: NotRequired[list[str]]
     effective_component_ids: NotRequired[list[str]]
+    requested_download_source_ids: NotRequired[list[str]]
+    effective_download_source_ids: NotRequired[list[str]]
     source: NotRequired[RuntimeSourceIdentity]
 
 

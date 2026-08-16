@@ -24,12 +24,12 @@ public sealed class DownloadSourceSelectionContractTests
 
         var catalog = JsonSerializer.Deserialize<Wire.DownloadSourceCatalog>(fixture.GetRawText())!;
         Assert.Equal(4, catalog.Sources.Count);
-        Assert.Equal(Wire.DownloadSourceKind.PackageIndex, catalog.Sources[0].Kind);
+        Assert.Equal("package_index", catalog.Sources[0].Kind);
         Assert.Equal("pypi-official", catalog.Sources[0].Id);
         Assert.Equal("https://pypi.org/simple", catalog.Sources[0].Endpoint);
-        Assert.Equal(Wire.DownloadSourceKind.PackageIndex, catalog.Sources[1].Kind);
-        Assert.Equal(Wire.DownloadSourceKind.ModelRegistry, catalog.Sources[2].Kind);
-        Assert.Equal(Wire.DownloadSourceKind.ModelRegistry, catalog.Sources[3].Kind);
+        Assert.Equal("package_index", catalog.Sources[1].Kind);
+        Assert.Equal("model_registry", catalog.Sources[2].Kind);
+        Assert.Equal("model_registry", catalog.Sources[3].Kind);
         Assert.Equal("hf-mirror", catalog.Sources[3].Id);
 
         AssertDeepRoundTrip(
@@ -71,18 +71,10 @@ public sealed class DownloadSourceSelectionContractTests
     }
 
     [Fact]
-    public void GeneratedSourceEnumsRejectNonWireValues()
+    public void GeneratedSourceKindsPreserveUnknownResponseValues()
     {
-        Assert.Equal(
-            Wire.DownloadSourceKind.PackageIndex,
-            JsonSerializer.Deserialize<Wire.DownloadSourceKind>("\"package_index\""));
-        Assert.Equal(
-            Wire.DownloadSourceKind.ModelRegistry,
-            JsonSerializer.Deserialize<Wire.DownloadSourceKind>("\"model_registry\""));
-        Assert.Throws<JsonException>(
-            () => JsonSerializer.Deserialize<Wire.DownloadSourceKind>("\"package-index\""));
-        Assert.Throws<JsonException>(
-            () => JsonSerializer.Deserialize<Wire.DownloadSourceKind>("0"));
+        Assert.Equal("package_index", JsonSerializer.Deserialize<string>("\"package_index\""));
+        Assert.Equal("future_registry", JsonSerializer.Deserialize<string>("\"future_registry\""));
     }
 
     [Fact]
@@ -94,7 +86,7 @@ public sealed class DownloadSourceSelectionContractTests
             [
                 new Wire.DownloadSourceDescriptor
                 {
-                    Kind = Wire.DownloadSourceKind.ModelRegistry,
+                    Kind = "model_registry",
                     Id = "hf-mirror",
                     Endpoint = "https://hf-mirror.com",
                 },

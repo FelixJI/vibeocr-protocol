@@ -8,16 +8,18 @@
 - 目录权威载体与引擎选择一致：OpenAPI `CapabilityDescriptor` 与 runtime-host
   `$defs.CapabilityDescriptor` 均为 `additionalProperties: false` 的 lifecycle 元数据
   载体，在同一 minor 为两者追加可选强类型字段 `download_source_catalog`。
-- 选择字段落到两条通道：HTTP `SettingsSnapshot`（持久偏好，Backend 的模型下载与维护
-  安装读取）与 runtime-host `RuntimeHostRequest` / `RuntimeMaintenanceCommandRequest`
-  （一次性无状态 CLI，retry 支持换源）。observe 请求只读不加字段。
-- 生成器无需修改；`scripts/generate_runtime_protocol.py` 机械投影两侧绑定。
+- 选择字段落到持久偏好与逐操作快照两层：HTTP `SettingsSnapshot` 保存默认偏好；HTTP
+  maintenance start/retry 与 runtime-host request/retry 固化本次操作使用的 source ids。
+  observe 请求只读不加字段，HTTP status 回显 requested/effective ids。
+- 生成器补充开放 scalar alias 投影：Python 生成 `str` alias，C# 引用位置直接投影为
+  `string`，避免生成一个不存在的封闭类型。
 - 消费者是生成绑定与手写 DTO；前端在 capability 未声明时必须省略字段。
 
 ## 1. 目标与边界
 
 交付物：`DownloadSourceKind/Descriptor/Catalog` schema、`download_source_ids`
-可选请求字段（三处 envelope）、`DOWNLOAD_SOURCE_UNKNOWN` 错误码、capability 注册、
+可选请求字段（Settings、HTTP maintenance 与 Runtime Host envelopes）、
+`DOWNLOAD_SOURCE_UNKNOWN` 错误码、capability 注册、
 双语言生成绑定、golden fixtures 与双语言契约测试。
 
 非目标：自定义源 URL、源的可用性探测与测速、镜像列表内容（Backend 发布声明）、
@@ -27,10 +29,10 @@
 
 - 选择只能是目录内稳定 id；未知 id 以 `DOWNLOAD_SOURCE_UNKNOWN`
   （validation/400/不可重试）fail closed，不静默回退。
-- 目录 id 跨 kind 全局唯一是服务端 conformance case（schema 仅约束 uniqueItems 的
-  对象级唯一，id 级唯一由实现与测试锁定，不对已发布 schema 追加条件约束）。
+- 目录 id 跨 kind 全局唯一、一次选择每个 kind 至多一个 id 是服务端 conformance case；
+  数组顺序没有优先级语义。
 - 目录携带事实性 `endpoint` base URL 供前端渲染；不携带展示文案、本地化或产品默认。
-- 客户端应始终发送用户当前选择；省略即服务端默认（官方源）。
+- 客户端应始终发送用户当前选择；省略即 Backend 发布声明的默认源。
 - Host 将生效源反映到 `launch.environment` 是指导性 conformance 建议，具体环境变量
   名不属于 wire contract。
 
@@ -39,7 +41,7 @@
 - P1 修改权威协议源：openapi.yaml、runtime-host.schema.json、capabilities.json、
   bootstrap.schema.json、errors.json。
 - P2 运行 `uv run python scripts/generate_runtime_protocol.py`；验收 = 重跑无二次差异。
-- P3 手写层与 golden：dtos.py `SettingsSnapshot.download_source_ids`（空省略）、
+- P3 手写层与 golden：dtos.py Settings/maintenance source intent 与 status 回显、
   HttpV2Enums/HttpV2Records、golden 两个新 fixture 与 health 第三个 descriptor。
 - P4 契约测试：`tests/contracts/v2/test_download_source_selection.py`、
   `tests/dotnet/VibeOCR.Contracts.Tests/DownloadSourceSelectionContractTests.cs`，
@@ -48,13 +50,17 @@
 
 ## 4. 实施适配记录
 
-- （无相对本计划的调整；错误码采用 SCREAMING_SNAKE，沿用引擎选择先例。）
+- HTTP maintenance 增加逐 operation source intent/status，避免 Settings 在长操作期间
+  改变导致同一 operation 换源。
+- kind 由封闭 enum 改为开放 string；生成器新增 scalar alias 回归测试。
+- Settings/runtime status 的手写 Python parser 与 Python/.NET convenience client 同步
+  新字段，避免 wire 已支持但稳定 client interface 丢值。
 
 ## 5. 验收标准
 
-- [x] kind 枚举跨 OpenAPI/runtime-host/双语言生成绑定单一来源。
-- [x] `download_source_ids` 在三处 envelope 可选、空省略、严格数组（uniqueItems、
-      minLength 1）。
+- [x] kind 是带 known-values 的开放响应字符串，旧客户端保留未知值。
+- [x] `download_source_ids` 在 Settings、HTTP maintenance 与 Runtime Host envelope 可选，
+      出现时非空、每个 kind 至多一个，未知 id fail closed。
 - [x] capability 四处注册（capabilities.json、generated、Health known-values、
       bootstrap known-values）。
 - [x] `DOWNLOAD_SOURCE_UNKNOWN` 注册表与生成投影一致、fail closed。

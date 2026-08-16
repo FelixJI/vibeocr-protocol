@@ -131,7 +131,7 @@
       "replacement": null
     },
     "runtime.component-selection.v1": {
-      "description": "Manually select the install scope of offline-engine dependencies from the Backend-declared variant catalog, exchanged as install_component_ids with the dependency closure reported honestly.",
+      "description": "Manually select the install scope of optional feature dependencies from the Backend-declared variant catalog, exchanged as install_component_ids with the dependency closure reported honestly.",
       "lifecycle": "active",
       "introduced_in": "2.7.0",
       "deprecated_in": null,

@@ -628,18 +628,30 @@ class RuntimeMaintenanceRequest:
     """HTTP runtime maintenance start request.
 
     ``install_component_ids`` is the manual install scope for ``ensure``
-    (``runtime.component-selection.v1``): the server installs the dependency
-    closure of the listed ids and reports requested/effective ids honestly.
-    It is absent from the wire payload when empty and must be omitted when
-    the runtime does not declare the capability; unknown ids fail closed.
+    (``runtime.component-selection.v1``): ``None`` omits the field and selects
+    the Backend default, while an empty tuple explicitly selects no optional
+    components. ``download_source_ids`` snapshots the source preference for
+    the operation so later settings changes cannot alter an in-flight install.
     """
 
     operation: RuntimeMaintenanceOperation
     operation_id: str | None = None
     profile_id: str | None = None
     component_ids: tuple[str, ...] = ()
-    install_component_ids: tuple[str, ...] = ()
+    install_component_ids: tuple[str, ...] | None = None
+    download_source_ids: tuple[str, ...] | None = None
     required_capabilities: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.download_source_ids is not None and not self.download_source_ids:
+            raise ValueError("download_source_ids must be non-empty when provided")
+        if self.operation is not RuntimeMaintenanceOperation.ENSURE and (
+            self.install_component_ids is not None
+            or self.download_source_ids is not None
+        ):
+            raise ValueError(
+                "install_component_ids and download_source_ids require ensure"
+            )
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {"operation": self.operation.value}
@@ -649,8 +661,10 @@ class RuntimeMaintenanceRequest:
             payload["profile_id"] = self.profile_id
         if self.component_ids:
             payload["component_ids"] = list(self.component_ids)
-        if self.install_component_ids:
+        if self.install_component_ids is not None:
             payload["install_component_ids"] = list(self.install_component_ids)
+        if self.download_source_ids is not None:
+            payload["download_source_ids"] = list(self.download_source_ids)
         if self.required_capabilities:
             payload["required_capabilities"] = list(self.required_capabilities)
         return payload
@@ -663,7 +677,8 @@ class RuntimeMaintenanceCommand:
     target_operation_id: str
     new_operation_id: str | None = None
     expected_sequence: int | None = None
-    install_component_ids: tuple[str, ...] = ()
+    install_component_ids: tuple[str, ...] | None = None
+    download_source_ids: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -671,6 +686,15 @@ class RuntimeMaintenanceCommand:
             and self.new_operation_id is None
         ):
             raise ValueError("retry requires new_operation_id")
+        if self.download_source_ids is not None and not self.download_source_ids:
+            raise ValueError("download_source_ids must be non-empty when provided")
+        if self.command is not RuntimeMaintenanceCommandKind.RETRY and (
+            self.install_component_ids is not None
+            or self.download_source_ids is not None
+        ):
+            raise ValueError(
+                "install_component_ids and download_source_ids require retry"
+            )
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -682,8 +706,10 @@ class RuntimeMaintenanceCommand:
             payload["new_operation_id"] = self.new_operation_id
         if self.expected_sequence is not None:
             payload["expected_sequence"] = self.expected_sequence
-        if self.install_component_ids:
+        if self.install_component_ids is not None:
             payload["install_component_ids"] = list(self.install_component_ids)
+        if self.download_source_ids is not None:
+            payload["download_source_ids"] = list(self.download_source_ids)
         return payload
 
 
@@ -756,6 +782,8 @@ class RuntimeMaintenanceStatus:
     message_code: str | None = None
     requested_component_ids: tuple[str, ...] = ()
     effective_component_ids: tuple[str, ...] = ()
+    requested_download_source_ids: tuple[str, ...] = ()
+    effective_download_source_ids: tuple[str, ...] = ()
     source: RuntimeSourceIdentity | None = None
 
     def to_payload(self) -> dict[str, Any]:
@@ -776,6 +804,14 @@ class RuntimeMaintenanceStatus:
             payload["requested_component_ids"] = list(self.requested_component_ids)
         if self.effective_component_ids:
             payload["effective_component_ids"] = list(self.effective_component_ids)
+        if self.requested_download_source_ids:
+            payload["requested_download_source_ids"] = list(
+                self.requested_download_source_ids
+            )
+        if self.effective_download_source_ids:
+            payload["effective_download_source_ids"] = list(
+                self.effective_download_source_ids
+            )
         if self.source is not None:
             payload["source"] = self.source.to_payload()
         return payload

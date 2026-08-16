@@ -440,6 +440,8 @@ def test_runtime_status_round_trips_typed_profile_and_progress() -> None:
             component_id="ocr_engine",
             requested_component_ids=("ocr_engine",),
             effective_component_ids=("ocr_engine", "runtime_base"),
+            requested_download_source_ids=("pypi-tuna", "hf-mirror"),
+            effective_download_source_ids=("pypi-tuna", "hf-mirror"),
             progress=ProgressSnapshot(
                 unit=ProgressUnit.BYTES,
                 current=50,
@@ -463,6 +465,10 @@ def test_runtime_status_round_trips_typed_profile_and_progress() -> None:
     assert payload["maintenance"]["effective_component_ids"] == [
         "ocr_engine",
         "runtime_base",
+    ]
+    assert payload["maintenance"]["effective_download_source_ids"] == [
+        "pypi-tuna",
+        "hf-mirror",
     ]
 
 
@@ -497,6 +503,8 @@ def test_runtime_retry_and_cursor_update_preserve_idempotent_identity() -> None:
             "message_code": "runtime.install.profile",
             "requested_component_ids": ["ocr_engine"],
             "effective_component_ids": ["ocr_engine", "runtime_base"],
+            "requested_download_source_ids": ["pypi-tuna", "hf-mirror"],
+            "effective_download_source_ids": ["pypi-tuna", "hf-mirror"],
         }
 
     events = [
@@ -522,6 +530,10 @@ def test_runtime_retry_and_cursor_update_preserve_idempotent_identity() -> None:
         }
     )
     assert update.snapshot.source_operation_id == "op-1"
+    assert update.snapshot.effective_download_source_ids == (
+        "pypi-tuna",
+        "hf-mirror",
+    )
     assert [event.sequence for event in update.events] == [8, 9]
 
 

@@ -5,23 +5,6 @@ using System.Text.Json.Serialization;
 
 namespace VibeOCR.Runtime.Contracts.Generated.Wire;
 
-[JsonConverter(typeof(DownloadSourceKindJsonConverter))]
-public enum DownloadSourceKind
-{
-    [JsonStringEnumMemberName("package_index")]
-    PackageIndex,
-    [JsonStringEnumMemberName("model_registry")]
-    ModelRegistry
-}
-
-public sealed class DownloadSourceKindJsonConverter : JsonStringEnumConverter<DownloadSourceKind>
-{
-    public DownloadSourceKindJsonConverter()
-        : base(namingPolicy: null, allowIntegerValues: false)
-    {
-    }
-}
-
 [JsonConverter(typeof(OcrEngineAvailabilityJsonConverter))]
 public enum OcrEngineAvailability
 {
@@ -237,8 +220,8 @@ public sealed record ComponentVariantCatalog
 
 public sealed record ComponentVariantDescriptor
 {
-    [JsonPropertyName("engine_id")]
-    public required string EngineId { get; init; }
+    [JsonPropertyName("feature_id")]
+    public required string FeatureId { get; init; }
 
     [JsonPropertyName("accelerator")]
     public required string Accelerator { get; init; }
@@ -274,7 +257,7 @@ public sealed record DownloadSourceCatalog
 public sealed record DownloadSourceDescriptor
 {
     [JsonPropertyName("kind")]
-    public required DownloadSourceKind Kind { get; init; }
+    public required string Kind { get; init; }
 
     [JsonPropertyName("id")]
     public required string Id { get; init; }
@@ -1139,6 +1122,9 @@ public sealed record RuntimeMaintenanceCommandRequest
 
     [JsonPropertyName("install_component_ids")]
     public IReadOnlyList<string>? InstallComponentIds { get; init; }
+
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 }
 
 public sealed record RuntimeMaintenanceEvent
@@ -1200,6 +1186,9 @@ public sealed record RuntimeMaintenanceRequest
     [JsonPropertyName("install_component_ids")]
     public IReadOnlyList<string>? InstallComponentIds { get; init; }
 
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+
     [JsonPropertyName("required_capabilities")]
     public IReadOnlyList<string>? RequiredCapabilities { get; init; }
 }
@@ -1244,6 +1233,12 @@ public sealed record RuntimeMaintenanceStatus
 
     [JsonPropertyName("effective_component_ids")]
     public IReadOnlyList<string>? EffectiveComponentIds { get; init; }
+
+    [JsonPropertyName("requested_download_source_ids")]
+    public IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
+
+    [JsonPropertyName("effective_download_source_ids")]
+    public IReadOnlyList<string>? EffectiveDownloadSourceIds { get; init; }
 
     [JsonPropertyName("source")]
     public RuntimeSourceIdentity? Source { get; init; }

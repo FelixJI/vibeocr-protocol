@@ -84,7 +84,7 @@
     },
     "DownloadSourceKind": {
       "type": "string",
-      "enum": ["package_index", "model_registry"]
+      "x-vibeocr-known-values": ["package_index", "model_registry"]
     },
     "DownloadSourceDescriptor": {
       "type": "object",
@@ -112,9 +112,9 @@
     "ComponentVariantDescriptor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["engine_id", "accelerator", "component_id"],
+      "required": ["feature_id", "accelerator", "component_id"],
       "properties": {
-        "engine_id": { "type": "string", "minLength": 1 },
+        "feature_id": { "type": "string", "minLength": 1 },
         "accelerator": { "$ref": "#/$defs/Accelerator" },
         "component_id": { "type": "string", "minLength": 1 }
       }
@@ -194,6 +194,7 @@
         },
         "download_source_ids": {
           "type": "array",
+          "minItems": 1,
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
@@ -208,7 +209,18 @@
           "items": { "$ref": "#/$defs/RuntimeHostEventStream" },
           "default": []
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              { "required": ["download_source_ids"] },
+              { "required": ["install_component_ids"] }
+            ]
+          },
+          "then": { "properties": { "operation": { "const": "ensure" } } }
+        }
+      ]
     },
     "RuntimeMaintenanceCommandKind": {
       "type": "string",
@@ -243,6 +255,7 @@
         "product_id": { "type": "string", "minLength": 1 },
         "download_source_ids": {
           "type": "array",
+          "minItems": 1,
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
@@ -265,6 +278,15 @@
             "required": ["command"]
           },
           "then": { "required": ["new_operation_id"] }
+        },
+        {
+          "if": {
+            "anyOf": [
+              { "required": ["download_source_ids"] },
+              { "required": ["install_component_ids"] }
+            ]
+          },
+          "then": { "properties": { "command": { "const": "retry" } } }
         }
       ]
     },
