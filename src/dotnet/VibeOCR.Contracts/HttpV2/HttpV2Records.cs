@@ -335,6 +335,13 @@ public sealed record SettingsSnapshot
     public SettingsResidency Residency { get; init; } = new();
     /// <summary>Extra backend settings (transport-neutral key/value bag).</summary>
     public IDictionary<string, JsonElement> Extra { get; init; } = new Dictionary<string, JsonElement>();
+    /// <summary>
+    /// The user's download source selection (runtime.download-sources.v1) as
+    /// stable source ids. Null omits the wire field; the runtime applies its
+    /// own default (official) sources and fails closed on unknown ids.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 }
 
 public sealed record HttpV2ErrorPayload

@@ -16,6 +16,8 @@ Classic 与 Next 分别拼装 Runtime Installer 参数、profile 名和返回 DT
 
 CPU/GPU 对外建模为 Accelerator。具体 CUDA 版本、包索引和锁文件属于 Backend 发布实现，不进入 Frontend 契约。显式 Accelerator 在安装成功后成为 Host 偏好；请求未指定时先使用该偏好，再使用产品绑定默认值。
 
+> 修订（2026-08-15，`runtime.download-sources.v1`）："包索引不进入 Frontend 契约"的边界按来源拆分——用户**选择**哪个源（依赖安装源、模型下载源）已成为协议化的 capability 保护字段（目录 + `download_source_ids`）；但源的内容、镜像列表与锁文件仍由 Backend 发布声明，锁文件、CUDA 版本与具体下载实现继续留在 Backend。
+
 Runtime Host EXE 不携带完整 Python、推理框架和模型；这些内容按 Backend 的哈希锁在线安装。Frontend 仍持有 Supervisor 子进程，确保窗口退出、Job Object 与崩溃清理只有一个 owner。
 
 ## 备选方案

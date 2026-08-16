@@ -234,6 +234,7 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("OCR_ENGINE_PREPARATION_REQUIRED")] OcrEnginePreparationRequired,
     [JsonStringEnumMemberName("OCR_ENGINE_NOT_VALID_FOR_PIPELINE")] OcrEngineNotValidForPipeline,
     [JsonStringEnumMemberName("OCR_ENGINE_LANGUAGE_UNAVAILABLE")] OcrEngineLanguageUnavailable,
+    [JsonStringEnumMemberName("DOWNLOAD_SOURCE_UNKNOWN")] DownloadSourceUnknown,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceCommandKind>))]

@@ -40,6 +40,7 @@ class RuntimeErrorCode(StrEnum):
     OCR_ENGINE_PREPARATION_REQUIRED = "OCR_ENGINE_PREPARATION_REQUIRED"
     OCR_ENGINE_NOT_VALID_FOR_PIPELINE = "OCR_ENGINE_NOT_VALID_FOR_PIPELINE"
     OCR_ENGINE_LANGUAGE_UNAVAILABLE = "OCR_ENGINE_LANGUAGE_UNAVAILABLE"
+    DOWNLOAD_SOURCE_UNKNOWN = "DOWNLOAD_SOURCE_UNKNOWN"
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +87,7 @@ ERROR_DEFINITIONS: tuple[RuntimeErrorDefinition, ...] = (
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_PREPARATION_REQUIRED, 'capability', 428, False, 'The selected OCR engine requires user preparation of a runtime component before use.'),
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_NOT_VALID_FOR_PIPELINE, 'validation', 400, False, 'The engine field is only valid for the plain-text OCR pipeline and was rejected instead of being silently ignored.'),
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_LANGUAGE_UNAVAILABLE, 'capability', 426, False, 'The selected OCR engine does not support the requested language; the response detail may list the currently selectable engine ids.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.DOWNLOAD_SOURCE_UNKNOWN, 'validation', 400, False, 'A selected download source id is not in the runtime.download-sources.v1 catalog; the request fails closed without falling back to another source.'),
 )
 ERROR_REGISTRY: dict[RuntimeErrorCode, RuntimeErrorDefinition] = {
     definition.code: definition for definition in ERROR_DEFINITIONS

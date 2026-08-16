@@ -5,6 +5,23 @@ using System.Text.Json.Serialization;
 
 namespace VibeOCR.Runtime.Contracts.Generated.Wire;
 
+[JsonConverter(typeof(DownloadSourceKindJsonConverter))]
+public enum DownloadSourceKind
+{
+    [JsonStringEnumMemberName("package_index")]
+    PackageIndex,
+    [JsonStringEnumMemberName("model_registry")]
+    ModelRegistry
+}
+
+public sealed class DownloadSourceKindJsonConverter : JsonStringEnumConverter<DownloadSourceKind>
+{
+    public DownloadSourceKindJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(OcrEngineAvailabilityJsonConverter))]
 public enum OcrEngineAvailability
 {
@@ -183,6 +200,9 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("ocr_engine_catalog")]
     public OcrEngineCatalog? OcrEngineCatalog { get; init; }
+
+    [JsonPropertyName("download_source_catalog")]
+    public DownloadSourceCatalog? DownloadSourceCatalog { get; init; }
 }
 
 public sealed record CommandResult
@@ -222,6 +242,24 @@ public sealed record DetectTextLayersResponse
 {
     [JsonPropertyName("text_layers")]
     public required IReadOnlyList<TextLayerInfoMirror> TextLayers { get; init; }
+}
+
+public sealed record DownloadSourceCatalog
+{
+    [JsonPropertyName("sources")]
+    public required IReadOnlyList<DownloadSourceDescriptor> Sources { get; init; }
+}
+
+public sealed record DownloadSourceDescriptor
+{
+    [JsonPropertyName("kind")]
+    public required DownloadSourceKind Kind { get; init; }
+
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("endpoint")]
+    public required string Endpoint { get; init; }
 }
 
 public sealed record Error
@@ -1317,6 +1355,9 @@ public sealed record SettingsSnapshot
 
     [JsonPropertyName("extra")]
     public required IReadOnlyDictionary<string, JsonElement> Extra { get; init; }
+
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 }
 
 public sealed record StageEvent

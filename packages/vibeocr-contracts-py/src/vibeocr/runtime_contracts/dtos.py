@@ -863,15 +863,23 @@ class RuntimeStatusSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class SettingsSnapshot:
-    """Backend settings snapshot/exchange. Transport-neutral."""
+    """Backend settings snapshot/exchange. Transport-neutral.
+
+    ``download_source_ids`` persists the user's download source selection
+    (``runtime.download-sources.v1``): the runtime applies it to model
+    downloads and HTTP maintenance installs. The field is absent from the
+    wire payload when empty and must be omitted when the runtime does not
+    declare the capability; unknown ids fail closed server-side.
+    """
 
     schema_version: int = SCHEMA_VERSION
     default_ttl_seconds: int = 300
     pipelines: tuple[PipelineSpec, ...] = ()
     extra: dict[str, Any] = field(default_factory=dict)
+    download_source_ids: tuple[str, ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "schema_version": self.schema_version,
             "residency": {
                 "default_ttl_seconds": self.default_ttl_seconds,
@@ -879,6 +887,9 @@ class SettingsSnapshot:
             },
             "extra": self.extra,
         }
+        if self.download_source_ids:
+            payload["download_source_ids"] = list(self.download_source_ids)
+        return payload
 
 
 # ---------------------------------------------------------------------------

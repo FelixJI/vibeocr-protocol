@@ -21,7 +21,8 @@
     "capabilities": [
       "ocr.recognition.v2",
       "pdf.edit.v2",
-      "ocr.engine-selection.v1"
+      "ocr.engine-selection.v1",
+      "runtime.download-sources.v1"
     ],
     "capability_descriptors": [
       {
@@ -61,6 +62,38 @@
               "included_in_base": false,
               "reason_code": "unsupported_platform",
               "required_component": null
+            }
+          ]
+        }
+      },
+      {
+        "name": "runtime.download-sources.v1",
+        "lifecycle": "active",
+        "introduced_in": "2.7.0",
+        "deprecated_in": null,
+        "sunset_at": null,
+        "replacement": null,
+        "download_source_catalog": {
+          "sources": [
+            {
+              "kind": "package_index",
+              "id": "pypi-official",
+              "endpoint": "https://pypi.org/simple"
+            },
+            {
+              "kind": "package_index",
+              "id": "pypi-tuna",
+              "endpoint": "https://pypi.tuna.tsinghua.edu.cn/simple"
+            },
+            {
+              "kind": "model_registry",
+              "id": "hf-official",
+              "endpoint": "https://huggingface.co"
+            },
+            {
+              "kind": "model_registry",
+              "id": "hf-mirror",
+              "endpoint": "https://hf-mirror.com"
             }
           ]
         }

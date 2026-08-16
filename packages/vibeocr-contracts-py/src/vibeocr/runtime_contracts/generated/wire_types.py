@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
+DownloadSourceKind = Literal['package_index', 'model_registry']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
@@ -37,6 +38,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     sunset_at: Required[str | None]
     replacement: Required[str | None]
     ocr_engine_catalog: NotRequired[OcrEngineCatalog]
+    download_source_catalog: NotRequired[DownloadSourceCatalog]
 
 
 class CommandResult(TypedDict, total=False):
@@ -58,6 +60,16 @@ class DetectTextLayersRequest(TypedDict, total=False):
 
 class DetectTextLayersResponse(TypedDict, total=False):
     text_layers: Required[list[TextLayerInfoMirror]]
+
+
+class DownloadSourceCatalog(TypedDict, total=False):
+    sources: Required[list[DownloadSourceDescriptor]]
+
+
+class DownloadSourceDescriptor(TypedDict, total=False):
+    kind: Required[DownloadSourceKind]
+    id: Required[str]
+    endpoint: Required[str]
 
 
 class Error(TypedDict, total=False):
@@ -555,6 +567,7 @@ class SettingsSnapshot(TypedDict, total=False):
     schema_version: Required[Literal[2]]
     residency: Required[SettingsResidency]
     extra: Required[dict[str, Any]]
+    download_source_ids: NotRequired[list[str]]
 
 
 class StageEvent(TypedDict, total=False):
