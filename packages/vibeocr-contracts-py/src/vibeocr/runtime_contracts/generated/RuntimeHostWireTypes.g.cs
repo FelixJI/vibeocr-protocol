@@ -22,23 +22,6 @@ public sealed class AcceleratorJsonConverter : JsonStringEnumConverter<Accelerat
     }
 }
 
-[JsonConverter(typeof(DownloadSourceKindJsonConverter))]
-public enum DownloadSourceKind
-{
-    [JsonStringEnumMemberName("package_index")]
-    PackageIndex,
-    [JsonStringEnumMemberName("model_registry")]
-    ModelRegistry
-}
-
-public sealed class DownloadSourceKindJsonConverter : JsonStringEnumConverter<DownloadSourceKind>
-{
-    public DownloadSourceKindJsonConverter()
-        : base(namingPolicy: null, allowIntegerValues: false)
-    {
-    }
-}
-
 [JsonConverter(typeof(IntegrityStatusJsonConverter))]
 public enum IntegrityStatus
 {
@@ -313,8 +296,8 @@ public sealed record ComponentVariantCatalog
 
 public sealed record ComponentVariantDescriptor
 {
-    [JsonPropertyName("engine_id")]
-    public required string EngineId { get; init; }
+    [JsonPropertyName("feature_id")]
+    public required string FeatureId { get; init; }
 
     [JsonPropertyName("accelerator")]
     public required Accelerator Accelerator { get; init; }
@@ -332,7 +315,7 @@ public sealed record DownloadSourceCatalog
 public sealed record DownloadSourceDescriptor
 {
     [JsonPropertyName("kind")]
-    public required DownloadSourceKind Kind { get; init; }
+    public required string Kind { get; init; }
 
     [JsonPropertyName("id")]
     public required string Id { get; init; }

@@ -212,11 +212,17 @@ public sealed record RuntimeMaintenanceRequest
     public IReadOnlyList<string>? ComponentIds { get; init; }
     /// <summary>
     /// Manual install scope for ensure (runtime.component-selection.v1) as
-    /// stable component ids. Null omits the wire field (server default set);
-    /// unknown ids fail closed server-side.
+    /// stable component ids. Null omits the wire field (Backend default set),
+    /// while an empty list explicitly selects no optional components.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? InstallComponentIds { get; init; }
+    /// <summary>
+    /// Download source ids snapshotted into this ensure operation. Null uses
+    /// the current Backend setting/default; at most one id is valid per kind.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? RequiredCapabilities { get; init; }
 }
@@ -237,6 +243,12 @@ public sealed record RuntimeMaintenanceCommand
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? InstallComponentIds { get; init; }
+    /// <summary>
+    /// On retry, explicitly replaces the source operation's normalized
+    /// download source intent. Null reuses it.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 }
 
 public sealed record RuntimeComponentStatus
@@ -284,6 +296,10 @@ public sealed record RuntimeMaintenanceStatus
     public IReadOnlyList<string>? RequestedComponentIds { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? EffectiveComponentIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? EffectiveDownloadSourceIds { get; init; }
 }
 
 public sealed record RuntimeMaintenanceReceipt
@@ -351,8 +367,8 @@ public sealed record SettingsSnapshot
     public IDictionary<string, JsonElement> Extra { get; init; } = new Dictionary<string, JsonElement>();
     /// <summary>
     /// The user's download source selection (runtime.download-sources.v1) as
-    /// stable source ids. Null omits the wire field; the runtime applies its
-    /// own default (official) sources and fails closed on unknown ids.
+    /// stable source ids, at most one per source kind. Null delegates to the
+    /// Backend-declared defaults; unknown ids fail closed.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? DownloadSourceIds { get; init; }

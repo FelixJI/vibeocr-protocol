@@ -449,13 +449,23 @@ class RuntimeHttpClient:
         self,
         *,
         operation_id: str | None = None,
-        install_component_ids: Iterable[str] = (),
+        install_component_ids: Iterable[str] | None = None,
+        download_source_ids: Iterable[str] | None = None,
     ) -> RuntimeMaintenanceReceipt:
         return self.start_runtime_maintenance(
             RuntimeMaintenanceRequest(
                 operation=RuntimeMaintenanceOperation.ENSURE,
                 operation_id=operation_id,
-                install_component_ids=tuple(install_component_ids),
+                install_component_ids=(
+                    tuple(install_component_ids)
+                    if install_component_ids is not None
+                    else None
+                ),
+                download_source_ids=(
+                    tuple(download_source_ids)
+                    if download_source_ids is not None
+                    else None
+                ),
             )
         )
 
@@ -496,6 +506,8 @@ class RuntimeHttpClient:
         command_id: str,
         new_operation_id: str,
         expected_sequence: int | None = None,
+        install_component_ids: Iterable[str] | None = None,
+        download_source_ids: Iterable[str] | None = None,
     ) -> RuntimeMaintenanceReceipt:
         return self.command_runtime_maintenance(
             RuntimeMaintenanceCommand(
@@ -504,6 +516,16 @@ class RuntimeHttpClient:
                 target_operation_id=operation_id,
                 new_operation_id=new_operation_id,
                 expected_sequence=expected_sequence,
+                install_component_ids=(
+                    tuple(install_component_ids)
+                    if install_component_ids is not None
+                    else None
+                ),
+                download_source_ids=(
+                    tuple(download_source_ids)
+                    if download_source_ids is not None
+                    else None
+                ),
             )
         )
 
@@ -969,13 +991,23 @@ class SupervisorClient:
         self,
         *,
         operation_id: str | None = None,
-        install_component_ids: Iterable[str] = (),
+        install_component_ids: Iterable[str] | None = None,
+        download_source_ids: Iterable[str] | None = None,
     ) -> RuntimeMaintenanceReceipt:
         return await self.start_runtime_maintenance(
             RuntimeMaintenanceRequest(
                 operation=RuntimeMaintenanceOperation.ENSURE,
                 operation_id=operation_id,
-                install_component_ids=tuple(install_component_ids),
+                install_component_ids=(
+                    tuple(install_component_ids)
+                    if install_component_ids is not None
+                    else None
+                ),
+                download_source_ids=(
+                    tuple(download_source_ids)
+                    if download_source_ids is not None
+                    else None
+                ),
             )
         )
 
@@ -1016,6 +1048,8 @@ class SupervisorClient:
         command_id: str,
         new_operation_id: str,
         expected_sequence: int | None = None,
+        install_component_ids: Iterable[str] | None = None,
+        download_source_ids: Iterable[str] | None = None,
     ) -> RuntimeMaintenanceReceipt:
         return await self.command_runtime_maintenance(
             RuntimeMaintenanceCommand(
@@ -1024,6 +1058,16 @@ class SupervisorClient:
                 target_operation_id=operation_id,
                 new_operation_id=new_operation_id,
                 expected_sequence=expected_sequence,
+                install_component_ids=(
+                    tuple(install_component_ids)
+                    if install_component_ids is not None
+                    else None
+                ),
+                download_source_ids=(
+                    tuple(download_source_ids)
+                    if download_source_ids is not None
+                    else None
+                ),
             )
         )
 
@@ -1288,11 +1332,31 @@ def _parse_settings(body: Mapping[str, Any]) -> SettingsSnapshot:
             ErrorCode.ADAPTER_PROTOCOL_VIOLATION,
             "settings extra must be an object",
         )
+    download_source_ids = body.get("download_source_ids", [])
+    if not isinstance(download_source_ids, list):
+        raise RuntimeClientError(
+            ErrorCode.ADAPTER_PROTOCOL_VIOLATION,
+            "settings download_source_ids must be a non-empty unique string array",
+        )
+    if ("download_source_ids" in body and not download_source_ids) or any(
+        not isinstance(source_id, str) or not source_id
+        for source_id in download_source_ids
+    ):
+        raise RuntimeClientError(
+            ErrorCode.ADAPTER_PROTOCOL_VIOLATION,
+            "settings download_source_ids must be a non-empty unique string array",
+        )
+    if len(set(download_source_ids)) != len(download_source_ids):
+        raise RuntimeClientError(
+            ErrorCode.ADAPTER_PROTOCOL_VIOLATION,
+            "settings download_source_ids must be a non-empty unique string array",
+        )
     return SettingsSnapshot(
         schema_version=int(body.get("schema_version", 2)),
         default_ttl_seconds=int(residency.get("default_ttl_seconds", 300)),
         pipelines=pipelines,
         extra=extra,
+        download_source_ids=tuple(download_source_ids),
     )
 
 

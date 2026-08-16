@@ -93,6 +93,36 @@ public sealed class RuntimeHttpClientTests
         Assert.Contains("\"operation_id\":\"op-1\"", repairHandler.RequestBody);
         Assert.Contains("\"component_ids\":[\"ocr_engine\"]", repairHandler.RequestBody);
 
+        var ensureHandler = new FakeHandler(receipt);
+        await using var ensureClient = new RuntimeHttpClient(
+            new Uri("http://127.0.0.1:1"), "token", ensureHandler);
+        await ensureClient.EnsureRuntimeAsync(
+            "op-2",
+            [],
+            ["pypi-tuna", "hf-mirror"],
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"install_component_ids\":[]", ensureHandler.RequestBody);
+        Assert.Contains(
+            "\"download_source_ids\":[\"pypi-tuna\",\"hf-mirror\"]",
+            ensureHandler.RequestBody);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            ensureClient.EnsureRuntimeAsync(
+                "op-invalid",
+                null,
+                [],
+                TestContext.Current.CancellationToken));
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            ensureClient.StartRuntimeMaintenanceAsync(
+                new RuntimeMaintenanceRequest
+                {
+                    Operation = RuntimeMaintenanceOperation.Inspect,
+                    InstallComponentIds = [],
+                },
+                TestContext.Current.CancellationToken));
+
         var retryHandler = new FakeHandler(receipt);
         await using var retryClient = new RuntimeHttpClient(
             new Uri("http://127.0.0.1:1"), "token", retryHandler);
@@ -101,12 +131,20 @@ public sealed class RuntimeHttpClientTests
             "cmd-1",
             "op-1",
             7,
+            ["paddleocr-cpu"],
+            ["pypi-official", "hf-official"],
             TestContext.Current.CancellationToken);
 
         Assert.Equal("/v2/runtime/maintenance/command", retryHandler.Path);
         Assert.Contains("\"command_id\":\"cmd-1\"", retryHandler.RequestBody);
         Assert.Contains("\"target_operation_id\":\"op-0\"", retryHandler.RequestBody);
         Assert.Contains("\"new_operation_id\":\"op-1\"", retryHandler.RequestBody);
+        Assert.Contains(
+            "\"install_component_ids\":[\"paddleocr-cpu\"]",
+            retryHandler.RequestBody);
+        Assert.Contains(
+            "\"download_source_ids\":[\"pypi-official\",\"hf-official\"]",
+            retryHandler.RequestBody);
     }
 
     [Fact]

@@ -3,9 +3,9 @@
 Frozen decisions under test (see docs/protocol-v2-design.md and
 docs/component-selection-execution-plan.md):
 
-* The variant catalog groups installable offline-engine dependencies by
-  engine and accelerator; engine ids never appear in requests and plain-text
-  OCR engines reuse the OcrEngineId wire values.
+* The variant catalog groups optional feature dependencies by feature and
+  accelerator; feature ids never appear in requests and plain-text OCR
+  features reuse the OcrEngineId wire values.
 * The manual install scope is a capability-protected ``install_component_ids``
   field, distinct from the repair-scope ``component_ids``; unknown ids fail
   closed with ``RUNTIME_COMPONENT_UNKNOWN`` and the dependency closure is
@@ -74,10 +74,10 @@ def _host_request_validator() -> jsonschema.Draft202012Validator:
     )
 
 
-def _host_request(selection: list | None) -> dict:
+def _host_request(selection: list | None, operation: str = "ensure") -> dict:
     request = {
         "protocol_version": 2,
-        "operation": "ensure",
+        "operation": operation,
         "product_root": "C:/VibeOCR",
         "component_lock": "C:/VibeOCR/component-lock.json",
         "runtime_manifest": "C:/VibeOCR/backend/runtime-manifest.json",
@@ -90,12 +90,16 @@ def _host_request(selection: list | None) -> dict:
 def test_variant_shapes_are_single_sourced_across_layers() -> None:
     spec = _spec()["components"]["schemas"]
     descriptor = spec["ComponentVariantDescriptor"]
-    assert set(descriptor["required"]) == {"engine_id", "accelerator", "component_id"}
+    assert set(descriptor["required"]) == {
+        "feature_id",
+        "accelerator",
+        "component_id",
+    }
     assert descriptor["properties"]["accelerator"]["enum"] == list(ACCELERATORS)
 
     host = _host_schema()["$defs"]
     assert set(host["ComponentVariantDescriptor"]["required"]) == {
-        "engine_id",
+        "feature_id",
         "accelerator",
         "component_id",
     }
@@ -104,7 +108,7 @@ def test_variant_shapes_are_single_sourced_across_layers() -> None:
     }
 
     hints = typing.get_type_hints(wire_types.ComponentVariantDescriptor)
-    assert hints["engine_id"] is str
+    assert hints["feature_id"] is str
     assert set(typing.get_args(hints["accelerator"])) == set(ACCELERATORS)
     assert hints["component_id"] is str
 
@@ -126,6 +130,28 @@ def test_install_selection_round_trips_and_omission_stays_wire_compatible() -> N
     ).to_payload()
     assert "install_component_ids" not in legacy
     _component_schema_validator("RuntimeMaintenanceRequest").validate(legacy)
+
+    explicit_base_only = dtos.RuntimeMaintenanceRequest(
+        operation=dtos.RuntimeMaintenanceOperation.ENSURE,
+        install_component_ids=(),
+    ).to_payload()
+    assert explicit_base_only["install_component_ids"] == []
+    _component_schema_validator("RuntimeMaintenanceRequest").validate(
+        explicit_base_only
+    )
+
+    with pytest.raises(ValueError, match="require ensure"):
+        dtos.RuntimeMaintenanceRequest(
+            operation=dtos.RuntimeMaintenanceOperation.REPAIR,
+            install_component_ids=("paddleocr-cpu",),
+        )
+    with pytest.raises(jsonschema.ValidationError):
+        _component_schema_validator("RuntimeMaintenanceRequest").validate(
+            {
+                "operation": "repair",
+                "install_component_ids": ["paddleocr-cpu"],
+            }
+        )
 
     # The wire shape stays strict: duplicates and non-string ids are rejected
     # by the schema; unknown ids are a server-side fail-closed case.
@@ -168,6 +194,23 @@ def test_retry_command_carries_optional_install_selection() -> None:
     assert "install_component_ids" not in legacy
     _component_schema_validator("RuntimeMaintenanceCommandRequest").validate(legacy)
 
+    with pytest.raises(ValueError, match="require retry"):
+        dtos.RuntimeMaintenanceCommand(
+            command_id="command-2",
+            command=dtos.RuntimeMaintenanceCommandKind.CANCEL,
+            target_operation_id="op-1",
+            install_component_ids=(),
+        )
+    with pytest.raises(jsonschema.ValidationError):
+        _component_schema_validator("RuntimeMaintenanceCommandRequest").validate(
+            {
+                "command_id": "command-2",
+                "command": "cancel",
+                "target_operation_id": "op-1",
+                "install_component_ids": [],
+            }
+        )
+
 
 def test_host_requests_carry_optional_install_selection() -> None:
     host = _host_schema()
@@ -191,6 +234,10 @@ def test_host_requests_carry_optional_install_selection() -> None:
         _host_request_validator().validate(
             _host_request(["paddleocr-cpu", "paddleocr-cpu"])
         )
+    with pytest.raises(jsonschema.ValidationError):
+        _host_request_validator().validate(
+            _host_request(["paddleocr-cpu"], operation="inspect")
+        )
 
 
 def test_component_variant_catalog_rides_on_health_descriptor() -> None:
@@ -208,12 +255,12 @@ def test_component_variant_catalog_rides_on_health_descriptor() -> None:
     }
     catalog = descriptors["runtime.component-selection.v1"]["component_variant_catalog"]
     variants = catalog["variants"]
-    # (engine_id, accelerator) pairs are unique across the catalog.
-    pairs = {(variant["engine_id"], variant["accelerator"]) for variant in variants}
+    # (feature_id, accelerator) pairs are unique across the catalog.
+    pairs = {(variant["feature_id"], variant["accelerator"]) for variant in variants}
     assert len(pairs) == len(variants)
     # The golden catalog covers both accelerators for both offline engines.
     assert {variant["accelerator"] for variant in variants} == set(ACCELERATORS)
-    assert {variant["engine_id"] for variant in variants} == {"paddleocr", "mineru"}
+    assert {variant["feature_id"] for variant in variants} == {"paddleocr", "mineru"}
     # Plain-text OCR engines reuse the OcrEngineId wire values.
     engine_enum = _spec()["components"]["schemas"]["OcrEngineId"]["enum"]
     assert "paddleocr" in engine_enum
@@ -231,7 +278,7 @@ def test_component_variant_catalog_rides_on_health_descriptor() -> None:
     ] == {"$ref": "#/components/schemas/ComponentVariantCatalog"}
     assert "component_variant_catalog" not in schema["CapabilityDescriptor"]["required"]
     catalog_description = schema["ComponentVariantCatalog"]["description"]
-    assert "same engine_id and accelerator" in catalog_description
+    assert "same feature_id and accelerator" in catalog_description
     assert "base runtime components" in catalog_description
 
 
@@ -299,7 +346,7 @@ def test_generated_bindings_expose_strongly_typed_variant_catalog() -> None:
     descriptor_record = csharp_wire.split(
         "public sealed record ComponentVariantDescriptor", 1
     )[1].split("\n}", 1)[0]
-    assert "public required string EngineId { get; init; }" in descriptor_record
+    assert "public required string FeatureId { get; init; }" in descriptor_record
     assert "public required string Accelerator { get; init; }" in descriptor_record
     assert "public required string ComponentId { get; init; }" in descriptor_record
 

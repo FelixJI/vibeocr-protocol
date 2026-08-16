@@ -11,6 +11,7 @@ from vibeocr.runtime_client.client import (
     RuntimeClientError,
     RuntimeHttpClient,
     SupervisorClient,
+    _parse_settings,
 )
 from vibeocr.runtime_client.mock_server import MockRuntimeServer
 from vibeocr.runtime_client.process import ReadyEnvelope
@@ -116,6 +117,7 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
     client.ensure_runtime(
         operation_id="op-9",
         install_component_ids=("paddleocr-cpu", "mineru-cpu"),
+        download_source_ids=("pypi-tuna", "hf-mirror"),
     )
     client.repair_runtime(operation_id="op-1", component_ids=("ocr_engine",))
     client.retry_runtime(
@@ -123,6 +125,8 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
         command_id="cmd-1",
         new_operation_id="op-1",
         expected_sequence=7,
+        install_component_ids=(),
+        download_source_ids=("pypi-official", "hf-official"),
     )
 
     assert client.calls[0] == (
@@ -132,6 +136,7 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
                 "operation": "ensure",
                 "operation_id": "op-9",
                 "install_component_ids": ["paddleocr-cpu", "mineru-cpu"],
+                "download_source_ids": ["pypi-tuna", "hf-mirror"],
             },
             "timeout": 600.0,
         },
@@ -154,7 +159,27 @@ def test_runtime_client_convenience_methods_bind_operation_and_command_ids() -> 
         "target_operation_id": "op-0",
         "new_operation_id": "op-1",
         "expected_sequence": 7,
+        "install_component_ids": [],
+        "download_source_ids": ["pypi-official", "hf-official"],
     }
+
+
+def test_settings_parser_preserves_download_source_selection() -> None:
+    payload = {
+        "schema_version": 2,
+        "residency": {"default_ttl_seconds": 300, "pipelines": []},
+        "extra": {},
+        "download_source_ids": ["pypi-tuna", "hf-mirror"],
+    }
+
+    parsed = _parse_settings(payload)
+
+    assert parsed.download_source_ids == ("pypi-tuna", "hf-mirror")
+    assert parsed.to_payload() == payload
+
+    for invalid in ([], [""], ["pypi-tuna", "pypi-tuna"], [1]):
+        with pytest.raises(RuntimeClientError):
+            _parse_settings({**payload, "download_source_ids": invalid})
 
 
 def test_runtime_client_observe_rejects_page_that_skips_requested_cursor() -> None:

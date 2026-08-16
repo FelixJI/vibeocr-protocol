@@ -416,8 +416,7 @@ def _python_wire_types(openapi: dict) -> str:
     for name, schema in sorted(openapi["components"]["schemas"].items()):
         properties = schema.get("properties")
         if not isinstance(properties, dict):
-            if "enum" in schema:
-                aliases.append(f"{name} = {_python_type(schema)}")
+            aliases.append(f"{name} = {_python_type(schema)}")
             continue
         required = set(schema.get("required", []))
         fields: list[str] = []
@@ -467,19 +466,24 @@ def _csharp_literal_type(values: list[object]) -> str:
     return "JsonElement"
 
 
-def _render_csharp_type(schema_type: _SchemaType) -> str:
+def _render_csharp_type(
+    schema_type: _SchemaType,
+    aliases: dict[str, _SchemaType] | None = None,
+) -> str:
     if schema_type.kind == "reference":
         assert schema_type.name is not None
+        if aliases is not None and schema_type.name in aliases:
+            return _render_csharp_type(aliases[schema_type.name], aliases)
         return schema_type.name
     if schema_type.kind == "literal":
         return _csharp_literal_type(list(schema_type.values))
     if schema_type.kind == "union":
         non_null = [child for child in schema_type.children if not child.is_null]
         if len(non_null) == 1:
-            return _render_csharp_type(non_null[0])
+            return _render_csharp_type(non_null[0], aliases)
         return "JsonElement"
     if schema_type.kind == "array":
-        return f"IReadOnlyList<{_render_csharp_type(schema_type.children[0])}>"
+        return f"IReadOnlyList<{_render_csharp_type(schema_type.children[0], aliases)}>"
     if schema_type.kind == "scalar":
         assert schema_type.name is not None
         return _CSHARP_SCALAR_TYPES[schema_type.name]
@@ -493,7 +497,13 @@ def _csharp_type(schema: dict) -> str:
 def _csharp_wire_types(openapi: dict) -> str:
     enums: list[str] = []
     classes: list[str] = []
-    for name, schema in sorted(openapi["components"]["schemas"].items()):
+    schemas = openapi["components"]["schemas"]
+    aliases = {
+        name: _analyze_schema_type(schema)
+        for name, schema in schemas.items()
+        if not isinstance(schema.get("properties"), dict) and "enum" not in schema
+    }
+    for name, schema in sorted(schemas.items()):
         properties = schema.get("properties")
         if not isinstance(properties, dict):
             if "enum" in schema:
@@ -520,7 +530,7 @@ def _csharp_wire_types(openapi: dict) -> str:
         fields: list[str] = []
         for field, field_schema in properties.items():
             schema_type = _analyze_schema_type(field_schema)
-            field_type = _render_csharp_type(schema_type)
+            field_type = _render_csharp_type(schema_type, aliases)
             property_name = _pascal(field)
             is_required = field in required
             modifier = "required " if is_required else ""
