@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.7.0
+
+### Features
+
+- **protocol:** 定义下载源选择与离线引擎依赖手动选择协议 (#35) (c81e071)
+
+### Bug Fixes
+
+- **protocol:** 完善运行时选择契约 (#36) (1c5f4f1)
+
 ## 2.6.0
 
 ### Features
