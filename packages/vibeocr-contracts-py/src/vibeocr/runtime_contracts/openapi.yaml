@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VibeOCR Local Runtime API",
-    "version": "2.7.0",
+    "version": "2.7.1",
     "description": "Authoritative Runtime API v2. The historical openapi.snapshot.json is non-authoritative."
   },
   "servers": [

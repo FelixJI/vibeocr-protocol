@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.1
+
+### Bug Fixes
+
+- **protocol:** 统一空下载源序列化 (#38) (beb5ab8)
+
 ## 2.7.0
 
 ### Features
