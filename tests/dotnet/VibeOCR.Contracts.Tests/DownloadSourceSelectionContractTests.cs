@@ -54,6 +54,9 @@ public sealed class DownloadSourceSelectionContractTests
         var node = JsonNode.Parse(
             HttpV2Json.Serialize(snapshot, typeof(HttpV2.SettingsSnapshot)))!;
         Assert.True(JsonNode.DeepEquals(JsonNode.Parse(fixture.GetRawText()), node!["download_source_ids"]));
+
+        var roundTrip = HttpV2Json.Deserialize<HttpV2.SettingsSnapshot>(node.ToJsonString())!;
+        Assert.Equal(selection, roundTrip.DownloadSourceIds);
     }
 
     [Fact]
@@ -68,6 +71,23 @@ public sealed class DownloadSourceSelectionContractTests
         var roundTrip = JsonNode.Parse(
             HttpV2Json.Serialize(snapshot, typeof(HttpV2.SettingsSnapshot)))!;
         Assert.Null(roundTrip["download_source_ids"]);
+    }
+
+    [Fact]
+    public void EmptySettingsSelectionNormalizesToGoldenOmission()
+    {
+        JsonElement fixture = LoadGolden().RootElement.GetProperty("settings_snapshot_empty_selection");
+        var snapshot = new HttpV2.SettingsSnapshot
+        {
+            Residency = new SettingsResidency(),
+            Extra = new Dictionary<string, JsonElement>(),
+            DownloadSourceIds = [],
+        };
+
+        var payload = JsonNode.Parse(
+            HttpV2Json.Serialize(snapshot, typeof(HttpV2.SettingsSnapshot)))!;
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(fixture.GetRawText()), payload));
+        Assert.False(payload.AsObject().ContainsKey("download_source_ids"));
     }
 
     [Fact]

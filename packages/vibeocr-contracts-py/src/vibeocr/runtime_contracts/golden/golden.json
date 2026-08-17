@@ -159,6 +159,14 @@
     },
     "extra": {}
   },
+  "settings_snapshot_empty_selection": {
+    "schema_version": 2,
+    "residency": {
+      "default_ttl_seconds": 300,
+      "pipelines": []
+    },
+    "extra": {}
+  },
   "pipeline_selection_engine": {
     "pipeline_id": "OCR",
     "options_version": 1,
