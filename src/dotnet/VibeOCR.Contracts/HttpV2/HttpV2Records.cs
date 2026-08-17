@@ -361,17 +361,25 @@ public sealed record SettingsResidency
 
 public sealed record SettingsSnapshot
 {
+    private IReadOnlyList<string>? _downloadSourceIds;
+
     public int SchemaVersion { get; init; } = HttpV2Schema.Version;
     public SettingsResidency Residency { get; init; } = new();
     /// <summary>Extra backend settings (transport-neutral key/value bag).</summary>
     public IDictionary<string, JsonElement> Extra { get; init; } = new Dictionary<string, JsonElement>();
     /// <summary>
     /// The user's download source selection (runtime.download-sources.v1) as
-    /// stable source ids, at most one per source kind. Null delegates to the
-    /// Backend-declared defaults; unknown ids fail closed.
+    /// stable source ids, at most one per source kind. Null or an empty list
+    /// serializes as omission and delegates to the Backend-declared defaults;
+    /// unknown ids fail closed.
     /// </summary>
+    [JsonPropertyName("download_source_ids")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+    public IReadOnlyList<string>? DownloadSourceIds
+    {
+        get => _downloadSourceIds is { Count: > 0 } ? _downloadSourceIds : null;
+        init => _downloadSourceIds = value;
+    }
 }
 
 public sealed record HttpV2ErrorPayload

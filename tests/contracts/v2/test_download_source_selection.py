@@ -150,6 +150,14 @@ def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> 
     }.issubset(status["properties"])
 
 
+def test_empty_settings_selection_normalizes_to_golden_omission() -> None:
+    payload = dtos.SettingsSnapshot(download_source_ids=()).to_payload()
+
+    assert payload == _golden()["settings_snapshot_empty_selection"]
+    assert "download_source_ids" not in payload
+    _settings_snapshot_validator().validate(payload)
+
+
 def test_http_maintenance_snapshots_source_selection_and_rejects_wrong_operations() -> (
     None
 ):

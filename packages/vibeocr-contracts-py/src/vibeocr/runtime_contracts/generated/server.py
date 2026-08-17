@@ -325,7 +325,8 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                      'has no priority meaning. Maintenance start snapshots this '
                                      'preference into its operation intent. Clients SHOULD send '
                                      'the current selection when the capability is declared and '
-                                     'MUST omit it otherwise; omission delegates to '
+                                     'MUST omit it otherwise; an empty in-memory selection MUST '
+                                     'serialize as omission. Omission delegates to '
                                      'Backend-declared defaults and unknown ids fail closed with '
                                      'DOWNLOAD_SOURCE_UNKNOWN.',
                       'properties': {'download_source_ids': {'items': {'minLength': 1,
@@ -2784,7 +2785,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                 'at most one selected source per kind; array order has no priority '
                                 'meaning. Maintenance start snapshots this preference into its '
                                 'operation intent. Clients SHOULD send the current selection when '
-                                'the capability is declared and MUST omit it otherwise; omission '
+                                'the capability is declared and MUST omit it otherwise; an empty '
+                                'in-memory selection MUST serialize as omission. Omission '
                                 'delegates to Backend-declared defaults and unknown ids fail '
                                 'closed with DOWNLOAD_SOURCE_UNKNOWN.',
                  'properties': {'download_source_ids': {'items': {'minLength': 1, 'type': 'string'},
@@ -4656,7 +4658,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                 'at most one selected source per kind; array order has no priority '
                                 'meaning. Maintenance start snapshots this preference into its '
                                 'operation intent. Clients SHOULD send the current selection when '
-                                'the capability is declared and MUST omit it otherwise; omission '
+                                'the capability is declared and MUST omit it otherwise; an empty '
+                                'in-memory selection MUST serialize as omission. Omission '
                                 'delegates to Backend-declared defaults and unknown ids fail '
                                 'closed with DOWNLOAD_SOURCE_UNKNOWN.',
                  'properties': {'download_source_ids': {'items': {'minLength': 1, 'type': 'string'},
