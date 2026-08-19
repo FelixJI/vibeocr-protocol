@@ -22,7 +22,7 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
     assert "  required:" in workflow and "    name: required" in workflow
     assert "  plan:" in workflow and "  prepare:" in workflow and "  shard:" in workflow
     assert "python-version-file: .python-version" in workflow
-    assert 'version: "0.11.16"' in workflow
+    assert 'version: "0.12.5"' in workflow
     assert "actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1" in workflow
     assert "if: hashFiles('global.json') != ''" in workflow
     assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in workflow
