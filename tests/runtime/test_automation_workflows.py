@@ -22,7 +22,7 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
     assert "  required:" in workflow and "    name: required" in workflow
     assert "  plan:" in workflow and "  prepare:" in workflow and "  shard:" in workflow
     assert "python-version-file: .python-version" in workflow
-    assert 'version: "0.11.16"' in workflow
+    assert 'version: "0.12.5"' in workflow
     assert "actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1" in workflow
     assert "if: hashFiles('global.json') != ''" in workflow
     assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in workflow
@@ -39,6 +39,15 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
     assert "needs.prepare.result" in workflow
     assert "needs.shard.result" in workflow
     assert "name: release-candidate" in workflow
+
+
+def test_every_setup_uv_step_pins_the_canonical_uv_version() -> None:
+    for name in ("ci.yml", "cd.yml"):
+        workflow = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+        assert "0.11.16" not in workflow
+        assert workflow.count("astral-sh/setup-uv@") == workflow.count(
+            'version: "0.12.5"'
+        )
 
 
 def test_cd_contract_downloads_exact_run_then_stages_attests_and_publishes() -> None:
