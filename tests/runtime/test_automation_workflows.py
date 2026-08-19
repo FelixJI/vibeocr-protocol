@@ -41,6 +41,15 @@ def test_ci_contract_uses_the_single_deep_interface() -> None:
     assert "name: release-candidate" in workflow
 
 
+def test_every_setup_uv_step_pins_the_canonical_uv_version() -> None:
+    for name in ("ci.yml", "cd.yml"):
+        workflow = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+        assert "0.11.16" not in workflow
+        assert workflow.count("astral-sh/setup-uv@") == workflow.count(
+            'version: "0.12.5"'
+        )
+
+
 def test_cd_contract_downloads_exact_run_then_stages_attests_and_publishes() -> None:
     workflow = (ROOT / ".github/workflows/cd.yml").read_text(encoding="utf-8")
     publish_job = workflow.split("\n  publish:\n", maxsplit=1)[1]
