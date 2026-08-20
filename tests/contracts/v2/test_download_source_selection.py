@@ -185,6 +185,8 @@ def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> 
     description = schema["description"]
     assert "DOWNLOAD_SOURCE_UNKNOWN" in description
     assert "MUST omit" in description
+    assert "kinds not present" in description
+    assert "Backend-declared default for that kind" in description
 
     status = _spec()["components"]["schemas"]["RuntimeMaintenanceStatus"]
     assert {
@@ -254,12 +256,17 @@ def test_runtime_host_requests_carry_optional_selection() -> None:
     host = _host_schema()
     for envelope in ("RuntimeHostRequest", "RuntimeMaintenanceCommandRequest"):
         properties = host["$defs"][envelope]["properties"]
-        assert properties["download_source_ids"] == {
+        selection = properties["download_source_ids"]
+        assert {
+            key: selection[key] for key in ("type", "minItems", "uniqueItems", "items")
+        } == {
             "type": "array",
             "minItems": 1,
             "uniqueItems": True,
             "items": {"type": "string", "minLength": 1},
         }
+        assert "kinds not present" in selection["description"]
+        assert "Backend-declared default for that kind" in selection["description"]
         assert "download_source_ids" not in host["$defs"][envelope]["required"]
     # Observe requests are read-only and never select sources.
     assert (
@@ -317,6 +324,8 @@ def test_download_source_catalog_rides_on_health_descriptor() -> None:
     catalog_description = schema["DownloadSourceCatalog"]["description"]
     assert "unique" in catalog_description or "MUST NOT" in catalog_description
     assert "display text" in schema["DownloadSourceDescriptor"]["description"]
+    endpoint_description = descriptor["properties"]["endpoint"]["description"]
+    assert "must not render or parse" in endpoint_description
     kind_description = schema["DownloadSourceKind"]["description"]
     assert "model_registry selects an upstream model-source preference" in (
         kind_description

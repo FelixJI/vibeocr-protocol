@@ -99,11 +99,14 @@ PaddleX、PaddleOCR 与 MinerU 的模型仍由各自原生下载器管理；协�
     瞬间快照 Settings/Backend default，后续设置变化不影响当前操作；
   - runtime-host `RuntimeHostRequest` 与 retry 用的 `RuntimeMaintenanceCommandRequest`
     显式携带（Host 是一次性无状态 CLI）；observe 请求只读，不携带。
-- 每种 source kind 至多选择一个 id，数组顺序没有优先级语义。客户端应始终发送用户
-  当前选择；省略时由服务端应用 Backend 发布声明的默认源。未知 id 必须以
+- 每种 source kind 至多选择一个 id，数组顺序没有优先级语义。数组中的 id 只覆盖其
+  所属 kind；未出现的 kind 继续使用 Backend 为该 kind 声明的默认源，因此用户可以只设置
+  模型源而让依赖包索引跟随默认。整个字段省略时，所有 kind 均使用 Backend 默认。未知 id 必须以
   `DOWNLOAD_SOURCE_UNKNOWN`（validation/400，不可重试）fail closed，不得静默回退到
   其他源。Runtime 未声明该 capability 时客户端必须省略字段（旧端请求 schema 对未知
   字段封闭）。
+- `endpoint` 只作为兼容的事实字段与 Backend source binding 保留；Frontend 不展示、解析或
+  自行请求该 URL，只显示本地文案和稳定 id。
 - Host 应把生效源反映到 `launch.environment`（例如 pip index 或上游引擎官方 source
   环境变量）；变量名与映射仍是 Backend 细节，不属于 wire contract。`model_registry` 只是一项
   偏好，不赋予 VibeOCR 下载、校验、修复或绑定模型文件的责任。
