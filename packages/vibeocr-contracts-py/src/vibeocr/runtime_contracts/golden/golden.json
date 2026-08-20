@@ -199,8 +199,7 @@
     ]
   },
   "download_source_selection": [
-    "pypi-tuna",
-    "hf-mirror"
+    "pypi-tuna"
   ],
   "download_source_catalog": {
     "sources": [
@@ -213,16 +212,15 @@
         "kind": "package_index",
         "id": "pypi-tuna",
         "endpoint": "https://pypi.tuna.tsinghua.edu.cn/simple"
-      },
+      }
+    ]
+  },
+  "legacy_download_source_catalog": {
+    "sources": [
       {
         "kind": "model_registry",
-        "id": "hf-official",
-        "endpoint": "https://huggingface.co"
-      },
-      {
-        "kind": "model_registry",
-        "id": "hf-mirror",
-        "endpoint": "https://hf-mirror.com"
+        "id": "legacy-models",
+        "endpoint": "https://models.example.invalid"
       }
     ]
   },

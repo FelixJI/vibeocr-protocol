@@ -1959,14 +1959,14 @@
           "endpoint": {
             "type": "string",
             "minLength": 1,
-            "description": "Factual base URL of the source (for example a PyPI simple index or a model registry endpoint); clients may render it verbatim but must not parse it."
+            "description": "Factual base URL of the source; clients may render it verbatim but must not parse it."
           }
         },
         "additionalProperties": false
       },
       "DownloadSourceKind": {
         "type": "string",
-        "description": "Open source-kind identifier. Known values describe package indexes used by Runtime maintenance and model registries used by the runtime. Clients preserve unknown response values and only offer selection UI for kinds they understand.",
+        "description": "Open source-kind identifier. package_index is the only kind new Backends advertise. model_registry is retained as a legacy Protocol v2 value for old Runtime responses; upstream engines now own their model downloaders and caches, so new clients preserve but do not offer it as a selectable source. Clients preserve unknown response values and only offer selection UI for kinds they understand.",
         "x-vibeocr-known-values": [
           "package_index",
           "model_registry"

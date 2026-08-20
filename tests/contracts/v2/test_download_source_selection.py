@@ -109,6 +109,20 @@ def test_source_kinds_are_single_sourced_across_layers() -> None:
     assert runtime_host_types.DownloadSourceKind is str
 
 
+def test_legacy_model_registry_catalog_remains_wire_compatible() -> None:
+    fixture = _golden()["legacy_download_source_catalog"]
+    _component_schema_validator("DownloadSourceCatalog").validate(fixture)
+    assert fixture == {
+        "sources": [
+            {
+                "kind": "model_registry",
+                "id": "legacy-models",
+                "endpoint": "https://models.example.invalid",
+            }
+        ]
+    }
+
+
 def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> None:
     fixture = _golden()["download_source_selection"]
 
@@ -250,7 +264,7 @@ def test_download_source_catalog_rides_on_health_descriptor() -> None:
     # Catalog ids are unique across kinds (server conformance case).
     ids = [source["id"] for source in sources]
     assert len(ids) == len(set(ids))
-    assert {source["kind"] for source in sources} == set(DOWNLOAD_SOURCE_KINDS)
+    assert {source["kind"] for source in sources} == {"package_index"}
     for source in sources:
         assert source["endpoint"].startswith("https://")
     # Legacy descriptors without a catalog keep their original wire shape.

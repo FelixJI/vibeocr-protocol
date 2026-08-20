@@ -81,12 +81,15 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
 
 ## 下载源选择（runtime.download-sources.v1）
 
-依赖安装源与模型下载源的用户选择是可协商的 minor 扩展，复用引擎选择的目录模式：
+依赖安装源的用户选择是可协商的 minor 扩展，复用引擎选择的目录模式。PaddleX、
+PaddleOCR 与 MinerU 的模型由各自原生下载器管理，不进入 VibeOCR 下载源协议：
 
 - 源目录 `DownloadSourceCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
   `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
   `download_source_catalog`，仅 `runtime.download-sources.v1` descriptor 携带。每个
-  `DownloadSourceDescriptor` 表达 `kind`（`package_index` / `model_registry`）、稳定
+  `DownloadSourceDescriptor` 表达开放 `kind`。`package_index` 是新 Backend 唯一应发布且新
+  Frontend 唯一应展示的值；已发布的 `model_registry` 作为 Protocol v2 legacy known-value
+  继续保留，旧 Runtime 返回时客户端须原样保存但不得提供新选择 UI。descriptor 还包含稳定
   `id` 与事实性 `endpoint` base URL；目录不携带展示文案、本地化或产品默认值，id 在
   整个目录内跨 kind 唯一（服务端 conformance case）。源清单由 Backend 发布声明，
   自定义源 URL 不在协议范围内。
@@ -101,7 +104,7 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
   `DOWNLOAD_SOURCE_UNKNOWN`（validation/400，不可重试）fail closed，不得静默回退到
   其他源。Runtime 未声明该 capability 时客户端必须省略字段（旧端请求 schema 对未知
   字段封闭）。
-- Host 应把生效源反映到 `launch.environment`（例如 pip index 或模型 registry 的环境
+- Host 应把生效源反映到 `launch.environment`（例如 pip index 的环境
   变量）；变量名与下载实现仍是 Backend 细节，不属于 wire contract。
 - `DownloadSourceKind` 是带 known-values 的开放响应字符串；客户端保留未知值，只对已理解
   的 kind 提供选择 UI，避免 minor 扩展破坏旧 SDK。

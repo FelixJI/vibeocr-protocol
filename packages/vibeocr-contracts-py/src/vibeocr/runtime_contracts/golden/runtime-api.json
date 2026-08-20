@@ -85,16 +85,6 @@
               "kind": "package_index",
               "id": "pypi-tuna",
               "endpoint": "https://pypi.tuna.tsinghua.edu.cn/simple"
-            },
-            {
-              "kind": "model_registry",
-              "id": "hf-official",
-              "endpoint": "https://huggingface.co"
-            },
-            {
-              "kind": "model_registry",
-              "id": "hf-mirror",
-              "endpoint": "https://hf-mirror.com"
             }
           ]
         }
