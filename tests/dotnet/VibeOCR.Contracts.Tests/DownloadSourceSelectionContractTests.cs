@@ -23,11 +23,17 @@ public sealed class DownloadSourceSelectionContractTests
         JsonElement fixture = LoadGolden().RootElement.GetProperty("download_source_catalog");
 
         var catalog = JsonSerializer.Deserialize<Wire.DownloadSourceCatalog>(fixture.GetRawText())!;
-        Assert.Equal(2, catalog.Sources.Count);
+        Assert.Equal(4, catalog.Sources.Count);
         Assert.Equal("package_index", catalog.Sources[0].Kind);
         Assert.Equal("pypi-official", catalog.Sources[0].Id);
         Assert.Equal("https://pypi.org/simple", catalog.Sources[0].Endpoint);
         Assert.Equal("package_index", catalog.Sources[1].Kind);
+        Assert.Equal("model_registry", catalog.Sources[2].Kind);
+        Assert.Equal("huggingface", catalog.Sources[2].Id);
+        Assert.Equal("https://huggingface.co", catalog.Sources[2].Endpoint);
+        Assert.Equal("model_registry", catalog.Sources[3].Kind);
+        Assert.Equal("modelscope", catalog.Sources[3].Id);
+        Assert.Equal("https://www.modelscope.cn", catalog.Sources[3].Endpoint);
 
         AssertDeepRoundTrip(
             fixture,

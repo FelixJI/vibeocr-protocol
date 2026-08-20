@@ -123,7 +123,7 @@
       "replacement": null
     },
     "runtime.download-sources.v1": {
-      "description": "Select download sources for dependency installation and model downloads from the Backend-declared source catalog, carried by capability descriptors and exchanged as stable source ids.",
+      "description": "Select dependency package indexes and native-engine model-source preferences from the Backend-declared catalog, carried by capability descriptors and exchanged as stable source ids without transferring model-file lifecycle ownership to VibeOCR.",
       "lifecycle": "active",
       "introduced_in": "2.7.0",
       "deprecated_in": null,

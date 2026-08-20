@@ -123,6 +123,35 @@ def test_legacy_model_registry_catalog_remains_wire_compatible() -> None:
     }
 
 
+def test_current_catalog_exposes_native_model_source_preferences() -> None:
+    fixture = _golden()["download_source_catalog"]
+    _component_schema_validator("DownloadSourceCatalog").validate(fixture)
+    assert fixture == {
+        "sources": [
+            {
+                "kind": "package_index",
+                "id": "pypi-official",
+                "endpoint": "https://pypi.org/simple",
+            },
+            {
+                "kind": "package_index",
+                "id": "pypi-tuna",
+                "endpoint": "https://pypi.tuna.tsinghua.edu.cn/simple",
+            },
+            {
+                "kind": "model_registry",
+                "id": "huggingface",
+                "endpoint": "https://huggingface.co",
+            },
+            {
+                "kind": "model_registry",
+                "id": "modelscope",
+                "endpoint": "https://www.modelscope.cn",
+            },
+        ]
+    }
+
+
 def test_settings_selection_round_trips_and_omission_stays_wire_compatible() -> None:
     fixture = _golden()["download_source_selection"]
 
@@ -264,7 +293,13 @@ def test_download_source_catalog_rides_on_health_descriptor() -> None:
     # Catalog ids are unique across kinds (server conformance case).
     ids = [source["id"] for source in sources]
     assert len(ids) == len(set(ids))
-    assert {source["kind"] for source in sources} == {"package_index"}
+    assert {source["kind"] for source in sources} == {
+        "package_index",
+        "model_registry",
+    }
+    assert {
+        source["id"] for source in sources if source["kind"] == "model_registry"
+    } == {"huggingface", "modelscope"}
     for source in sources:
         assert source["endpoint"].startswith("https://")
     # Legacy descriptors without a catalog keep their original wire shape.
@@ -282,6 +317,11 @@ def test_download_source_catalog_rides_on_health_descriptor() -> None:
     catalog_description = schema["DownloadSourceCatalog"]["description"]
     assert "unique" in catalog_description or "MUST NOT" in catalog_description
     assert "display text" in schema["DownloadSourceDescriptor"]["description"]
+    kind_description = schema["DownloadSourceKind"]["description"]
+    assert "model_registry selects an upstream model-source preference" in (
+        kind_description
+    )
+    assert "does not make VibeOCR responsible for model files" in kind_description
 
 
 def test_runtime_host_schema_carries_the_same_catalog_seam() -> None:
@@ -291,6 +331,11 @@ def test_runtime_host_schema_carries_the_same_catalog_seam() -> None:
     ] == {"$ref": "#/$defs/DownloadSourceCatalog"}
     descriptor = host["$defs"]["DownloadSourceDescriptor"]
     assert set(descriptor["required"]) == {"kind", "id", "endpoint"}
+    kind_description = host["$defs"]["DownloadSourceKind"]["description"]
+    assert "model_registry selects an upstream model-source preference" in (
+        kind_description
+    )
+    assert "does not make VibeOCR responsible for model files" in kind_description
     from vibeocr.runtime_contracts.generated import runtime_host_types
 
     assert hasattr(runtime_host_types, "DownloadSourceCatalog")

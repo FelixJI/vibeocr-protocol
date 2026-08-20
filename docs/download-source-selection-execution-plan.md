@@ -54,9 +54,9 @@ cache 或内部模型文件。
 - HTTP maintenance 增加逐 operation source intent/status，避免 Settings 在长操作期间
   改变导致同一 operation 换源。
 - kind 由封闭 enum 改为开放 string；生成器新增 scalar alias 回归测试。
-- 新 Backend 只发布 `package_index`，新客户端也只将其视为 editable；已发布的
-  `model_registry` 按 v2 兼容规则保留为 legacy known-value，旧 Runtime 返回时客户端
-  仍须原样保存但不得展示模型源选择 UI。
+- 新 Backend 可发布 `package_index` 与 `model_registry`；客户端可编辑这两种已理解的 kind，
+  并继续原样保存未来 unknown kind。`model_registry` 仅表达上游原生下载器的模型源偏好，
+  不恢复 VibeOCR 自建模型资产下载、校验、修复或 binding。
 - Settings/runtime status 的手写 Python parser 与 Python/.NET convenience client 同步
   新字段，避免 wire 已支持但稳定 client interface 丢值。
 
