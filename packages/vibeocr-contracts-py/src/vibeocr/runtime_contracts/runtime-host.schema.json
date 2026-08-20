@@ -84,6 +84,7 @@
     },
     "DownloadSourceKind": {
       "type": "string",
+      "description": "Open source-kind identifier. package_index selects a dependency package index; model_registry selects an upstream model-source preference that the Backend may encode for native engine downloaders. This preference does not make VibeOCR responsible for model files, downloads, caches, validation or repair. Clients preserve unknown response values and only offer selection UI for kinds they understand.",
       "x-vibeocr-known-values": ["package_index", "model_registry"]
     },
     "DownloadSourceDescriptor": {
@@ -196,7 +197,8 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Each selected id overrides its source kind; kinds not present use the Backend-declared default for that kind. Omitting the field delegates all kinds to Backend defaults."
         },
         "install_component_ids": {
           "type": "array",
@@ -257,7 +259,8 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Each selected id overrides its source kind; kinds not present use the Backend-declared default for that kind. Omitting the field reuses the source operation intent."
         },
         "install_component_ids": {
           "type": "array",

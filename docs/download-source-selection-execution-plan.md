@@ -32,8 +32,10 @@ cache 或内部模型文件。
   （validation/400/不可重试）fail closed，不静默回退。
 - 目录 id 跨 kind 全局唯一、一次选择每个 kind 至多一个 id 是服务端 conformance case；
   数组顺序没有优先级语义。
-- 目录携带事实性 `endpoint` base URL 供前端渲染；不携带展示文案、本地化或产品默认。
-- 客户端应始终发送用户当前选择；省略即 Backend 发布声明的默认源。
+- 目录携带 opaque 事实性 `endpoint` base URL 供 Backend binding 与 wire 兼容；Frontend
+  不展示或解析它，展示文案由产品本地化。
+- 客户端发送用户当前选择；每个已发送 id 只覆盖所属 kind，未出现的 kind 使用 Backend
+  为该 kind 声明的默认源；整个字段省略时所有 kind 使用 Backend 默认。
 - Host 将生效源反映到 `launch.environment` 是指导性 conformance 建议，具体环境变量
   名不属于 wire contract。
 
@@ -54,9 +56,9 @@ cache 或内部模型文件。
 - HTTP maintenance 增加逐 operation source intent/status，避免 Settings 在长操作期间
   改变导致同一 operation 换源。
 - kind 由封闭 enum 改为开放 string；生成器新增 scalar alias 回归测试。
-- 新 Backend 只发布 `package_index`，新客户端也只将其视为 editable；已发布的
-  `model_registry` 按 v2 兼容规则保留为 legacy known-value，旧 Runtime 返回时客户端
-  仍须原样保存但不得展示模型源选择 UI。
+- 新 Backend 可发布 `package_index` 与 `model_registry`；客户端可编辑这两种已理解的 kind，
+  并继续原样保存未来 unknown kind。`model_registry` 仅表达上游原生下载器的模型源偏好，
+  不恢复 VibeOCR 自建模型资产下载、校验、修复或 binding。
 - Settings/runtime status 的手写 Python parser 与 Python/.NET convenience client 同步
   新字段，避免 wire 已支持但稳定 client interface 丢值。
 
@@ -64,7 +66,7 @@ cache 或内部模型文件。
 
 - [x] kind 是带 known-values 的开放响应字符串，旧客户端保留未知值。
 - [x] `download_source_ids` 在 Settings、HTTP maintenance 与 Runtime Host envelope 可选，
-      出现时非空、每个 kind 至多一个，未知 id fail closed。
+      出现时非空、每个 kind 至多一个、未出现的 kind 使用其 Backend 默认，未知 id fail closed。
 - [x] capability 四处注册（capabilities.json、generated、Health known-values、
       bootstrap known-values）。
 - [x] `DOWNLOAD_SOURCE_UNKNOWN` 注册表与生成投影一致、fail closed。

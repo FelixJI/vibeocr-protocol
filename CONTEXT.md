@@ -16,7 +16,8 @@
 - Supervisor HTTP 请求、响应和错误由 `openapi.yaml` 约束。
 - Frontend 不解析依赖锁、不调用 pip、不推断 Runtime 路径。
 - PaddleX、PaddleOCR 与 MinerU 原生管理各自模型的下载、缓存、更新与复用；Protocol
-  不定义模型资产清单、文件级完整性、模型 registry 选择或本地模型 binding。
+  只用 `model_registry` source id 表达用户的上游模型源偏好，不定义模型资产清单、文件级
+  完整性、本地模型 binding，也不把模型文件生命周期转移给 VibeOCR。
 - Runtime Host v2 已发布的 `launch.model_root` 仅作为 opaque legacy response 字段保留；
   Frontend 不读取其内部结构，Portable cache/config 落点由 Backend 通过 launch environment
   使用上游官方变量建立。

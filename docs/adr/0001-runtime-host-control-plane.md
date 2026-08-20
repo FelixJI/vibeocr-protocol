@@ -16,7 +16,7 @@ Classic 与 Next 分别拼装 Runtime Installer 参数、profile 名和返回 DT
 
 CPU/GPU 对外建模为 Accelerator。具体 CUDA 版本、包索引和锁文件属于 Backend 发布实现，不进入 Frontend 契约。显式 Accelerator 在安装成功后成为 Host 偏好；请求未指定时先使用该偏好，再使用产品绑定默认值。
 
-> 修订（2026-08-20，`runtime.download-sources.v1`）：用户选择依赖安装源是 capability 保护字段（目录 + `download_source_ids`）；源的内容、镜像列表与锁文件仍由 Backend 发布声明。PaddleX、PaddleOCR 与 MinerU 的模型下载、缓存和更新归上游原生下载器所有，不进入 Frontend 契约；锁文件、CUDA 版本与具体下载实现继续留在 Backend。
+> 修订（2026-08-20，`runtime.download-sources.v1`）：用户选择依赖安装源与上游模型源偏好是 capability 保护字段（目录 + `download_source_ids`）；源目录仍由 Backend 发布声明。PaddleX、PaddleOCR 与 MinerU 的模型下载、缓存、校验和更新归上游原生下载器所有；`model_registry` 只让 Frontend 选择稳定 source id，由 Backend 浅映射为上游官方配置。锁文件、CUDA 版本与具体依赖下载实现继续留在 Backend。
 
 Runtime Host EXE 本身不内嵌完整 Python、推理框架或模型。Frontend 产品携带 Backend
 release-bound standalone Python 与 Base Runtime Pack，基础功能可离线激活；高级依赖按

@@ -81,15 +81,15 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
 
 ## 下载源选择（runtime.download-sources.v1）
 
-依赖安装源的用户选择是可协商的 minor 扩展，复用引擎选择的目录模式。PaddleX、
-PaddleOCR 与 MinerU 的模型由各自原生下载器管理，不进入 VibeOCR 下载源协议：
+依赖安装源和上游模型源偏好的用户选择是可协商的 minor 扩展，复用引擎选择的目录模式。
+PaddleX、PaddleOCR 与 MinerU 的模型仍由各自原生下载器管理；协议只传递稳定源 id：
 
 - 源目录 `DownloadSourceCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
   `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
   `download_source_catalog`，仅 `runtime.download-sources.v1` descriptor 携带。每个
-  `DownloadSourceDescriptor` 表达开放 `kind`。`package_index` 是新 Backend 唯一应发布且新
-  Frontend 唯一应展示的值；已发布的 `model_registry` 作为 Protocol v2 legacy known-value
-  继续保留，旧 Runtime 返回时客户端须原样保存但不得提供新选择 UI。descriptor 还包含稳定
+  `DownloadSourceDescriptor` 表达开放 `kind`。`package_index` 表示依赖包索引，
+  `model_registry` 表示 Backend 可编码给上游原生下载器的模型源偏好；新 Frontend 可对这两种
+  已理解的 kind 提供选择 UI，未知 kind 仍须原样保留。descriptor 还包含稳定
   `id` 与事实性 `endpoint` base URL；目录不携带展示文案、本地化或产品默认值，id 在
   整个目录内跨 kind 唯一（服务端 conformance case）。源清单由 Backend 发布声明，
   自定义源 URL 不在协议范围内。
@@ -99,13 +99,17 @@ PaddleOCR 与 MinerU 的模型由各自原生下载器管理，不进入 VibeOCR
     瞬间快照 Settings/Backend default，后续设置变化不影响当前操作；
   - runtime-host `RuntimeHostRequest` 与 retry 用的 `RuntimeMaintenanceCommandRequest`
     显式携带（Host 是一次性无状态 CLI）；observe 请求只读，不携带。
-- 每种 source kind 至多选择一个 id，数组顺序没有优先级语义。客户端应始终发送用户
-  当前选择；省略时由服务端应用 Backend 发布声明的默认源。未知 id 必须以
+- 每种 source kind 至多选择一个 id，数组顺序没有优先级语义。数组中的 id 只覆盖其
+  所属 kind；未出现的 kind 继续使用 Backend 为该 kind 声明的默认源，因此用户可以只设置
+  模型源而让依赖包索引跟随默认。整个字段省略时，所有 kind 均使用 Backend 默认。未知 id 必须以
   `DOWNLOAD_SOURCE_UNKNOWN`（validation/400，不可重试）fail closed，不得静默回退到
   其他源。Runtime 未声明该 capability 时客户端必须省略字段（旧端请求 schema 对未知
   字段封闭）。
-- Host 应把生效源反映到 `launch.environment`（例如 pip index 的环境
-  变量）；变量名与下载实现仍是 Backend 细节，不属于 wire contract。
+- `endpoint` 只作为兼容的事实字段与 Backend source binding 保留；Frontend 不展示、解析或
+  自行请求该 URL，只显示本地文案和稳定 id。
+- Host 应把生效源反映到 `launch.environment`（例如 pip index 或上游引擎官方 source
+  环境变量）；变量名与映射仍是 Backend 细节，不属于 wire contract。`model_registry` 只是一项
+  偏好，不赋予 VibeOCR 下载、校验、修复或绑定模型文件的责任。
 - `DownloadSourceKind` 是带 known-values 的开放响应字符串；客户端保留未知值，只对已理解
   的 kind 提供选择 UI，避免 minor 扩展破坏旧 SDK。
 
