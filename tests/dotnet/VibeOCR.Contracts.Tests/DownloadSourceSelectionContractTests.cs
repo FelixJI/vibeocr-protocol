@@ -23,14 +23,28 @@ public sealed class DownloadSourceSelectionContractTests
         JsonElement fixture = LoadGolden().RootElement.GetProperty("download_source_catalog");
 
         var catalog = JsonSerializer.Deserialize<Wire.DownloadSourceCatalog>(fixture.GetRawText())!;
-        Assert.Equal(4, catalog.Sources.Count);
+        Assert.Equal(2, catalog.Sources.Count);
         Assert.Equal("package_index", catalog.Sources[0].Kind);
         Assert.Equal("pypi-official", catalog.Sources[0].Id);
         Assert.Equal("https://pypi.org/simple", catalog.Sources[0].Endpoint);
         Assert.Equal("package_index", catalog.Sources[1].Kind);
-        Assert.Equal("model_registry", catalog.Sources[2].Kind);
-        Assert.Equal("model_registry", catalog.Sources[3].Kind);
-        Assert.Equal("hf-mirror", catalog.Sources[3].Id);
+
+        AssertDeepRoundTrip(
+            fixture,
+            json => JsonSerializer.Deserialize<Wire.DownloadSourceCatalog>(json)!,
+            value => JsonSerializer.Serialize(value, value.GetType()));
+    }
+
+    [Fact]
+    public void LegacyModelRegistryCatalogRoundTripsThroughGeneratedWireBinding()
+    {
+        JsonElement fixture = LoadGolden().RootElement.GetProperty("legacy_download_source_catalog");
+
+        var catalog = JsonSerializer.Deserialize<Wire.DownloadSourceCatalog>(fixture.GetRawText())!;
+        Assert.Single(catalog.Sources);
+        Assert.Equal("model_registry", catalog.Sources[0].Kind);
+        Assert.Equal("legacy-models", catalog.Sources[0].Id);
+        Assert.Equal("https://models.example.invalid", catalog.Sources[0].Endpoint);
 
         AssertDeepRoundTrip(
             fixture,
@@ -106,9 +120,9 @@ public sealed class DownloadSourceSelectionContractTests
             [
                 new Wire.DownloadSourceDescriptor
                 {
-                    Kind = "model_registry",
-                    Id = "hf-mirror",
-                    Endpoint = "https://hf-mirror.com",
+                    Kind = "package_index",
+                    Id = "pypi-official",
+                    Endpoint = "https://pypi.org/simple",
                 },
             ],
         };
@@ -125,10 +139,10 @@ public sealed class DownloadSourceSelectionContractTests
 
         string json = JsonSerializer.Serialize(descriptor);
         Assert.Contains("\"download_source_catalog\"", json);
-        Assert.Contains("\"hf-mirror\"", json);
+        Assert.Contains("\"pypi-official\"", json);
 
         var parsed = JsonSerializer.Deserialize<Wire.CapabilityDescriptor>(json)!;
-        Assert.Equal("hf-mirror", parsed.DownloadSourceCatalog!.Sources[0].Id);
+        Assert.Equal("pypi-official", parsed.DownloadSourceCatalog!.Sources[0].Id);
 
         string legacyJson = """
             {"name": "ocr.recognition.v2", "lifecycle": "active", "introduced_in": "2.0.0",

@@ -23,7 +23,8 @@
 双语言生成绑定、golden fixtures 与双语言契约测试。
 
 非目标：自定义源 URL、源的可用性探测与测速、镜像列表内容（Backend 发布声明）、
-源变更触发的自动重装策略。
+源变更触发的自动重装策略，以及 PaddleX/PaddleOCR/MinerU 原生模型下载器的 registry、
+cache 或内部模型文件。
 
 ## 2. 外部接口决策
 
@@ -53,6 +54,9 @@
 - HTTP maintenance 增加逐 operation source intent/status，避免 Settings 在长操作期间
   改变导致同一 operation 换源。
 - kind 由封闭 enum 改为开放 string；生成器新增 scalar alias 回归测试。
+- 新 Backend 只发布 `package_index`，新客户端也只将其视为 editable；已发布的
+  `model_registry` 按 v2 兼容规则保留为 legacy known-value，旧 Runtime 返回时客户端
+  仍须原样保存但不得展示模型源选择 UI。
 - Settings/runtime status 的手写 Python parser 与 Python/.NET convenience client 同步
   新字段，避免 wire 已支持但稳定 client interface 丢值。
 
