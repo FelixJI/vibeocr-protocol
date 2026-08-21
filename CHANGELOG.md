@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.2
+
+### Bug Fixes
+
+- **protocol:** 恢复模型源偏好契约 (#42) (e6fe138)
+- **protocol:** 收敛模型下载责任边界 (#41) (bb63e41)
+
 ## 2.7.1
 
 ### Bug Fixes

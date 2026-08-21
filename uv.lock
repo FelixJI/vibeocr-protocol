@@ -254,7 +254,7 @@ wheels = [
 
 [[package]]
 name = "vibeocr-runtime-client"
-version = "2.7.1"
+version = "2.7.2"
 source = { editable = "packages/vibeocr-runtime-client-py" }
 dependencies = [
     { name = "httpx" },
@@ -271,5 +271,5 @@ requires-dist = [
 
 [[package]]
 name = "vibeocr-runtime-contracts"
-version = "2.7.1"
+version = "2.7.2"
 source = { editable = "packages/vibeocr-contracts-py" }
