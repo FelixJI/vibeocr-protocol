@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.0
+
+### Features
+
+- **protocol:** 明确认识模式与生命周期语义 (#44) (096a811)
+
 ## 2.7.2
 
 ### Bug Fixes

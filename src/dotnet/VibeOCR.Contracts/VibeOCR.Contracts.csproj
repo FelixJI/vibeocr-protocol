@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>VibeOCR.Runtime.Contracts</PackageId>
-    <Version>2.7.2</Version>
+    <Version>2.8.0</Version>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>VibeOCR.Contracts</RootNamespace>
     <AssemblyName>VibeOCR.Contracts</AssemblyName>
