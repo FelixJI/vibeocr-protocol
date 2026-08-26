@@ -118,6 +118,11 @@ class ResidencyKind(StrEnum):
     EVICTED = "evicted"
 
 
+class RecognitionResourceKind(StrEnum):
+    MODEL = "model"
+    PROCESS = "process"
+
+
 class EvictionReason(StrEnum):
     NONE = "none"
     TTL_EXPIRED = "ttl_expired"
@@ -560,13 +565,17 @@ class PipelineSpec:
     name: str
     ttl_seconds: int | None = None
     pinned: bool = False
+    recognition_mode: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "name": self.name,
             "ttl_seconds": self.ttl_seconds,
             "pinned": self.pinned,
         }
+        if self.recognition_mode is not None:
+            payload["recognition_mode"] = self.recognition_mode
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -575,13 +584,16 @@ class ResidencyEntry:
 
     pipeline: str
     kind: ResidencyKind
+    recognition_mode: str | None = None
+    resource_kind: RecognitionResourceKind | None = None
+    resource_id: str | None = None
     active_leases: int = 0
     remaining_ttl_seconds: int | None = None
     estimated_vram_mb: int | None = None
     eviction_reason: EvictionReason = EvictionReason.NONE
 
     def to_payload(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "pipeline": self.pipeline,
             "kind": self.kind.value,
             "active_leases": self.active_leases,
@@ -589,6 +601,13 @@ class ResidencyEntry:
             "estimated_vram_mb": self.estimated_vram_mb,
             "eviction_reason": self.eviction_reason.value,
         }
+        if self.recognition_mode is not None:
+            payload["recognition_mode"] = self.recognition_mode
+        if self.resource_kind is not None:
+            payload["resource_kind"] = self.resource_kind.value
+        if self.resource_id is not None:
+            payload["resource_id"] = self.resource_id
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -986,6 +1005,7 @@ __all__ = [
     "PipelineSpec",
     "ProgressSnapshot",
     "ProgressUnit",
+    "RecognitionResourceKind",
     "ResidencyEntry",
     "ResidencyKind",
     "ResidencyStatus",

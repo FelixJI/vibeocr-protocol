@@ -1666,6 +1666,9 @@
           "ocr_engine_catalog": {
             "$ref": "#/components/schemas/OcrEngineCatalog"
           },
+          "recognition_mode_catalog": {
+            "$ref": "#/components/schemas/RecognitionModeCatalog"
+          },
           "download_source_catalog": {
             "$ref": "#/components/schemas/DownloadSourceCatalog"
           },
@@ -2033,7 +2036,11 @@
               "OCR_ENGINE_NOT_VALID_FOR_PIPELINE",
               "OCR_ENGINE_LANGUAGE_UNAVAILABLE",
               "DOWNLOAD_SOURCE_UNKNOWN",
-              "RUNTIME_COMPONENT_UNKNOWN"
+              "RUNTIME_COMPONENT_UNKNOWN",
+              "RECOGNITION_MODE_UNKNOWN",
+              "RECOGNITION_MODE_UNAVAILABLE",
+              "RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED",
+              "RECOGNITION_MODE_PIPELINE_MISMATCH"
             ]
           },
           "message": {
@@ -2189,7 +2196,8 @@
                 "runtime.events.ndjson.v1",
                 "ocr.engine-selection.v1",
                 "runtime.download-sources.v1",
-                "runtime.component-selection.v1"
+                "runtime.component-selection.v1",
+                "ocr.recognition-modes.v1"
               ]
             }
           },
@@ -2812,6 +2820,125 @@
         "type": "object",
         "additionalProperties": false
       },
+      "ExecutionPipelineId": {
+        "type": "string",
+        "description": "Stable legacy execution-pipeline identifiers. Products present RecognitionModeId values instead of exposing this enum directly.",
+        "enum": [
+          "OCR",
+          "PP-StructureV3",
+          "MinerU",
+          "PaddleOCR-VL",
+          "TABLE_RECOGNITION",
+          "FORMULA_RECOGNITION"
+        ]
+      },
+      "RecognitionModeAvailability": {
+        "type": "string",
+        "enum": ["ready", "preparation_required", "unavailable"]
+      },
+      "RecognitionModeFamily": {
+        "type": "string",
+        "enum": ["text", "document", "specialized"]
+      },
+      "RecognitionModeId": {
+        "type": "string",
+        "description": "Stable user-semantic recognition modes. Each mode maps to one legacy execution pipeline and, for plain text OCR, one explicit OCR engine.",
+        "enum": [
+          "rapid_text",
+          "windows_text",
+          "paddle_text",
+          "paddle_structure",
+          "paddle_document_vl",
+          "mineru_document",
+          "paddle_table",
+          "paddle_formula"
+        ]
+      },
+      "RecognitionModeLifecycleKind": {
+        "type": "string",
+        "description": "User-manageable resource lifecycle. unmanaged is an implementation-local cache with no controls; model_residency is Paddle model warm-up/TTL/pinning/release; process_keep_alive is child-process TTL/release and is not model residency.",
+        "enum": ["unmanaged", "model_residency", "process_keep_alive"]
+      },
+      "RecognitionResourceKind": {
+        "type": "string",
+        "description": "Concrete managed resource reported by lifecycle status. model is Paddle model residency; process is child-process keep-alive.",
+        "enum": ["model", "process"]
+      },
+      "RecognitionModeLifecycle": {
+        "type": "object",
+        "required": [
+          "kind",
+          "supports_preload",
+          "supports_ttl",
+          "supports_pinning",
+          "supports_release"
+        ],
+        "properties": {
+          "kind": {"$ref": "#/components/schemas/RecognitionModeLifecycleKind"},
+          "supports_preload": {"type": "boolean"},
+          "supports_ttl": {"type": "boolean"},
+          "supports_pinning": {"type": "boolean"},
+          "supports_release": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      },
+      "RecognitionModeProvisioning": {
+        "type": "string",
+        "description": "Where the executable capability comes from: the bundled base runtime, the operating system, or an optional advanced runtime component.",
+        "enum": ["base_runtime", "operating_system", "advanced_component"]
+      },
+      "RecognitionModeDescriptor": {
+        "type": "object",
+        "description": "One user-semantic recognition mode and its exact execution, provisioning, availability, option and lifecycle facts. The descriptor carries no display text or product default; clients localize stable ids.",
+        "required": [
+          "id",
+          "family",
+          "pipeline_id",
+          "engine",
+          "provisioning",
+          "availability",
+          "reason_code",
+          "required_component",
+          "supported_options",
+          "lifecycle"
+        ],
+        "properties": {
+          "id": {"$ref": "#/components/schemas/RecognitionModeId"},
+          "family": {"$ref": "#/components/schemas/RecognitionModeFamily"},
+          "pipeline_id": {"$ref": "#/components/schemas/ExecutionPipelineId"},
+          "engine": {
+            "anyOf": [
+              {"$ref": "#/components/schemas/OcrEngineId"},
+              {"type": "null"}
+            ]
+          },
+          "provisioning": {"$ref": "#/components/schemas/RecognitionModeProvisioning"},
+          "availability": {"$ref": "#/components/schemas/RecognitionModeAvailability"},
+          "reason_code": {"type": ["string", "null"], "minLength": 1},
+          "required_component": {"type": ["string", "null"], "minLength": 1},
+          "supported_options": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "lifecycle": {"$ref": "#/components/schemas/RecognitionModeLifecycle"}
+        },
+        "additionalProperties": false
+      },
+      "RecognitionModeCatalog": {
+        "type": "object",
+        "description": "Structured catalog carried only by the ocr.recognition-modes.v1 capability descriptor. Servers list every stable RecognitionModeId exactly once and keep execution mappings invariant across runtime state changes.",
+        "required": ["modes"],
+        "properties": {
+          "modes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"$ref": "#/components/schemas/RecognitionModeDescriptor"}
+          }
+        },
+        "additionalProperties": false
+      },
       "OcrEngineAvailability": {
         "type": "string",
         "description": "Availability of one OCR engine in the current runtime. 'ready' means jobs may select it now; 'preparation_required' means the user must prepare a runtime component (see required_component) before use; 'unavailable' means the engine cannot run in this runtime. The catalog expresses capability and state only; it never carries UI display text or the product default.",
@@ -3341,15 +3468,7 @@
         "additionalProperties": false,
         "properties": {
           "pipeline_id": {
-            "type": "string",
-            "enum": [
-              "OCR",
-              "PP-StructureV3",
-              "MinerU",
-              "PaddleOCR-VL",
-              "TABLE_RECOGNITION",
-              "FORMULA_RECOGNITION"
-            ]
+            "$ref": "#/components/schemas/ExecutionPipelineId"
           },
           "options_version": {
             "type": "integer",
@@ -3374,6 +3493,9 @@
           "name": {
             "type": "string",
             "minLength": 1
+          },
+          "recognition_mode": {
+            "$ref": "#/components/schemas/RecognitionModeId"
           },
           "ttl_seconds": {
             "type": [
@@ -3640,6 +3762,16 @@
         "properties": {
           "pipeline": {
             "type": "string"
+          },
+          "recognition_mode": {
+            "$ref": "#/components/schemas/RecognitionModeId"
+          },
+          "resource_kind": {
+            "$ref": "#/components/schemas/RecognitionResourceKind"
+          },
+          "resource_id": {
+            "type": "string",
+            "minLength": 1
           },
           "kind": {
             "enum": [
@@ -4478,6 +4610,7 @@
       },
       "RuntimePreloadRequest": {
         "type": "object",
+        "description": "Preload model-residency recognition modes. recognition_modes is authoritative when ocr.recognition-modes.v1 is negotiated; pipelines remains the required legacy execution projection for Protocol v2 compatibility. The server validates that both fields agree.",
         "required": [
           "pipelines"
         ],
@@ -4489,6 +4622,14 @@
             "items": {
               "type": "string",
               "minLength": 1
+            }
+          },
+          "recognition_modes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/RecognitionModeId"
             }
           }
         },
@@ -4502,6 +4643,12 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "recognition_mode": {
+            "anyOf": [
+              {"$ref": "#/components/schemas/RecognitionModeId"},
+              {"type": "null"}
             ]
           }
         },

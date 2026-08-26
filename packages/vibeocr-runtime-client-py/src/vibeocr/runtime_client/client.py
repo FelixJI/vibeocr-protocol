@@ -35,6 +35,10 @@ from vibeocr.runtime_contracts import (
     SettingsSnapshot,
     SubmitRequest,
 )
+from vibeocr.runtime_contracts.contracts.pipelines import (
+    RecognitionMode,
+    get_recognition_mode_definition,
+)
 from vibeocr.runtime_contracts.errors import ErrorCode, ErrorPayload
 from vibeocr.runtime_contracts.generated.operations import (
     OPERATION_IDS_BY_NAME,
@@ -81,6 +85,28 @@ if TYPE_CHECKING:
     )
 
 JsonObject = dict[str, Any]
+
+
+def _project_recognition_modes(mode_ids: Iterable[str]) -> list[str]:
+    pipelines: list[str] = []
+    for mode_id in mode_ids:
+        mode = RecognitionMode(mode_id)
+        pipeline = get_recognition_mode_definition(mode).pipeline.value
+        if pipeline not in pipelines:
+            pipelines.append(pipeline)
+    return pipelines
+
+
+def _resolve_lifecycle_pipeline(
+    pipeline: str | None,
+    recognition_mode: str | None,
+) -> str | None:
+    if recognition_mode is None:
+        return pipeline
+    projected = _project_recognition_modes((recognition_mode,))[0]
+    if pipeline is not None and pipeline != projected:
+        raise ValueError("pipeline does not match recognition_mode")
+    return projected
 
 
 def _validate_runtime_maintenance_cursor(
@@ -529,18 +555,47 @@ class RuntimeHttpClient:
             )
         )
 
-    def release_idle(self, pipeline: str | None = None) -> WireResidencyStatus:
+    def release_idle(
+        self,
+        pipeline: str | None = None,
+        *,
+        recognition_mode: str | None = None,
+    ) -> WireResidencyStatus:
+        payload: dict[str, Any] = {
+            "pipeline": _resolve_lifecycle_pipeline(pipeline, recognition_mode)
+        }
+        if recognition_mode is not None:
+            payload["recognition_mode"] = recognition_mode
         return cast(
             "WireResidencyStatus",
-            self.request_json("releaseRuntime", json_body={"pipeline": pipeline}),
+            self.request_json("releaseRuntime", json_body=payload),
         )
 
-    def preload(self, pipelines: Iterable[str]) -> WireResidencyStatus:
+    def preload(
+        self,
+        pipelines: Iterable[str] = (),
+        *,
+        recognition_modes: Iterable[str] = (),
+    ) -> WireResidencyStatus:
+        pipeline_values = list(pipelines)
+        mode_values = list(recognition_modes)
+        if not pipeline_values and not mode_values:
+            raise ValueError("preload requires pipelines or recognition_modes")
+        if mode_values:
+            projected = _project_recognition_modes(mode_values)
+            if pipeline_values and pipeline_values != projected:
+                raise ValueError("pipelines do not match recognition_modes")
+            pipeline_values = projected
+        payload: dict[str, Any] = {}
+        if pipeline_values:
+            payload["pipelines"] = pipeline_values
+        if mode_values:
+            payload["recognition_modes"] = mode_values
         return cast(
             "WireResidencyStatus",
             self.request_json(
                 "preloadRuntime",
-                json_body={"pipelines": list(pipelines)},
+                json_body=payload,
                 timeout=600.0,
             ),
         )
@@ -1071,31 +1126,63 @@ class SupervisorClient:
             )
         )
 
-    async def release_idle(self, pipeline: str | None = None) -> ResidencyStatus:
+    async def release_idle(
+        self,
+        pipeline: str | None = None,
+        *,
+        recognition_mode: str | None = None,
+    ) -> ResidencyStatus:
+        resolved_pipeline = _resolve_lifecycle_pipeline(pipeline, recognition_mode)
+        payload: dict[str, Any] = {"pipeline": resolved_pipeline}
+        if recognition_mode is not None:
+            payload["recognition_mode"] = recognition_mode
         if self._client is not None:
             response = await self._client.post(
                 operation_path("releaseRuntime"),
-                json={"pipeline": pipeline},
+                json=payload,
             )
             return _parse_residency(
                 self._async_response_object(response, "releaseRuntime")
             )
         value = await asyncio.to_thread(
-            self._require_transport().release_idle, pipeline
+            self._require_transport().release_idle,
+            resolved_pipeline,
+            recognition_mode=recognition_mode,
         )
         return _parse_residency(value)
 
-    async def preload(self, pipelines: tuple[str, ...]) -> ResidencyStatus:
+    async def preload(
+        self,
+        pipelines: tuple[str, ...] = (),
+        *,
+        recognition_modes: tuple[str, ...] = (),
+    ) -> ResidencyStatus:
+        if not pipelines and not recognition_modes:
+            raise ValueError("preload requires pipelines or recognition_modes")
+        if recognition_modes:
+            projected = tuple(_project_recognition_modes(recognition_modes))
+            if pipelines and pipelines != projected:
+                raise ValueError("pipelines do not match recognition_modes")
+            pipelines = projected
+        payload: dict[str, Any] = {}
+        if pipelines:
+            payload["pipelines"] = list(pipelines)
+        if recognition_modes:
+            payload["recognition_modes"] = list(recognition_modes)
         if self._client is not None:
             response = await self._client.post(
                 operation_path("preloadRuntime"),
-                json={"pipelines": list(pipelines)},
+                json=payload,
                 timeout=600.0,
             )
             return _parse_residency(
                 self._async_response_object(response, "preloadRuntime")
             )
-        value = await asyncio.to_thread(self._require_transport().preload, pipelines)
+        value = await asyncio.to_thread(
+            self._require_transport().preload,
+            pipelines,
+            recognition_modes=recognition_modes,
+        )
         return _parse_residency(value)
 
     async def get_settings(self) -> SettingsSnapshot:

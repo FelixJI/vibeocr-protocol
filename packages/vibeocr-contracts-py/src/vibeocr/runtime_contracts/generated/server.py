@@ -302,14 +302,78 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                'required': ['operation'],
                                'type': 'object'},
  'RuntimePreloadRequest': {'additionalProperties': False,
+                           'description': 'Preload model-residency recognition modes. '
+                                          'recognition_modes is authoritative when '
+                                          'ocr.recognition-modes.v1 is negotiated; pipelines '
+                                          'remains the required legacy execution projection for '
+                                          'Protocol v2 compatibility. The server validates that '
+                                          'both fields agree.',
                            'properties': {'pipelines': {'items': {'minLength': 1, 'type': 'string'},
                                                         'minItems': 1,
                                                         'type': 'array',
-                                                        'uniqueItems': True}},
+                                                        'uniqueItems': True},
+                                          'recognition_modes': {'items': {'description': 'Stable '
+                                                                                         'user-semantic '
+                                                                                         'recognition '
+                                                                                         'modes. '
+                                                                                         'Each '
+                                                                                         'mode '
+                                                                                         'maps to '
+                                                                                         'one '
+                                                                                         'legacy '
+                                                                                         'execution '
+                                                                                         'pipeline '
+                                                                                         'and, for '
+                                                                                         'plain '
+                                                                                         'text '
+                                                                                         'OCR, one '
+                                                                                         'explicit '
+                                                                                         'OCR '
+                                                                                         'engine.',
+                                                                          'enum': ['rapid_text',
+                                                                                   'windows_text',
+                                                                                   'paddle_text',
+                                                                                   'paddle_structure',
+                                                                                   'paddle_document_vl',
+                                                                                   'mineru_document',
+                                                                                   'paddle_table',
+                                                                                   'paddle_formula'],
+                                                                          'type': 'string'},
+                                                                'minItems': 1,
+                                                                'type': 'array',
+                                                                'uniqueItems': True}},
                            'required': ['pipelines'],
                            'type': 'object'},
  'RuntimeReleaseRequest': {'additionalProperties': False,
-                           'properties': {'pipeline': {'type': ['string', 'null']}},
+                           'properties': {'pipeline': {'type': ['string', 'null']},
+                                          'recognition_mode': {'anyOf': [{'description': 'Stable '
+                                                                                         'user-semantic '
+                                                                                         'recognition '
+                                                                                         'modes. '
+                                                                                         'Each '
+                                                                                         'mode '
+                                                                                         'maps to '
+                                                                                         'one '
+                                                                                         'legacy '
+                                                                                         'execution '
+                                                                                         'pipeline '
+                                                                                         'and, for '
+                                                                                         'plain '
+                                                                                         'text '
+                                                                                         'OCR, one '
+                                                                                         'explicit '
+                                                                                         'OCR '
+                                                                                         'engine.',
+                                                                          'enum': ['rapid_text',
+                                                                                   'windows_text',
+                                                                                   'paddle_text',
+                                                                                   'paddle_structure',
+                                                                                   'paddle_document_vl',
+                                                                                   'mineru_document',
+                                                                                   'paddle_table',
+                                                                                   'paddle_formula'],
+                                                                          'type': 'string'},
+                                                                         {'type': 'null'}]}},
                            'required': [],
                            'type': 'object'},
  'SaveRequest': {'additionalProperties': False,
@@ -350,6 +414,36 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                                                           'properties': {'name': {'minLength': 1,
                                                                                                                   'type': 'string'},
                                                                                                          'pinned': {'type': 'boolean'},
+                                                                                                         'recognition_mode': {'description': 'Stable '
+                                                                                                                                             'user-semantic '
+                                                                                                                                             'recognition '
+                                                                                                                                             'modes. '
+                                                                                                                                             'Each '
+                                                                                                                                             'mode '
+                                                                                                                                             'maps '
+                                                                                                                                             'to '
+                                                                                                                                             'one '
+                                                                                                                                             'legacy '
+                                                                                                                                             'execution '
+                                                                                                                                             'pipeline '
+                                                                                                                                             'and, '
+                                                                                                                                             'for '
+                                                                                                                                             'plain '
+                                                                                                                                             'text '
+                                                                                                                                             'OCR, '
+                                                                                                                                             'one '
+                                                                                                                                             'explicit '
+                                                                                                                                             'OCR '
+                                                                                                                                             'engine.',
+                                                                                                                              'enum': ['rapid_text',
+                                                                                                                                       'windows_text',
+                                                                                                                                       'paddle_text',
+                                                                                                                                       'paddle_structure',
+                                                                                                                                       'paddle_document_vl',
+                                                                                                                                       'mineru_document',
+                                                                                                                                       'paddle_table',
+                                                                                                                                       'paddle_formula'],
+                                                                                                                              'type': 'string'},
                                                                                                          'ttl_seconds': {'minimum': 0,
                                                                                                                          'type': ['integer',
                                                                                                                                   'null']}},
@@ -1859,7 +1953,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                            'runtime.events.ndjson.v1',
                                                                                            'ocr.engine-selection.v1',
                                                                                            'runtime.download-sources.v1',
-                                                                                           'runtime.component-selection.v1']},
+                                                                                           'runtime.component-selection.v1',
+                                                                                           'ocr.recognition-modes.v1']},
                                                       'type': 'array',
                                                       'uniqueItems': True},
                                      'capability_descriptors': {'items': {'additionalProperties': False,
@@ -2554,6 +2649,237 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                            'uniqueItems': True}},
                                                                                                                 'required': ['engines'],
                                                                                                                 'type': 'object'},
+                                                                                         'recognition_mode_catalog': {'additionalProperties': False,
+                                                                                                                      'description': 'Structured '
+                                                                                                                                     'catalog '
+                                                                                                                                     'carried '
+                                                                                                                                     'only '
+                                                                                                                                     'by '
+                                                                                                                                     'the '
+                                                                                                                                     'ocr.recognition-modes.v1 '
+                                                                                                                                     'capability '
+                                                                                                                                     'descriptor. '
+                                                                                                                                     'Servers '
+                                                                                                                                     'list '
+                                                                                                                                     'every '
+                                                                                                                                     'stable '
+                                                                                                                                     'RecognitionModeId '
+                                                                                                                                     'exactly '
+                                                                                                                                     'once '
+                                                                                                                                     'and '
+                                                                                                                                     'keep '
+                                                                                                                                     'execution '
+                                                                                                                                     'mappings '
+                                                                                                                                     'invariant '
+                                                                                                                                     'across '
+                                                                                                                                     'runtime '
+                                                                                                                                     'state '
+                                                                                                                                     'changes.',
+                                                                                                                      'properties': {'modes': {'items': {'additionalProperties': False,
+                                                                                                                                                         'description': 'One '
+                                                                                                                                                                        'user-semantic '
+                                                                                                                                                                        'recognition '
+                                                                                                                                                                        'mode '
+                                                                                                                                                                        'and '
+                                                                                                                                                                        'its '
+                                                                                                                                                                        'exact '
+                                                                                                                                                                        'execution, '
+                                                                                                                                                                        'provisioning, '
+                                                                                                                                                                        'availability, '
+                                                                                                                                                                        'option '
+                                                                                                                                                                        'and '
+                                                                                                                                                                        'lifecycle '
+                                                                                                                                                                        'facts. '
+                                                                                                                                                                        'The '
+                                                                                                                                                                        'descriptor '
+                                                                                                                                                                        'carries '
+                                                                                                                                                                        'no '
+                                                                                                                                                                        'display '
+                                                                                                                                                                        'text '
+                                                                                                                                                                        'or '
+                                                                                                                                                                        'product '
+                                                                                                                                                                        'default; '
+                                                                                                                                                                        'clients '
+                                                                                                                                                                        'localize '
+                                                                                                                                                                        'stable '
+                                                                                                                                                                        'ids.',
+                                                                                                                                                         'properties': {'availability': {'enum': ['ready',
+                                                                                                                                                                                                  'preparation_required',
+                                                                                                                                                                                                  'unavailable'],
+                                                                                                                                                                                         'type': 'string'},
+                                                                                                                                                                        'engine': {'anyOf': [{'description': 'Stable '
+                                                                                                                                                                                                             'engine '
+                                                                                                                                                                                                             'ids '
+                                                                                                                                                                                                             'for '
+                                                                                                                                                                                                             'the '
+                                                                                                                                                                                                             'plain-text '
+                                                                                                                                                                                                             'OCR '
+                                                                                                                                                                                                             'pipeline. '
+                                                                                                                                                                                                             'Unknown '
+                                                                                                                                                                                                             'values '
+                                                                                                                                                                                                             'MUST '
+                                                                                                                                                                                                             'fail '
+                                                                                                                                                                                                             'closed '
+                                                                                                                                                                                                             'with '
+                                                                                                                                                                                                             'OCR_ENGINE_UNKNOWN '
+                                                                                                                                                                                                             'and '
+                                                                                                                                                                                                             'MUST '
+                                                                                                                                                                                                             'NOT '
+                                                                                                                                                                                                             'silently '
+                                                                                                                                                                                                             'fall '
+                                                                                                                                                                                                             'back '
+                                                                                                                                                                                                             'to '
+                                                                                                                                                                                                             'another '
+                                                                                                                                                                                                             'engine.',
+                                                                                                                                                                                              'enum': ['rapidocr',
+                                                                                                                                                                                                       'windows',
+                                                                                                                                                                                                       'paddleocr'],
+                                                                                                                                                                                              'type': 'string'},
+                                                                                                                                                                                             {'type': 'null'}]},
+                                                                                                                                                                        'family': {'enum': ['text',
+                                                                                                                                                                                            'document',
+                                                                                                                                                                                            'specialized'],
+                                                                                                                                                                                   'type': 'string'},
+                                                                                                                                                                        'id': {'description': 'Stable '
+                                                                                                                                                                                              'user-semantic '
+                                                                                                                                                                                              'recognition '
+                                                                                                                                                                                              'modes. '
+                                                                                                                                                                                              'Each '
+                                                                                                                                                                                              'mode '
+                                                                                                                                                                                              'maps '
+                                                                                                                                                                                              'to '
+                                                                                                                                                                                              'one '
+                                                                                                                                                                                              'legacy '
+                                                                                                                                                                                              'execution '
+                                                                                                                                                                                              'pipeline '
+                                                                                                                                                                                              'and, '
+                                                                                                                                                                                              'for '
+                                                                                                                                                                                              'plain '
+                                                                                                                                                                                              'text '
+                                                                                                                                                                                              'OCR, '
+                                                                                                                                                                                              'one '
+                                                                                                                                                                                              'explicit '
+                                                                                                                                                                                              'OCR '
+                                                                                                                                                                                              'engine.',
+                                                                                                                                                                               'enum': ['rapid_text',
+                                                                                                                                                                                        'windows_text',
+                                                                                                                                                                                        'paddle_text',
+                                                                                                                                                                                        'paddle_structure',
+                                                                                                                                                                                        'paddle_document_vl',
+                                                                                                                                                                                        'mineru_document',
+                                                                                                                                                                                        'paddle_table',
+                                                                                                                                                                                        'paddle_formula'],
+                                                                                                                                                                               'type': 'string'},
+                                                                                                                                                                        'lifecycle': {'additionalProperties': False,
+                                                                                                                                                                                      'properties': {'kind': {'description': 'User-manageable '
+                                                                                                                                                                                                                             'resource '
+                                                                                                                                                                                                                             'lifecycle. '
+                                                                                                                                                                                                                             'unmanaged '
+                                                                                                                                                                                                                             'is '
+                                                                                                                                                                                                                             'an '
+                                                                                                                                                                                                                             'implementation-local '
+                                                                                                                                                                                                                             'cache '
+                                                                                                                                                                                                                             'with '
+                                                                                                                                                                                                                             'no '
+                                                                                                                                                                                                                             'controls; '
+                                                                                                                                                                                                                             'model_residency '
+                                                                                                                                                                                                                             'is '
+                                                                                                                                                                                                                             'Paddle '
+                                                                                                                                                                                                                             'model '
+                                                                                                                                                                                                                             'warm-up/TTL/pinning/release; '
+                                                                                                                                                                                                                             'process_keep_alive '
+                                                                                                                                                                                                                             'is '
+                                                                                                                                                                                                                             'child-process '
+                                                                                                                                                                                                                             'TTL/release '
+                                                                                                                                                                                                                             'and '
+                                                                                                                                                                                                                             'is '
+                                                                                                                                                                                                                             'not '
+                                                                                                                                                                                                                             'model '
+                                                                                                                                                                                                                             'residency.',
+                                                                                                                                                                                                              'enum': ['unmanaged',
+                                                                                                                                                                                                                       'model_residency',
+                                                                                                                                                                                                                       'process_keep_alive'],
+                                                                                                                                                                                                              'type': 'string'},
+                                                                                                                                                                                                     'supports_pinning': {'type': 'boolean'},
+                                                                                                                                                                                                     'supports_preload': {'type': 'boolean'},
+                                                                                                                                                                                                     'supports_release': {'type': 'boolean'},
+                                                                                                                                                                                                     'supports_ttl': {'type': 'boolean'}},
+                                                                                                                                                                                      'required': ['kind',
+                                                                                                                                                                                                   'supports_preload',
+                                                                                                                                                                                                   'supports_ttl',
+                                                                                                                                                                                                   'supports_pinning',
+                                                                                                                                                                                                   'supports_release'],
+                                                                                                                                                                                      'type': 'object'},
+                                                                                                                                                                        'pipeline_id': {'description': 'Stable '
+                                                                                                                                                                                                       'legacy '
+                                                                                                                                                                                                       'execution-pipeline '
+                                                                                                                                                                                                       'identifiers. '
+                                                                                                                                                                                                       'Products '
+                                                                                                                                                                                                       'present '
+                                                                                                                                                                                                       'RecognitionModeId '
+                                                                                                                                                                                                       'values '
+                                                                                                                                                                                                       'instead '
+                                                                                                                                                                                                       'of '
+                                                                                                                                                                                                       'exposing '
+                                                                                                                                                                                                       'this '
+                                                                                                                                                                                                       'enum '
+                                                                                                                                                                                                       'directly.',
+                                                                                                                                                                                        'enum': ['OCR',
+                                                                                                                                                                                                 'PP-StructureV3',
+                                                                                                                                                                                                 'MinerU',
+                                                                                                                                                                                                 'PaddleOCR-VL',
+                                                                                                                                                                                                 'TABLE_RECOGNITION',
+                                                                                                                                                                                                 'FORMULA_RECOGNITION'],
+                                                                                                                                                                                        'type': 'string'},
+                                                                                                                                                                        'provisioning': {'description': 'Where '
+                                                                                                                                                                                                        'the '
+                                                                                                                                                                                                        'executable '
+                                                                                                                                                                                                        'capability '
+                                                                                                                                                                                                        'comes '
+                                                                                                                                                                                                        'from: '
+                                                                                                                                                                                                        'the '
+                                                                                                                                                                                                        'bundled '
+                                                                                                                                                                                                        'base '
+                                                                                                                                                                                                        'runtime, '
+                                                                                                                                                                                                        'the '
+                                                                                                                                                                                                        'operating '
+                                                                                                                                                                                                        'system, '
+                                                                                                                                                                                                        'or '
+                                                                                                                                                                                                        'an '
+                                                                                                                                                                                                        'optional '
+                                                                                                                                                                                                        'advanced '
+                                                                                                                                                                                                        'runtime '
+                                                                                                                                                                                                        'component.',
+                                                                                                                                                                                         'enum': ['base_runtime',
+                                                                                                                                                                                                  'operating_system',
+                                                                                                                                                                                                  'advanced_component'],
+                                                                                                                                                                                         'type': 'string'},
+                                                                                                                                                                        'reason_code': {'minLength': 1,
+                                                                                                                                                                                        'type': ['string',
+                                                                                                                                                                                                 'null']},
+                                                                                                                                                                        'required_component': {'minLength': 1,
+                                                                                                                                                                                               'type': ['string',
+                                                                                                                                                                                                        'null']},
+                                                                                                                                                                        'supported_options': {'items': {'minLength': 1,
+                                                                                                                                                                                                        'type': 'string'},
+                                                                                                                                                                                              'type': 'array',
+                                                                                                                                                                                              'uniqueItems': True}},
+                                                                                                                                                         'required': ['id',
+                                                                                                                                                                      'family',
+                                                                                                                                                                      'pipeline_id',
+                                                                                                                                                                      'engine',
+                                                                                                                                                                      'provisioning',
+                                                                                                                                                                      'availability',
+                                                                                                                                                                      'reason_code',
+                                                                                                                                                                      'required_component',
+                                                                                                                                                                      'supported_options',
+                                                                                                                                                                      'lifecycle'],
+                                                                                                                                                         'type': 'object'},
+                                                                                                                                               'minItems': 1,
+                                                                                                                                               'type': 'array',
+                                                                                                                                               'uniqueItems': True}},
+                                                                                                                      'required': ['modes'],
+                                                                                                                      'type': 'object'},
                                                                                          'replacement': {'type': ['string',
                                                                                                                   'null']},
                                                                                          'sunset_at': {'format': 'date-time',
@@ -2597,9 +2923,60 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                'idle',
                                                                                                'evicted']},
                                                                              'pipeline': {'type': 'string'},
+                                                                             'recognition_mode': {'description': 'Stable '
+                                                                                                                 'user-semantic '
+                                                                                                                 'recognition '
+                                                                                                                 'modes. '
+                                                                                                                 'Each '
+                                                                                                                 'mode '
+                                                                                                                 'maps '
+                                                                                                                 'to '
+                                                                                                                 'one '
+                                                                                                                 'legacy '
+                                                                                                                 'execution '
+                                                                                                                 'pipeline '
+                                                                                                                 'and, '
+                                                                                                                 'for '
+                                                                                                                 'plain '
+                                                                                                                 'text '
+                                                                                                                 'OCR, '
+                                                                                                                 'one '
+                                                                                                                 'explicit '
+                                                                                                                 'OCR '
+                                                                                                                 'engine.',
+                                                                                                  'enum': ['rapid_text',
+                                                                                                           'windows_text',
+                                                                                                           'paddle_text',
+                                                                                                           'paddle_structure',
+                                                                                                           'paddle_document_vl',
+                                                                                                           'mineru_document',
+                                                                                                           'paddle_table',
+                                                                                                           'paddle_formula'],
+                                                                                                  'type': 'string'},
                                                                              'remaining_ttl_seconds': {'minimum': 0,
                                                                                                        'type': ['integer',
-                                                                                                                'null']}},
+                                                                                                                'null']},
+                                                                             'resource_id': {'minLength': 1,
+                                                                                             'type': 'string'},
+                                                                             'resource_kind': {'description': 'Concrete '
+                                                                                                              'managed '
+                                                                                                              'resource '
+                                                                                                              'reported '
+                                                                                                              'by '
+                                                                                                              'lifecycle '
+                                                                                                              'status. '
+                                                                                                              'model '
+                                                                                                              'is '
+                                                                                                              'Paddle '
+                                                                                                              'model '
+                                                                                                              'residency; '
+                                                                                                              'process '
+                                                                                                              'is '
+                                                                                                              'child-process '
+                                                                                                              'keep-alive.',
+                                                                                               'enum': ['model',
+                                                                                                        'process'],
+                                                                                               'type': 'string'}},
                                                               'required': ['pipeline',
                                                                            'kind',
                                                                            'active_leases',
@@ -2612,6 +2989,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                 'properties': {'name': {'minLength': 1,
                                                                                         'type': 'string'},
                                                                                'pinned': {'type': 'boolean'},
+                                                                               'recognition_mode': {'description': 'Stable '
+                                                                                                                   'user-semantic '
+                                                                                                                   'recognition '
+                                                                                                                   'modes. '
+                                                                                                                   'Each '
+                                                                                                                   'mode '
+                                                                                                                   'maps '
+                                                                                                                   'to '
+                                                                                                                   'one '
+                                                                                                                   'legacy '
+                                                                                                                   'execution '
+                                                                                                                   'pipeline '
+                                                                                                                   'and, '
+                                                                                                                   'for '
+                                                                                                                   'plain '
+                                                                                                                   'text '
+                                                                                                                   'OCR, '
+                                                                                                                   'one '
+                                                                                                                   'explicit '
+                                                                                                                   'OCR '
+                                                                                                                   'engine.',
+                                                                                                    'enum': ['rapid_text',
+                                                                                                             'windows_text',
+                                                                                                             'paddle_text',
+                                                                                                             'paddle_structure',
+                                                                                                             'paddle_document_vl',
+                                                                                                             'mineru_document',
+                                                                                                             'paddle_table',
+                                                                                                             'paddle_formula'],
+                                                                                                    'type': 'string'},
                                                                                'ttl_seconds': {'minimum': 0,
                                                                                                'type': ['integer',
                                                                                                         'null']}},
@@ -2834,6 +3241,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                      'properties': {'name': {'minLength': 1,
                                                                                                              'type': 'string'},
                                                                                                     'pinned': {'type': 'boolean'},
+                                                                                                    'recognition_mode': {'description': 'Stable '
+                                                                                                                                        'user-semantic '
+                                                                                                                                        'recognition '
+                                                                                                                                        'modes. '
+                                                                                                                                        'Each '
+                                                                                                                                        'mode '
+                                                                                                                                        'maps '
+                                                                                                                                        'to '
+                                                                                                                                        'one '
+                                                                                                                                        'legacy '
+                                                                                                                                        'execution '
+                                                                                                                                        'pipeline '
+                                                                                                                                        'and, '
+                                                                                                                                        'for '
+                                                                                                                                        'plain '
+                                                                                                                                        'text '
+                                                                                                                                        'OCR, '
+                                                                                                                                        'one '
+                                                                                                                                        'explicit '
+                                                                                                                                        'OCR '
+                                                                                                                                        'engine.',
+                                                                                                                         'enum': ['rapid_text',
+                                                                                                                                  'windows_text',
+                                                                                                                                  'paddle_text',
+                                                                                                                                  'paddle_structure',
+                                                                                                                                  'paddle_document_vl',
+                                                                                                                                  'mineru_document',
+                                                                                                                                  'paddle_table',
+                                                                                                                                  'paddle_formula'],
+                                                                                                                         'type': 'string'},
                                                                                                     'ttl_seconds': {'minimum': 0,
                                                                                                                     'type': ['integer',
                                                                                                                              'null']}},
@@ -4137,7 +4574,21 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                   'options': {'type': 'object'},
                                                                                                   'options_version': {'const': 1,
                                                                                                                       'type': 'integer'},
-                                                                                                  'pipeline_id': {'enum': ['OCR',
+                                                                                                  'pipeline_id': {'description': 'Stable '
+                                                                                                                                 'legacy '
+                                                                                                                                 'execution-pipeline '
+                                                                                                                                 'identifiers. '
+                                                                                                                                 'Products '
+                                                                                                                                 'present '
+                                                                                                                                 'RecognitionModeId '
+                                                                                                                                 'values '
+                                                                                                                                 'instead '
+                                                                                                                                 'of '
+                                                                                                                                 'exposing '
+                                                                                                                                 'this '
+                                                                                                                                 'enum '
+                                                                                                                                 'directly.',
+                                                                                                                  'enum': ['OCR',
                                                                                                                            'PP-StructureV3',
                                                                                                                            'MinerU',
                                                                                                                            'PaddleOCR-VL',
@@ -4653,9 +5104,60 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                           'idle',
                                                                                           'evicted']},
                                                                         'pipeline': {'type': 'string'},
+                                                                        'recognition_mode': {'description': 'Stable '
+                                                                                                            'user-semantic '
+                                                                                                            'recognition '
+                                                                                                            'modes. '
+                                                                                                            'Each '
+                                                                                                            'mode '
+                                                                                                            'maps '
+                                                                                                            'to '
+                                                                                                            'one '
+                                                                                                            'legacy '
+                                                                                                            'execution '
+                                                                                                            'pipeline '
+                                                                                                            'and, '
+                                                                                                            'for '
+                                                                                                            'plain '
+                                                                                                            'text '
+                                                                                                            'OCR, '
+                                                                                                            'one '
+                                                                                                            'explicit '
+                                                                                                            'OCR '
+                                                                                                            'engine.',
+                                                                                             'enum': ['rapid_text',
+                                                                                                      'windows_text',
+                                                                                                      'paddle_text',
+                                                                                                      'paddle_structure',
+                                                                                                      'paddle_document_vl',
+                                                                                                      'mineru_document',
+                                                                                                      'paddle_table',
+                                                                                                      'paddle_formula'],
+                                                                                             'type': 'string'},
                                                                         'remaining_ttl_seconds': {'minimum': 0,
                                                                                                   'type': ['integer',
-                                                                                                           'null']}},
+                                                                                                           'null']},
+                                                                        'resource_id': {'minLength': 1,
+                                                                                        'type': 'string'},
+                                                                        'resource_kind': {'description': 'Concrete '
+                                                                                                         'managed '
+                                                                                                         'resource '
+                                                                                                         'reported '
+                                                                                                         'by '
+                                                                                                         'lifecycle '
+                                                                                                         'status. '
+                                                                                                         'model '
+                                                                                                         'is '
+                                                                                                         'Paddle '
+                                                                                                         'model '
+                                                                                                         'residency; '
+                                                                                                         'process '
+                                                                                                         'is '
+                                                                                                         'child-process '
+                                                                                                         'keep-alive.',
+                                                                                          'enum': ['model',
+                                                                                                   'process'],
+                                                                                          'type': 'string'}},
                                                          'required': ['pipeline',
                                                                       'kind',
                                                                       'active_leases',
@@ -4668,6 +5170,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                            'properties': {'name': {'minLength': 1,
                                                                                    'type': 'string'},
                                                                           'pinned': {'type': 'boolean'},
+                                                                          'recognition_mode': {'description': 'Stable '
+                                                                                                              'user-semantic '
+                                                                                                              'recognition '
+                                                                                                              'modes. '
+                                                                                                              'Each '
+                                                                                                              'mode '
+                                                                                                              'maps '
+                                                                                                              'to '
+                                                                                                              'one '
+                                                                                                              'legacy '
+                                                                                                              'execution '
+                                                                                                              'pipeline '
+                                                                                                              'and, '
+                                                                                                              'for '
+                                                                                                              'plain '
+                                                                                                              'text '
+                                                                                                              'OCR, '
+                                                                                                              'one '
+                                                                                                              'explicit '
+                                                                                                              'OCR '
+                                                                                                              'engine.',
+                                                                                               'enum': ['rapid_text',
+                                                                                                        'windows_text',
+                                                                                                        'paddle_text',
+                                                                                                        'paddle_structure',
+                                                                                                        'paddle_document_vl',
+                                                                                                        'mineru_document',
+                                                                                                        'paddle_table',
+                                                                                                        'paddle_formula'],
+                                                                                               'type': 'string'},
                                                                           'ttl_seconds': {'minimum': 0,
                                                                                           'type': ['integer',
                                                                                                    'null']}},
@@ -4709,6 +5241,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                      'properties': {'name': {'minLength': 1,
                                                                                                              'type': 'string'},
                                                                                                     'pinned': {'type': 'boolean'},
+                                                                                                    'recognition_mode': {'description': 'Stable '
+                                                                                                                                        'user-semantic '
+                                                                                                                                        'recognition '
+                                                                                                                                        'modes. '
+                                                                                                                                        'Each '
+                                                                                                                                        'mode '
+                                                                                                                                        'maps '
+                                                                                                                                        'to '
+                                                                                                                                        'one '
+                                                                                                                                        'legacy '
+                                                                                                                                        'execution '
+                                                                                                                                        'pipeline '
+                                                                                                                                        'and, '
+                                                                                                                                        'for '
+                                                                                                                                        'plain '
+                                                                                                                                        'text '
+                                                                                                                                        'OCR, '
+                                                                                                                                        'one '
+                                                                                                                                        'explicit '
+                                                                                                                                        'OCR '
+                                                                                                                                        'engine.',
+                                                                                                                         'enum': ['rapid_text',
+                                                                                                                                  'windows_text',
+                                                                                                                                  'paddle_text',
+                                                                                                                                  'paddle_structure',
+                                                                                                                                  'paddle_document_vl',
+                                                                                                                                  'mineru_document',
+                                                                                                                                  'paddle_table',
+                                                                                                                                  'paddle_formula'],
+                                                                                                                         'type': 'string'},
                                                                                                     'ttl_seconds': {'minimum': 0,
                                                                                                                     'type': ['integer',
                                                                                                                              'null']}},
@@ -4740,9 +5302,60 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                           'idle',
                                                                                           'evicted']},
                                                                         'pipeline': {'type': 'string'},
+                                                                        'recognition_mode': {'description': 'Stable '
+                                                                                                            'user-semantic '
+                                                                                                            'recognition '
+                                                                                                            'modes. '
+                                                                                                            'Each '
+                                                                                                            'mode '
+                                                                                                            'maps '
+                                                                                                            'to '
+                                                                                                            'one '
+                                                                                                            'legacy '
+                                                                                                            'execution '
+                                                                                                            'pipeline '
+                                                                                                            'and, '
+                                                                                                            'for '
+                                                                                                            'plain '
+                                                                                                            'text '
+                                                                                                            'OCR, '
+                                                                                                            'one '
+                                                                                                            'explicit '
+                                                                                                            'OCR '
+                                                                                                            'engine.',
+                                                                                             'enum': ['rapid_text',
+                                                                                                      'windows_text',
+                                                                                                      'paddle_text',
+                                                                                                      'paddle_structure',
+                                                                                                      'paddle_document_vl',
+                                                                                                      'mineru_document',
+                                                                                                      'paddle_table',
+                                                                                                      'paddle_formula'],
+                                                                                             'type': 'string'},
                                                                         'remaining_ttl_seconds': {'minimum': 0,
                                                                                                   'type': ['integer',
-                                                                                                           'null']}},
+                                                                                                           'null']},
+                                                                        'resource_id': {'minLength': 1,
+                                                                                        'type': 'string'},
+                                                                        'resource_kind': {'description': 'Concrete '
+                                                                                                         'managed '
+                                                                                                         'resource '
+                                                                                                         'reported '
+                                                                                                         'by '
+                                                                                                         'lifecycle '
+                                                                                                         'status. '
+                                                                                                         'model '
+                                                                                                         'is '
+                                                                                                         'Paddle '
+                                                                                                         'model '
+                                                                                                         'residency; '
+                                                                                                         'process '
+                                                                                                         'is '
+                                                                                                         'child-process '
+                                                                                                         'keep-alive.',
+                                                                                          'enum': ['model',
+                                                                                                   'process'],
+                                                                                          'type': 'string'}},
                                                          'required': ['pipeline',
                                                                       'kind',
                                                                       'active_leases',
@@ -4755,6 +5368,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                            'properties': {'name': {'minLength': 1,
                                                                                    'type': 'string'},
                                                                           'pinned': {'type': 'boolean'},
+                                                                          'recognition_mode': {'description': 'Stable '
+                                                                                                              'user-semantic '
+                                                                                                              'recognition '
+                                                                                                              'modes. '
+                                                                                                              'Each '
+                                                                                                              'mode '
+                                                                                                              'maps '
+                                                                                                              'to '
+                                                                                                              'one '
+                                                                                                              'legacy '
+                                                                                                              'execution '
+                                                                                                              'pipeline '
+                                                                                                              'and, '
+                                                                                                              'for '
+                                                                                                              'plain '
+                                                                                                              'text '
+                                                                                                              'OCR, '
+                                                                                                              'one '
+                                                                                                              'explicit '
+                                                                                                              'OCR '
+                                                                                                              'engine.',
+                                                                                               'enum': ['rapid_text',
+                                                                                                        'windows_text',
+                                                                                                        'paddle_text',
+                                                                                                        'paddle_structure',
+                                                                                                        'paddle_document_vl',
+                                                                                                        'mineru_document',
+                                                                                                        'paddle_table',
+                                                                                                        'paddle_formula'],
+                                                                                               'type': 'string'},
                                                                           'ttl_seconds': {'minimum': 0,
                                                                                           'type': ['integer',
                                                                                                    'null']}},

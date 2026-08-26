@@ -100,6 +100,26 @@ public enum ResidencyKind
     [JsonStringEnumMemberName("evicted")] Evicted,
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<RecognitionMode>))]
+public enum RecognitionMode
+{
+    [JsonStringEnumMemberName("rapid_text")] RapidText,
+    [JsonStringEnumMemberName("windows_text")] WindowsText,
+    [JsonStringEnumMemberName("paddle_text")] PaddleText,
+    [JsonStringEnumMemberName("paddle_structure")] PaddleStructure,
+    [JsonStringEnumMemberName("paddle_document_vl")] PaddleDocumentVl,
+    [JsonStringEnumMemberName("mineru_document")] MineruDocument,
+    [JsonStringEnumMemberName("paddle_table")] PaddleTable,
+    [JsonStringEnumMemberName("paddle_formula")] PaddleFormula,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<RecognitionResourceKind>))]
+public enum RecognitionResourceKind
+{
+    [JsonStringEnumMemberName("model")] Model,
+    [JsonStringEnumMemberName("process")] Process,
+}
+
 [JsonConverter(typeof(JsonStringEnumConverter<EvictionReason>))]
 public enum EvictionReason
 {
@@ -236,6 +256,10 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("OCR_ENGINE_LANGUAGE_UNAVAILABLE")] OcrEngineLanguageUnavailable,
     [JsonStringEnumMemberName("DOWNLOAD_SOURCE_UNKNOWN")] DownloadSourceUnknown,
     [JsonStringEnumMemberName("RUNTIME_COMPONENT_UNKNOWN")] RuntimeComponentUnknown,
+    [JsonStringEnumMemberName("RECOGNITION_MODE_UNKNOWN")] RecognitionModeUnknown,
+    [JsonStringEnumMemberName("RECOGNITION_MODE_UNAVAILABLE")] RecognitionModeUnavailable,
+    [JsonStringEnumMemberName("RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED")] RecognitionModeLifecycleUnsupported,
+    [JsonStringEnumMemberName("RECOGNITION_MODE_PIPELINE_MISMATCH")] RecognitionModePipelineMismatch,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceCommandKind>))]

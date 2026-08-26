@@ -15,7 +15,8 @@
     "runtime.events.ndjson.v1",
     "ocr.engine-selection.v1",
     "runtime.download-sources.v1",
-    "runtime.component-selection.v1"
+    "runtime.component-selection.v1",
+    "ocr.recognition-modes.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -134,6 +135,14 @@
       "description": "Manually select the install scope of optional feature dependencies from the Backend-declared variant catalog, exchanged as install_component_ids with the dependency closure reported honestly.",
       "lifecycle": "active",
       "introduced_in": "2.7.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "ocr.recognition-modes.v1": {
+      "description": "Discover user-semantic recognition modes and their exact execution mapping, provisioning, availability, supported options, and honest model-residency or child-process lifecycle capabilities.",
+      "lifecycle": "active",
+      "introduced_in": "2.8.0",
       "deprecated_in": null,
       "sunset_at": null,
       "replacement": null

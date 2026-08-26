@@ -22,6 +22,31 @@ public sealed class AcceleratorJsonConverter : JsonStringEnumConverter<Accelerat
     }
 }
 
+[JsonConverter(typeof(ExecutionPipelineIdJsonConverter))]
+public enum ExecutionPipelineId
+{
+    [JsonStringEnumMemberName("OCR")]
+    OCR,
+    [JsonStringEnumMemberName("PP-StructureV3")]
+    PPStructureV3,
+    [JsonStringEnumMemberName("MinerU")]
+    MinerU,
+    [JsonStringEnumMemberName("PaddleOCR-VL")]
+    PaddleOCRVL,
+    [JsonStringEnumMemberName("TABLE_RECOGNITION")]
+    TABLERECOGNITION,
+    [JsonStringEnumMemberName("FORMULA_RECOGNITION")]
+    FORMULARECOGNITION
+}
+
+public sealed class ExecutionPipelineIdJsonConverter : JsonStringEnumConverter<ExecutionPipelineId>
+{
+    public ExecutionPipelineIdJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(IntegrityStatusJsonConverter))]
 public enum IntegrityStatus
 {
@@ -91,6 +116,111 @@ public enum ProgressUnit
 public sealed class ProgressUnitJsonConverter : JsonStringEnumConverter<ProgressUnit>
 {
     public ProgressUnitJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RecognitionModeAvailabilityJsonConverter))]
+public enum RecognitionModeAvailability
+{
+    [JsonStringEnumMemberName("ready")]
+    Ready,
+    [JsonStringEnumMemberName("preparation_required")]
+    PreparationRequired,
+    [JsonStringEnumMemberName("unavailable")]
+    Unavailable
+}
+
+public sealed class RecognitionModeAvailabilityJsonConverter : JsonStringEnumConverter<RecognitionModeAvailability>
+{
+    public RecognitionModeAvailabilityJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RecognitionModeFamilyJsonConverter))]
+public enum RecognitionModeFamily
+{
+    [JsonStringEnumMemberName("text")]
+    Text,
+    [JsonStringEnumMemberName("document")]
+    Document,
+    [JsonStringEnumMemberName("specialized")]
+    Specialized
+}
+
+public sealed class RecognitionModeFamilyJsonConverter : JsonStringEnumConverter<RecognitionModeFamily>
+{
+    public RecognitionModeFamilyJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RecognitionModeIdJsonConverter))]
+public enum RecognitionModeId
+{
+    [JsonStringEnumMemberName("rapid_text")]
+    RapidText,
+    [JsonStringEnumMemberName("windows_text")]
+    WindowsText,
+    [JsonStringEnumMemberName("paddle_text")]
+    PaddleText,
+    [JsonStringEnumMemberName("paddle_structure")]
+    PaddleStructure,
+    [JsonStringEnumMemberName("paddle_document_vl")]
+    PaddleDocumentVl,
+    [JsonStringEnumMemberName("mineru_document")]
+    MineruDocument,
+    [JsonStringEnumMemberName("paddle_table")]
+    PaddleTable,
+    [JsonStringEnumMemberName("paddle_formula")]
+    PaddleFormula
+}
+
+public sealed class RecognitionModeIdJsonConverter : JsonStringEnumConverter<RecognitionModeId>
+{
+    public RecognitionModeIdJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RecognitionModeLifecycleKindJsonConverter))]
+public enum RecognitionModeLifecycleKind
+{
+    [JsonStringEnumMemberName("unmanaged")]
+    Unmanaged,
+    [JsonStringEnumMemberName("model_residency")]
+    ModelResidency,
+    [JsonStringEnumMemberName("process_keep_alive")]
+    ProcessKeepAlive
+}
+
+public sealed class RecognitionModeLifecycleKindJsonConverter : JsonStringEnumConverter<RecognitionModeLifecycleKind>
+{
+    public RecognitionModeLifecycleKindJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(RecognitionModeProvisioningJsonConverter))]
+public enum RecognitionModeProvisioning
+{
+    [JsonStringEnumMemberName("base_runtime")]
+    BaseRuntime,
+    [JsonStringEnumMemberName("operating_system")]
+    OperatingSystem,
+    [JsonStringEnumMemberName("advanced_component")]
+    AdvancedComponent
+}
+
+public sealed class RecognitionModeProvisioningJsonConverter : JsonStringEnumConverter<RecognitionModeProvisioning>
+{
+    public RecognitionModeProvisioningJsonConverter()
         : base(namingPolicy: null, allowIntegerValues: false)
     {
     }
@@ -281,6 +411,9 @@ public sealed record CapabilityDescriptor
     [JsonPropertyName("ocr_engine_catalog")]
     public OcrEngineCatalog? OcrEngineCatalog { get; init; }
 
+    [JsonPropertyName("recognition_mode_catalog")]
+    public RecognitionModeCatalog? RecognitionModeCatalog { get; init; }
+
     [JsonPropertyName("download_source_catalog")]
     public DownloadSourceCatalog? DownloadSourceCatalog { get; init; }
 
@@ -361,6 +494,63 @@ public sealed record ProgressSnapshot
 
     [JsonPropertyName("estimated_remaining_seconds")]
     public double? EstimatedRemainingSeconds { get; init; }
+}
+
+public sealed record RecognitionModeCatalog
+{
+    [JsonPropertyName("modes")]
+    public required IReadOnlyList<RecognitionModeDescriptor> Modes { get; init; }
+}
+
+public sealed record RecognitionModeDescriptor
+{
+    [JsonPropertyName("id")]
+    public required RecognitionModeId Id { get; init; }
+
+    [JsonPropertyName("family")]
+    public required RecognitionModeFamily Family { get; init; }
+
+    [JsonPropertyName("pipeline_id")]
+    public required ExecutionPipelineId PipelineId { get; init; }
+
+    [JsonPropertyName("engine")]
+    public required OcrEngineId? Engine { get; init; }
+
+    [JsonPropertyName("provisioning")]
+    public required RecognitionModeProvisioning Provisioning { get; init; }
+
+    [JsonPropertyName("availability")]
+    public required RecognitionModeAvailability Availability { get; init; }
+
+    [JsonPropertyName("reason_code")]
+    public required string? ReasonCode { get; init; }
+
+    [JsonPropertyName("required_component")]
+    public required string? RequiredComponent { get; init; }
+
+    [JsonPropertyName("supported_options")]
+    public required IReadOnlyList<string> SupportedOptions { get; init; }
+
+    [JsonPropertyName("lifecycle")]
+    public required RecognitionModeLifecycle Lifecycle { get; init; }
+}
+
+public sealed record RecognitionModeLifecycle
+{
+    [JsonPropertyName("kind")]
+    public required RecognitionModeLifecycleKind Kind { get; init; }
+
+    [JsonPropertyName("supports_preload")]
+    public required bool SupportsPreload { get; init; }
+
+    [JsonPropertyName("supports_ttl")]
+    public required bool SupportsTtl { get; init; }
+
+    [JsonPropertyName("supports_pinning")]
+    public required bool SupportsPinning { get; init; }
+
+    [JsonPropertyName("supports_release")]
+    public required bool SupportsRelease { get; init; }
 }
 
 public sealed record RuntimeComponentDescriptor

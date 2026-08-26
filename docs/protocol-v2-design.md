@@ -79,6 +79,29 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
 - 未来新增引擎 ID 属于对请求/响应封闭枚举的追加，会被兼容门禁拦截；届时必须先在六仓
   协调评估开放策略（`x-vibeocr-known-values` 或新 major），不得直接扩枚举。
 
+## 识别模式目录（ocr.recognition-modes.v1）
+
+产品选择项不再直接等同于执行管道。`RecognitionModeId` 是用户语义，现有
+`pipeline_id + engine` 是 Protocol v2 的执行投影：
+
+- `rapid_text`、`windows_text`、`paddle_text` 都投影到 `pipeline_id=OCR`，分别显式携带
+  `rapidocr`、`windows`、`paddleocr`；其他模式一对一投影到现有专用 pipeline，`engine=null`。
+- `RecognitionModeCatalog` 只由 `ocr.recognition-modes.v1` descriptor 携带，逐项声明
+  family、执行投影、provisioning、availability、required component、supported options 与
+  lifecycle。目录不携带本地化文案或产品默认值；Frontend 按稳定 ID 本地化。
+- provisioning 区分 `base_runtime`、`operating_system`、`advanced_component`。基础 Runtime
+  自带 RapidOCR，因而基础服务就绪不能以 Paddle/MinerU 是否安装为前提，也不能在首次进入时
+  强制用户选择 CPU/GPU 高级组件。
+- lifecycle 区分 `unmanaged`、`model_residency`、`process_keep_alive`，并逐项声明 preload、
+  TTL、pinning、release 是否受支持。RapidOCR/Windows OCR 的内部缓存不属于用户可管理驻留；
+  Paddle 模式支持模型驻留；MinerU 只支持子进程 TTL/释放，不得包装为模型预加载。
+- `RuntimePreloadRequest.recognition_modes`、`RuntimeReleaseRequest.recognition_mode`、
+  `PipelineSpec.recognition_mode` 与 `ResidencyEntry` 的模式/资源字段都由该 capability 保护。
+  为保持 Protocol v2 请求兼容，preload 继续要求 legacy `pipelines`，新客户端从模式目录确定性
+  生成它；服务端必须验证两者一致。旧 Runtime 未声明 capability 时，客户端省略所有新字段。
+- 旧 `OCRPipeline.OCR` 不再属于 preloadable pipeline。生命周期控制必须先解析为具体
+  Recognition Mode，避免默认路由到 RapidOCR 却声称预加载了 PaddleOCR。
+
 ## 下载源选择（runtime.download-sources.v1）
 
 依赖安装源和上游模型源偏好的用户选择是可协商的 minor 扩展，复用引擎选择的目录模式。

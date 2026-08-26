@@ -4,9 +4,16 @@ from __future__ import annotations
 from typing import Any, Literal, NotRequired, Required, TypedDict
 
 DownloadSourceKind = str
+ExecutionPipelineId = Literal['OCR', 'PP-StructureV3', 'MinerU', 'PaddleOCR-VL', 'TABLE_RECOGNITION', 'FORMULA_RECOGNITION']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
+RecognitionModeAvailability = Literal['ready', 'preparation_required', 'unavailable']
+RecognitionModeFamily = Literal['text', 'document', 'specialized']
+RecognitionModeId = Literal['rapid_text', 'windows_text', 'paddle_text', 'paddle_structure', 'paddle_document_vl', 'mineru_document', 'paddle_table', 'paddle_formula']
+RecognitionModeLifecycleKind = Literal['unmanaged', 'model_residency', 'process_keep_alive']
+RecognitionModeProvisioning = Literal['base_runtime', 'operating_system', 'advanced_component']
+RecognitionResourceKind = Literal['model', 'process']
 RuntimeComponentState = Literal['not_required', 'pending', 'installing', 'verifying', 'ready', 'failed', 'cancelled']
 RuntimeServiceState = Literal['ready', 'degraded', 'maintenance']
 
@@ -38,6 +45,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     sunset_at: Required[str | None]
     replacement: Required[str | None]
     ocr_engine_catalog: NotRequired[OcrEngineCatalog]
+    recognition_mode_catalog: NotRequired[RecognitionModeCatalog]
     download_source_catalog: NotRequired[DownloadSourceCatalog]
     component_variant_catalog: NotRequired[ComponentVariantCatalog]
 
@@ -348,7 +356,7 @@ class PdfSaveResponse(TypedDict, total=False):
 
 
 class PipelineSelection(TypedDict, total=False):
-    pipeline_id: Required[Literal['OCR', 'PP-StructureV3', 'MinerU', 'PaddleOCR-VL', 'TABLE_RECOGNITION', 'FORMULA_RECOGNITION']]
+    pipeline_id: Required[ExecutionPipelineId]
     options_version: Required[Literal[1]]
     options: Required[dict[str, Any]]
     engine: NotRequired[OcrEngineId]
@@ -356,6 +364,7 @@ class PipelineSelection(TypedDict, total=False):
 
 class PipelineSpec(TypedDict, total=False):
     name: Required[str]
+    recognition_mode: NotRequired[RecognitionModeId]
     ttl_seconds: Required[int | None]
     pinned: Required[bool]
 
@@ -407,6 +416,31 @@ class QrGenerateResponse(TypedDict, total=False):
     media_type: Required[Literal['image/png', 'image/svg+xml']]
 
 
+class RecognitionModeCatalog(TypedDict, total=False):
+    modes: Required[list[RecognitionModeDescriptor]]
+
+
+class RecognitionModeDescriptor(TypedDict, total=False):
+    id: Required[RecognitionModeId]
+    family: Required[RecognitionModeFamily]
+    pipeline_id: Required[ExecutionPipelineId]
+    engine: Required[OcrEngineId | None]
+    provisioning: Required[RecognitionModeProvisioning]
+    availability: Required[RecognitionModeAvailability]
+    reason_code: Required[str | None]
+    required_component: Required[str | None]
+    supported_options: Required[list[str]]
+    lifecycle: Required[RecognitionModeLifecycle]
+
+
+class RecognitionModeLifecycle(TypedDict, total=False):
+    kind: Required[RecognitionModeLifecycleKind]
+    supports_preload: Required[bool]
+    supports_ttl: Required[bool]
+    supports_pinning: Required[bool]
+    supports_release: Required[bool]
+
+
 class RenderPreviewRequest(TypedDict, total=False):
     page: Required[int]
     dpi: NotRequired[int]
@@ -423,6 +457,9 @@ class ReorderRequest(TypedDict, total=False):
 
 class ResidencyEntry(TypedDict, total=False):
     pipeline: Required[str]
+    recognition_mode: NotRequired[RecognitionModeId]
+    resource_kind: NotRequired[RecognitionResourceKind]
+    resource_id: NotRequired[str]
     kind: Required[Literal['soft_ttl', 'pinned', 'idle', 'evicted']]
     active_leases: Required[int]
     remaining_ttl_seconds: Required[int | None]
@@ -534,6 +571,7 @@ class RuntimeMaintenanceUpdate(TypedDict, total=False):
 
 class RuntimePreloadRequest(TypedDict, total=False):
     pipelines: Required[list[str]]
+    recognition_modes: NotRequired[list[RecognitionModeId]]
 
 
 class RuntimeProfileStatus(TypedDict, total=False):
@@ -544,6 +582,7 @@ class RuntimeProfileStatus(TypedDict, total=False):
 
 class RuntimeReleaseRequest(TypedDict, total=False):
     pipeline: NotRequired[str | None]
+    recognition_mode: NotRequired[RecognitionModeId | None]
 
 
 class RuntimeSourceIdentity(TypedDict, total=False):
