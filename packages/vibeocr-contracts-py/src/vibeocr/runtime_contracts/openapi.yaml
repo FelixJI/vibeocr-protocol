@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "VibeOCR Local Runtime API",
-    "version": "2.7.2",
+    "version": "2.8.0",
     "description": "Authoritative Runtime API v2. The historical openapi.snapshot.json is non-authoritative."
   },
   "servers": [
@@ -2834,11 +2834,19 @@
       },
       "RecognitionModeAvailability": {
         "type": "string",
-        "enum": ["ready", "preparation_required", "unavailable"]
+        "enum": [
+          "ready",
+          "preparation_required",
+          "unavailable"
+        ]
       },
       "RecognitionModeFamily": {
         "type": "string",
-        "enum": ["text", "document", "specialized"]
+        "enum": [
+          "text",
+          "document",
+          "specialized"
+        ]
       },
       "RecognitionModeId": {
         "type": "string",
@@ -2857,12 +2865,19 @@
       "RecognitionModeLifecycleKind": {
         "type": "string",
         "description": "User-manageable resource lifecycle. unmanaged is an implementation-local cache with no controls; model_residency is Paddle model warm-up/TTL/pinning/release; process_keep_alive is child-process TTL/release and is not model residency.",
-        "enum": ["unmanaged", "model_residency", "process_keep_alive"]
+        "enum": [
+          "unmanaged",
+          "model_residency",
+          "process_keep_alive"
+        ]
       },
       "RecognitionResourceKind": {
         "type": "string",
         "description": "Concrete managed resource reported by lifecycle status. model is Paddle model residency; process is child-process keep-alive.",
-        "enum": ["model", "process"]
+        "enum": [
+          "model",
+          "process"
+        ]
       },
       "RecognitionModeLifecycle": {
         "type": "object",
@@ -2874,18 +2889,32 @@
           "supports_release"
         ],
         "properties": {
-          "kind": {"$ref": "#/components/schemas/RecognitionModeLifecycleKind"},
-          "supports_preload": {"type": "boolean"},
-          "supports_ttl": {"type": "boolean"},
-          "supports_pinning": {"type": "boolean"},
-          "supports_release": {"type": "boolean"}
+          "kind": {
+            "$ref": "#/components/schemas/RecognitionModeLifecycleKind"
+          },
+          "supports_preload": {
+            "type": "boolean"
+          },
+          "supports_ttl": {
+            "type": "boolean"
+          },
+          "supports_pinning": {
+            "type": "boolean"
+          },
+          "supports_release": {
+            "type": "boolean"
+          }
         },
         "additionalProperties": false
       },
       "RecognitionModeProvisioning": {
         "type": "string",
         "description": "Where the executable capability comes from: the bundled base runtime, the operating system, or an optional advanced runtime component.",
-        "enum": ["base_runtime", "operating_system", "advanced_component"]
+        "enum": [
+          "base_runtime",
+          "operating_system",
+          "advanced_component"
+        ]
       },
       "RecognitionModeDescriptor": {
         "type": "object",
@@ -2903,38 +2932,73 @@
           "lifecycle"
         ],
         "properties": {
-          "id": {"$ref": "#/components/schemas/RecognitionModeId"},
-          "family": {"$ref": "#/components/schemas/RecognitionModeFamily"},
-          "pipeline_id": {"$ref": "#/components/schemas/ExecutionPipelineId"},
+          "id": {
+            "$ref": "#/components/schemas/RecognitionModeId"
+          },
+          "family": {
+            "$ref": "#/components/schemas/RecognitionModeFamily"
+          },
+          "pipeline_id": {
+            "$ref": "#/components/schemas/ExecutionPipelineId"
+          },
           "engine": {
             "anyOf": [
-              {"$ref": "#/components/schemas/OcrEngineId"},
-              {"type": "null"}
+              {
+                "$ref": "#/components/schemas/OcrEngineId"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
-          "provisioning": {"$ref": "#/components/schemas/RecognitionModeProvisioning"},
-          "availability": {"$ref": "#/components/schemas/RecognitionModeAvailability"},
-          "reason_code": {"type": ["string", "null"], "minLength": 1},
-          "required_component": {"type": ["string", "null"], "minLength": 1},
+          "provisioning": {
+            "$ref": "#/components/schemas/RecognitionModeProvisioning"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/RecognitionModeAvailability"
+          },
+          "reason_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "required_component": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
           "supported_options": {
             "type": "array",
             "uniqueItems": true,
-            "items": {"type": "string", "minLength": 1}
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
-          "lifecycle": {"$ref": "#/components/schemas/RecognitionModeLifecycle"}
+          "lifecycle": {
+            "$ref": "#/components/schemas/RecognitionModeLifecycle"
+          }
         },
         "additionalProperties": false
       },
       "RecognitionModeCatalog": {
         "type": "object",
         "description": "Structured catalog carried only by the ocr.recognition-modes.v1 capability descriptor. Servers list every stable RecognitionModeId exactly once and keep execution mappings invariant across runtime state changes.",
-        "required": ["modes"],
+        "required": [
+          "modes"
+        ],
         "properties": {
           "modes": {
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
-            "items": {"$ref": "#/components/schemas/RecognitionModeDescriptor"}
+            "items": {
+              "$ref": "#/components/schemas/RecognitionModeDescriptor"
+            }
           }
         },
         "additionalProperties": false
@@ -4647,8 +4711,12 @@
           },
           "recognition_mode": {
             "anyOf": [
-              {"$ref": "#/components/schemas/RecognitionModeId"},
-              {"type": "null"}
+              {
+                "$ref": "#/components/schemas/RecognitionModeId"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
