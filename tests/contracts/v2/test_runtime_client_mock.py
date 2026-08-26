@@ -447,6 +447,32 @@ def test_async_supervisor_client_preserves_existing_submit_and_settings_api() ->
         asyncio.run(scenario(server))
 
 
+def test_runtime_clients_target_recognition_modes_for_lifecycle_operations() -> None:
+    with MockRuntimeServer() as server:
+        client = RuntimeHttpClient(
+            base_url=server.base_url,
+            session_token=server.session_token,
+        )
+        client.preload(recognition_modes=("paddle_text",))
+        client.release_idle(recognition_mode="mineru_document")
+
+        requests = {
+            request.path: request.json()
+            for request in server.state.requests
+            if request.path
+            in {operation_path("preloadRuntime"), operation_path("releaseRuntime")}
+        }
+
+    assert requests[operation_path("preloadRuntime")] == {
+        "pipelines": ["OCR"],
+        "recognition_modes": ["paddle_text"],
+    }
+    assert requests[operation_path("releaseRuntime")] == {
+        "pipeline": "MinerU",
+        "recognition_mode": "mineru_document",
+    }
+
+
 def test_async_supervisor_client_requires_context_manager() -> None:
     async def scenario(server: MockRuntimeServer) -> None:
         client = SupervisorClient(

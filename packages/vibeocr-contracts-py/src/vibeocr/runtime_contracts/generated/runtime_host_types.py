@@ -5,10 +5,16 @@ from typing import Any, Literal, NotRequired, Required, TypedDict
 
 Accelerator = Literal['cpu', 'nvidia_cuda']
 DownloadSourceKind = str
+ExecutionPipelineId = Literal['OCR', 'PP-StructureV3', 'MinerU', 'PaddleOCR-VL', 'TABLE_RECOGNITION', 'FORMULA_RECOGNITION']
 IntegrityStatus = Literal['verified', 'not-installed']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressUnit = Literal['steps', 'items', 'bytes']
+RecognitionModeAvailability = Literal['ready', 'preparation_required', 'unavailable']
+RecognitionModeFamily = Literal['text', 'document', 'specialized']
+RecognitionModeId = Literal['rapid_text', 'windows_text', 'paddle_text', 'paddle_structure', 'paddle_document_vl', 'mineru_document', 'paddle_table', 'paddle_formula']
+RecognitionModeLifecycleKind = Literal['unmanaged', 'model_residency', 'process_keep_alive']
+RecognitionModeProvisioning = Literal['base_runtime', 'operating_system', 'advanced_component']
 RuntimeHostErrorCode = Literal['invalid_request', 'invalid_binding', 'install_failed', 'lock_timeout', 'io_error']
 RuntimeHostEventStream = Literal['ndjson.v1', 'ndjson.v2']
 RuntimeHostOperation = Literal['inspect', 'ensure', 'repair']
@@ -27,6 +33,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     sunset_at: Required[str | None]
     replacement: Required[str | None]
     ocr_engine_catalog: NotRequired[OcrEngineCatalog]
+    recognition_mode_catalog: NotRequired[RecognitionModeCatalog]
     download_source_catalog: NotRequired[DownloadSourceCatalog]
     component_variant_catalog: NotRequired[ComponentVariantCatalog]
 
@@ -68,6 +75,31 @@ class ProgressSnapshot(TypedDict, total=False):
     current: Required[int]
     total: NotRequired[int]
     estimated_remaining_seconds: NotRequired[float]
+
+
+class RecognitionModeCatalog(TypedDict, total=False):
+    modes: Required[list[RecognitionModeDescriptor]]
+
+
+class RecognitionModeDescriptor(TypedDict, total=False):
+    id: Required[RecognitionModeId]
+    family: Required[RecognitionModeFamily]
+    pipeline_id: Required[ExecutionPipelineId]
+    engine: Required[OcrEngineId | None]
+    provisioning: Required[RecognitionModeProvisioning]
+    availability: Required[RecognitionModeAvailability]
+    reason_code: Required[str | None]
+    required_component: Required[str | None]
+    supported_options: Required[list[str]]
+    lifecycle: Required[RecognitionModeLifecycle]
+
+
+class RecognitionModeLifecycle(TypedDict, total=False):
+    kind: Required[RecognitionModeLifecycleKind]
+    supports_preload: Required[bool]
+    supports_ttl: Required[bool]
+    supports_pinning: Required[bool]
+    supports_release: Required[bool]
 
 
 class RuntimeComponentDescriptor(TypedDict, total=False):

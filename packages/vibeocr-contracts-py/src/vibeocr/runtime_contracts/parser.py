@@ -46,6 +46,7 @@ from .dtos import (
     PipelineSpec,
     ProgressSnapshot,
     ProgressUnit,
+    RecognitionResourceKind,
     ResidencyEntry,
     ResidencyKind,
     RuntimeAccelerator,
@@ -716,9 +717,20 @@ def parse_residency_entry(payload: dict[str, Any]) -> ResidencyEntry:
     raw_reason = payload.get("eviction_reason")
     if raw_reason is not None:
         reason = _require_enum(EvictionReason, raw_reason, "eviction reason")
+    resource_kind = None
+    raw_resource_kind = payload.get("resource_kind")
+    if raw_resource_kind is not None:
+        resource_kind = _require_enum(
+            RecognitionResourceKind,
+            raw_resource_kind,
+            "recognition resource kind",
+        )
     return ResidencyEntry(
         pipeline=payload["pipeline"],
         kind=kind,
+        recognition_mode=payload.get("recognition_mode"),
+        resource_kind=resource_kind,
+        resource_id=payload.get("resource_id"),
         active_leases=int(payload.get("active_leases", 0)),
         remaining_ttl_seconds=payload.get("remaining_ttl_seconds"),
         estimated_vram_mb=payload.get("estimated_vram_mb"),
@@ -739,6 +751,7 @@ def parse_pipeline_spec(payload: dict[str, Any]) -> PipelineSpec:
         name=payload["name"],
         ttl_seconds=ttl,
         pinned=bool(payload.get("pinned", False)),
+        recognition_mode=payload.get("recognition_mode"),
     )
 
 

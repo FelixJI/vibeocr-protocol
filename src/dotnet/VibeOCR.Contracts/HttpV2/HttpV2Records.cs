@@ -170,12 +170,20 @@ public sealed record PipelineSpec
     public required string Name { get; init; }
     public int? TtlSeconds { get; init; }
     public bool Pinned { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RecognitionMode? RecognitionMode { get; init; }
 }
 
 public sealed record ResidencyEntry
 {
     public required string Pipeline { get; init; }
     public required ResidencyKind Kind { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RecognitionMode? RecognitionMode { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RecognitionResourceKind? ResourceKind { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ResourceId { get; init; }
     public int ActiveLeases { get; init; }
     public int? RemainingTtlSeconds { get; init; }
     public int? EstimatedVramMb { get; init; }

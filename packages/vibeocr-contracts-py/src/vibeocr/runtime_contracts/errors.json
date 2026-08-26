@@ -258,6 +258,34 @@
       "http_status": 400,
       "retryable": false,
       "message": "A selected install component id is not in the runtime.component-selection.v1 catalog; the request fails closed without silently installing a different scope."
+    },
+    {
+      "code": "RECOGNITION_MODE_UNKNOWN",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "The requested recognition mode id is not in the ocr.recognition-modes.v1 catalog."
+    },
+    {
+      "code": "RECOGNITION_MODE_UNAVAILABLE",
+      "category": "capability",
+      "http_status": 426,
+      "retryable": false,
+      "message": "The selected recognition mode cannot run in the current runtime state."
+    },
+    {
+      "code": "RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "The selected recognition mode does not support the requested preload, TTL, pinning or release operation."
+    },
+    {
+      "code": "RECOGNITION_MODE_PIPELINE_MISMATCH",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "The legacy execution pipeline does not match the selected recognition mode."
     }
   ]
 }

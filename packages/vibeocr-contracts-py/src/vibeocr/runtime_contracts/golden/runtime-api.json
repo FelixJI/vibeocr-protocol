@@ -22,6 +22,7 @@
       "ocr.recognition.v2",
       "pdf.edit.v2",
       "ocr.engine-selection.v1",
+      "ocr.recognition-modes.v1",
       "runtime.download-sources.v1",
       "runtime.component-selection.v1"
     ],
@@ -63,6 +64,114 @@
               "included_in_base": false,
               "reason_code": "unsupported_platform",
               "required_component": null
+            }
+          ]
+        }
+      },
+      {
+        "name": "ocr.recognition-modes.v1",
+        "lifecycle": "active",
+        "introduced_in": "2.8.0",
+        "deprecated_in": null,
+        "sunset_at": null,
+        "replacement": null,
+        "recognition_mode_catalog": {
+          "modes": [
+            {
+              "id": "rapid_text",
+              "family": "text",
+              "pipeline_id": "OCR",
+              "engine": "rapidocr",
+              "provisioning": "base_runtime",
+              "availability": "ready",
+              "reason_code": null,
+              "required_component": null,
+              "supported_options": [],
+              "lifecycle": {"kind": "unmanaged", "supports_preload": false, "supports_ttl": false, "supports_pinning": false, "supports_release": false}
+            },
+            {
+              "id": "windows_text",
+              "family": "text",
+              "pipeline_id": "OCR",
+              "engine": "windows",
+              "provisioning": "operating_system",
+              "availability": "ready",
+              "reason_code": null,
+              "required_component": null,
+              "supported_options": [],
+              "lifecycle": {"kind": "unmanaged", "supports_preload": false, "supports_ttl": false, "supports_pinning": false, "supports_release": false}
+            },
+            {
+              "id": "paddle_text",
+              "family": "text",
+              "pipeline_id": "OCR",
+              "engine": "paddleocr",
+              "provisioning": "advanced_component",
+              "availability": "preparation_required",
+              "reason_code": "runtime_component_missing",
+              "required_component": "paddleocr-cpu",
+              "supported_options": ["use_doc_orientation_classify", "use_doc_unwarping", "use_textline_orientation"],
+              "lifecycle": {"kind": "model_residency", "supports_preload": true, "supports_ttl": true, "supports_pinning": true, "supports_release": true}
+            },
+            {
+              "id": "paddle_structure",
+              "family": "document",
+              "pipeline_id": "PP-StructureV3",
+              "engine": null,
+              "provisioning": "advanced_component",
+              "availability": "preparation_required",
+              "reason_code": "runtime_component_missing",
+              "required_component": "paddleocr-cpu",
+              "supported_options": ["use_doc_orientation_classify", "use_doc_unwarping", "use_textline_orientation", "use_table_recognition", "use_formula_recognition", "use_seal_recognition", "use_chart_recognition"],
+              "lifecycle": {"kind": "model_residency", "supports_preload": true, "supports_ttl": true, "supports_pinning": true, "supports_release": true}
+            },
+            {
+              "id": "paddle_document_vl",
+              "family": "document",
+              "pipeline_id": "PaddleOCR-VL",
+              "engine": null,
+              "provisioning": "advanced_component",
+              "availability": "preparation_required",
+              "reason_code": "runtime_component_missing",
+              "required_component": "paddleocr-cpu",
+              "supported_options": ["use_doc_orientation_classify", "use_doc_unwarping", "vl_use_layout_detection", "vl_use_chart_recognition", "vl_use_seal_recognition", "use_ocr_for_image_block"],
+              "lifecycle": {"kind": "model_residency", "supports_preload": true, "supports_ttl": true, "supports_pinning": true, "supports_release": true}
+            },
+            {
+              "id": "mineru_document",
+              "family": "document",
+              "pipeline_id": "MinerU",
+              "engine": null,
+              "provisioning": "advanced_component",
+              "availability": "preparation_required",
+              "reason_code": "runtime_component_missing",
+              "required_component": "mineru-cpu",
+              "supported_options": ["parse_method", "backend", "effort", "enable_formula", "enable_table", "lang_list", "start_page_id", "end_page_id"],
+              "lifecycle": {"kind": "process_keep_alive", "supports_preload": false, "supports_ttl": true, "supports_pinning": false, "supports_release": true}
+            },
+            {
+              "id": "paddle_table",
+              "family": "specialized",
+              "pipeline_id": "TABLE_RECOGNITION",
+              "engine": null,
+              "provisioning": "advanced_component",
+              "availability": "preparation_required",
+              "reason_code": "runtime_component_missing",
+              "required_component": "paddleocr-cpu",
+              "supported_options": ["use_doc_orientation_classify", "use_doc_unwarping", "use_table_orientation_classify", "use_ocr_results_with_table_cells"],
+              "lifecycle": {"kind": "model_residency", "supports_preload": true, "supports_ttl": true, "supports_pinning": true, "supports_release": true}
+            },
+            {
+              "id": "paddle_formula",
+              "family": "specialized",
+              "pipeline_id": "FORMULA_RECOGNITION",
+              "engine": null,
+              "provisioning": "advanced_component",
+              "availability": "preparation_required",
+              "reason_code": "runtime_component_missing",
+              "required_component": "paddleocr-cpu",
+              "supported_options": ["use_doc_orientation_classify", "use_doc_unwarping", "formula_recognition_batch_size", "formula_recognition_model_name", "formula_recognition_model_dir"],
+              "lifecycle": {"kind": "model_residency", "supports_preload": true, "supports_ttl": true, "supports_pinning": true, "supports_release": true}
             }
           ]
         }

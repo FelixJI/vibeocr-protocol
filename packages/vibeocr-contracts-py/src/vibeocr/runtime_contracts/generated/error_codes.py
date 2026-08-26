@@ -42,6 +42,10 @@ class RuntimeErrorCode(StrEnum):
     OCR_ENGINE_LANGUAGE_UNAVAILABLE = "OCR_ENGINE_LANGUAGE_UNAVAILABLE"
     DOWNLOAD_SOURCE_UNKNOWN = "DOWNLOAD_SOURCE_UNKNOWN"
     RUNTIME_COMPONENT_UNKNOWN = "RUNTIME_COMPONENT_UNKNOWN"
+    RECOGNITION_MODE_UNKNOWN = "RECOGNITION_MODE_UNKNOWN"
+    RECOGNITION_MODE_UNAVAILABLE = "RECOGNITION_MODE_UNAVAILABLE"
+    RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED = "RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED"
+    RECOGNITION_MODE_PIPELINE_MISMATCH = "RECOGNITION_MODE_PIPELINE_MISMATCH"
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +94,10 @@ ERROR_DEFINITIONS: tuple[RuntimeErrorDefinition, ...] = (
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_LANGUAGE_UNAVAILABLE, 'capability', 426, False, 'The selected OCR engine does not support the requested language; the response detail may list the currently selectable engine ids.'),
     RuntimeErrorDefinition(RuntimeErrorCode.DOWNLOAD_SOURCE_UNKNOWN, 'validation', 400, False, 'A selected download source id is not in the runtime.download-sources.v1 catalog; the request fails closed without falling back to another source.'),
     RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_COMPONENT_UNKNOWN, 'validation', 400, False, 'A selected install component id is not in the runtime.component-selection.v1 catalog; the request fails closed without silently installing a different scope.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_UNKNOWN, 'validation', 400, False, 'The requested recognition mode id is not in the ocr.recognition-modes.v1 catalog.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_UNAVAILABLE, 'capability', 426, False, 'The selected recognition mode cannot run in the current runtime state.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED, 'validation', 400, False, 'The selected recognition mode does not support the requested preload, TTL, pinning or release operation.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_PIPELINE_MISMATCH, 'validation', 400, False, 'The legacy execution pipeline does not match the selected recognition mode.'),
 )
 ERROR_REGISTRY: dict[RuntimeErrorCode, RuntimeErrorDefinition] = {
     definition.code: definition for definition in ERROR_DEFINITIONS
