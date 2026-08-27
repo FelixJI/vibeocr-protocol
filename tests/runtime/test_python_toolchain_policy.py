@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_python_version_pin_matches_the_workspace_runtime() -> None:
-    assert (ROOT / ".python-version").read_text(encoding="utf-8").strip() == "3.13"
+    assert (ROOT / ".python-version").read_text(encoding="utf-8").strip() == "3.13.15"
 
     for project in (
         ROOT / "packages/vibeocr-contracts-py/pyproject.toml",
