@@ -88,10 +88,8 @@ public sealed class MineruConfigSelectionTests
     [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "partial", "reason_code": null}], "languages": ["ch"]}""")]
     [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "ready", "reason_code": ""}], "languages": ["ch"]}""")]
     [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "ready"}], "languages": ["ch"]}""")]
-    [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "ready", "reason_code": null, "extra": 1}], "languages": ["ch"]}""")]
     [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "ready", "reason_code": null}], "languages": []}""")]
     [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "ready", "reason_code": null}], "languages": ["ch", "ch"]}""")]
-    [InlineData("""{"default_tier": "basic", "tiers": [{"id": "basic", "availability": "ready", "reason_code": null}], "languages": ["ch"], "extra": 1}""")]
     public void MalformedCatalogsFailClosedWithConfigUnavailable(string json)
     {
         var exception = Assert.Throws<MineruConfigException>(
@@ -150,6 +148,7 @@ public sealed class MineruConfigSelectionTests
     }
 
     [Theory]
+    [InlineData("all\n")]
     [InlineData("0")]
     [InlineData("r0")]
     [InlineData("01")]
@@ -201,6 +200,46 @@ public sealed class MineruConfigSelectionTests
                 new MineruConfig { Tier = MineruTier.Basic, Language = "" },
                 Capabilities,
                 Catalog()));
+        Assert.Equal(HttpV2ErrorCode.ValidationError, exception.Code);
+    }
+
+    [Fact]
+    public void FutureOptionalResponseFieldsAreIgnored()
+    {
+        var catalog = JsonSerializer.SerializeToNode(Catalog())!;
+        catalog["future_hint"] = 1;
+        catalog["tiers"]![1]!["future_hint"] = "supported";
+        var selection = MineruConfigSelection.Build(
+            new MineruConfig { Tier = MineruTier.Basic }, Capabilities,
+            JsonSerializer.SerializeToElement(catalog));
+        Assert.Equal(MineruTier.Basic, selection.Mineru!.Tier);
+    }
+
+    [Theory]
+    [InlineData("default_tier")]
+    [InlineData("id")]
+    [InlineData("availability")]
+    public void WrongCatalogFieldTypesHaveStableErrors(string field)
+    {
+        var catalog = JsonSerializer.SerializeToNode(Catalog())!;
+        if (field == "default_tier")
+            catalog[field] = 1;
+        else
+            catalog["tiers"]![1]![field] = 1;
+        var exception = Assert.Throws<MineruConfigException>(
+            () => MineruConfigSelection.Build(
+                new MineruConfig { Tier = MineruTier.Basic }, Capabilities,
+                JsonSerializer.SerializeToElement(catalog)));
+        Assert.Equal(HttpV2ErrorCode.MineruConfigUnavailable, exception.Code);
+    }
+
+    [Fact]
+    public void InvalidOcrModeCannotProduceARequest()
+    {
+        var exception = Assert.Throws<MineruConfigException>(
+            () => MineruConfigSelection.Build(
+                new MineruConfig { Tier = MineruTier.Basic, OcrMode = (MineruOcrMode)999 },
+                Capabilities, Catalog()));
         Assert.Equal(HttpV2ErrorCode.ValidationError, exception.Code);
     }
 

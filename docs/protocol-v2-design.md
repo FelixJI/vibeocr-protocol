@@ -231,3 +231,5 @@ HTTP v2 错误对象固定包含八个字段：`schema_version`、`instance_id`�
 Release Please 同步 Python、NuGet、仓库清单、`version.txt` 与 OpenAPI
 `info.version`。发布工作流在上传前安装两个 wheel、读取打包资源，并通过临时项目从
 本地源还原和编译两个 NuGet 包，避免“构建成功但消费者无法安装”的发布。
+
+MinerU 客户端目录读取器只校验已知字段，忽略目录及 tier descriptor 中未来新增的可选响应字段；已知字段缺失、类型错误、非法枚举及重复 id 仍返回稳定的配置不可用错误。请求保持严格：源 schema、Python parser 与 .NET helper 均拒绝页范围末尾换行和语言首尾空白，.NET 新请求枚举不接受数字 JSON，MineruConfig 不忽略未知请求字段。

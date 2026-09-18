@@ -94,6 +94,7 @@ public sealed record JobSnapshot
 /// an upstream OCR hint. The block is only valid for mineru_parse jobs on the
 /// MinerU pipeline and must not be combined with legacy options or Engine.
 /// </summary>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record MineruConfig
 {
     public const string AllPages = "all";

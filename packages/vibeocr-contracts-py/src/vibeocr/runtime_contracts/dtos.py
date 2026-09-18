@@ -120,9 +120,7 @@ class MineruOcrMode(StrEnum):
     OCR = "ocr"
 
 
-MINERU_PAGE_RANGE_PATTERN = (
-    r"^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$"
-)
+MINERU_PAGE_RANGE_PATTERN = r"^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$(?![\s\S])"
 """Canonical page subset syntax shared with the OpenAPI ``MineruConfig``
 ``page_range`` pattern. Semantics (page counts, bounds, file types) stay with
 the Backend; the Protocol never parses PDFs."""

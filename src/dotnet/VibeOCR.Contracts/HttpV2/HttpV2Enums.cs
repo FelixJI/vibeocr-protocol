@@ -81,7 +81,7 @@ public enum OcrEngine
 /// of the legacy backend option values; the tier is required on the wire and
 /// has no auto placeholder.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<MineruTier>))]
+[JsonConverter(typeof(MineruTierJsonConverter))]
 public enum MineruTier
 {
     [JsonStringEnumMemberName("flash")] Flash,
@@ -91,7 +91,7 @@ public enum MineruTier
 }
 
 /// <summary>Upstream OCR mode hint; omitting selects auto.</summary>
-[JsonConverter(typeof(JsonStringEnumConverter<MineruOcrMode>))]
+[JsonConverter(typeof(MineruOcrModeJsonConverter))]
 public enum MineruOcrMode
 {
     [JsonStringEnumMemberName("auto")] Auto,
@@ -342,4 +342,18 @@ public enum RuntimeDriftReason
     [JsonStringEnumMemberName("identity_mismatch")] IdentityMismatch,
     [JsonStringEnumMemberName("integrity_failed")] IntegrityFailed,
     [JsonStringEnumMemberName("unexpected")] Unexpected,
+}
+
+public sealed class MineruTierJsonConverter : JsonStringEnumConverter<MineruTier>
+{
+    public MineruTierJsonConverter() : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+public sealed class MineruOcrModeJsonConverter : JsonStringEnumConverter<MineruOcrMode>
+{
+    public MineruOcrModeJsonConverter() : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
 }

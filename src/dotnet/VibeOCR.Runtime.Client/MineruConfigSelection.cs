@@ -87,7 +87,7 @@ public static partial class MineruConfigSelection
                 $"The mineru tier '{ToWireTier(config.Tier)}' is not listed by "
                     + "the mineru_config_catalog.");
         }
-        string availability = descriptor.GetProperty("availability").GetString()!;
+        string availability = ReadCatalogString(descriptor.GetProperty("availability"), "availability");
         if (availability == "unavailable")
         {
             throw new MineruConfigException(
@@ -125,6 +125,12 @@ public static partial class MineruConfigSelection
 
     private static void ValidateConfig(MineruConfig config)
     {
+        if (!Enum.IsDefined(config.Tier) || !Enum.IsDefined(config.OcrMode))
+        {
+            throw new MineruConfigException(
+                HttpV2ErrorCode.ValidationError,
+                "mineru tier and ocr_mode must be defined protocol values.");
+        }
         if (string.IsNullOrEmpty(config.Language)
             || config.Language.Trim() != config.Language)
         {
@@ -134,7 +140,8 @@ public static partial class MineruConfigSelection
                     + "surrounding whitespace.");
         }
         if (string.IsNullOrEmpty(config.PageRange)
-            || !PageRangeRegex().IsMatch(config.PageRange))
+            || PageRangeRegex().Match(config.PageRange) is not { Success: true } match
+            || match.Length != config.PageRange.Length)
         {
             throw new MineruConfigException(
                 HttpV2ErrorCode.ValidationError,
@@ -146,14 +153,6 @@ public static partial class MineruConfigSelection
     private static Dictionary<string, JsonElement> ValidateCatalog(
         JsonElement catalog)
     {
-        foreach (string property in catalog.EnumerateObject()
-                     .Select(property => property.Name))
-        {
-            if (property is not ("default_tier" or "tiers" or "languages"))
-            {
-                throw MalformedCatalog($"unknown catalog key '{property}'.");
-            }
-        }
         foreach (string required in new[] { "default_tier", "tiers", "languages" })
         {
             if (!catalog.TryGetProperty(required, out _))
@@ -162,7 +161,7 @@ public static partial class MineruConfigSelection
             }
         }
 
-        string defaultTier = catalog.GetProperty("default_tier").GetString()!;
+        string defaultTier = ReadCatalogString(catalog.GetProperty("default_tier"), "default_tier");
         if (!TierIds.Contains(defaultTier))
         {
             throw MalformedCatalog(
@@ -182,15 +181,6 @@ public static partial class MineruConfigSelection
             {
                 throw MalformedCatalog("tier descriptors must be objects.");
             }
-            foreach (string property in descriptor.EnumerateObject()
-                         .Select(property => property.Name))
-            {
-                if (property is not ("id" or "availability" or "reason_code"))
-                {
-                    throw MalformedCatalog(
-                        $"unknown tier descriptor key '{property}'.");
-                }
-            }
             foreach (string required in new[] { "id", "availability", "reason_code" })
             {
                 if (!descriptor.TryGetProperty(required, out _))
@@ -199,7 +189,7 @@ public static partial class MineruConfigSelection
                         $"tier descriptor is missing '{required}'.");
                 }
             }
-            string id = descriptor.GetProperty("id").GetString()!;
+            string id = ReadCatalogString(descriptor.GetProperty("id"), "id");
             if (!TierIds.Contains(id))
             {
                 throw MalformedCatalog($"unknown tier id '{id}'.");
@@ -208,7 +198,7 @@ public static partial class MineruConfigSelection
             {
                 throw MalformedCatalog($"duplicate tier id '{id}'.");
             }
-            string availability = descriptor.GetProperty("availability").GetString()!;
+            string availability = ReadCatalogString(descriptor.GetProperty("availability"), "availability");
             if (!Availabilities.Contains(availability))
             {
                 throw MalformedCatalog(
@@ -257,6 +247,13 @@ public static partial class MineruConfigSelection
             }
         }
         return tiers;
+    }
+
+    private static string ReadCatalogString(JsonElement value, string field)
+    {
+        if (value.ValueKind is not JsonValueKind.String)
+            throw MalformedCatalog($"{field} must be a string.");
+        return value.GetString()!;
     }
 
     private static MineruConfigException MalformedCatalog(string reason) =>

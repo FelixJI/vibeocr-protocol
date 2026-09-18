@@ -59,6 +59,22 @@ public sealed class MineruConfigContractTests
         Assert.Equal("hybrid-engine", roundTrip["options"]!["backend"]!.GetValue<string>());
     }
 
+    [Theory]
+    [InlineData("1")]
+    [InlineData("999")]
+    public void MineruRequestEnumsRejectNumericJson(string json)
+    {
+        Assert.Throws<JsonException>(() => DeserializeTier(json));
+        Assert.Throws<JsonException>(() => DeserializeMode(json));
+    }
+
+    [Fact]
+    public void MineruConfigRejectsUnknownRequestFields()
+    {
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<MineruConfig>(
+            """{"tier":"basic","extra":1}"""));
+    }
+
     [Fact]
     public void MineruDefaultsSerializeTheEffectiveValues()
     {

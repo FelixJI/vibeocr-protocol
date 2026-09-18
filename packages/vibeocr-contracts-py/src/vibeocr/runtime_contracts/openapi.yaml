@@ -2738,12 +2738,13 @@
           },
           "page_range": {
             "type": "string",
-            "pattern": "^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$",
+            "pattern": "^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$(?![\\s\\S])",
             "description": "Canonical page subset: the literal all, or a comma-separated list of 1-based positive page indexes and closed ranges; rN counts from the last page and rA-rB denotes a reversed closed range (for example 1-5,8,r3-r1). Zero, r0, empty fragments, surrounding whitespace and mixing all with numbers are rejected syntactically. Actual page counts, range direction/bounds and file types are validated by the Backend against the input; for non-PDF inputs clients may only omit the field or send all, and the Backend maps both to an omitted upstream range. The Protocol never parses PDFs."
           },
           "language": {
             "type": "string",
             "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$(?![\\s\\S])",
             "description": "Single upstream OCR language id without surrounding whitespace; omitting selects the upstream default ch. The id must be listed by the ocr.mineru-config.v1 catalog before a client may send it."
           }
         }

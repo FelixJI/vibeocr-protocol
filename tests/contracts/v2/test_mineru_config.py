@@ -70,6 +70,7 @@ VALID_PAGE_RANGES = (
     "10-20,30,r5",
 )
 INVALID_PAGE_RANGES = (
+    "1\n",
     "",
     "0",
     "r0",
@@ -323,7 +324,7 @@ def test_mineru_block_rejects_non_empty_legacy_options(options: dict) -> None:
 
 
 def test_mineru_block_rejects_engine_combination() -> None:
-    with pytest.raises(ContractError):
+    with pytest.raises(ContractError, match="VALIDATION_ERROR"):
         parse_pipeline_selection(
             _mineru_selection({"tier": "basic"}, engine="rapidocr")
         )
@@ -628,7 +629,6 @@ def test_helper_fails_closed_without_capability_or_catalog() -> None:
     "mutate",
     [
         lambda c: c.pop("tiers"),
-        lambda c: c.update({"extra": 1}),
         lambda c: c.update({"tiers": []}),
         lambda c: c.update({"tiers": c["tiers"] + [dict(c["tiers"][0])]}),
         lambda c: c.update(
@@ -638,6 +638,9 @@ def test_helper_fails_closed_without_capability_or_catalog() -> None:
             }
         ),
         lambda c: c["tiers"][0].update({"availability": "partial"}),
+        lambda c: c["tiers"][0].update({"availability": []}),
+        lambda c: c["tiers"][0].update({"id": {}}),
+        lambda c: c.update({"default_tier": 1}),
         lambda c: c["tiers"][0].update({"reason_code": ""}),
         lambda c: c.update({"default_tier": "standard", "tiers": c["tiers"][:1]}),
         lambda c: c.update({"languages": []}),
@@ -671,3 +674,27 @@ def test_helper_rejects_languages_outside_the_catalog() -> None:
     with pytest.raises(MineruConfigError) as excinfo:
         _build(MineruConfig(tier=MineruTier.BASIC, language="jp"))
     assert excinfo.value.code is ErrorCode.VALIDATION_ERROR
+
+
+def test_helper_accepts_future_optional_response_fields() -> None:
+    catalog = _catalog()
+    catalog["future_hint"] = {"value": 1}
+    catalog["tiers"][1]["future_hint"] = ["supported"]
+    selection = _build(MineruConfig(tier=MineruTier.BASIC), catalog=catalog)
+    assert selection.mineru.tier is MineruTier.BASIC
+
+
+@pytest.mark.parametrize("language", [" ch", "ch ", "ch\n"])
+def test_mineru_language_is_strict_in_both_source_schemas(language: str) -> None:
+    spec = _spec()
+    legacy = json.loads(
+        (V2 / "schemas/job-interface.schema.json").read_text(encoding="utf-8")
+    )
+    for schema in (
+        {"$ref": "#/components/schemas/MineruConfig", "components": spec["components"]},
+        {"$ref": "#/$defs/MineruConfig", "$defs": legacy["$defs"]},
+    ):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(schema).validate(
+                {"tier": "basic", "language": language}
+            )

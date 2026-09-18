@@ -54,16 +54,14 @@ def _unavailable(message: str) -> MineruConfigError:
 
 
 def _validate_catalog(catalog: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
-    """Validate the raw catalog object and index its tier descriptors."""
+    """Validate known fields; ignore future optional response fields."""
     if not isinstance(catalog, Mapping):
         raise _unavailable("mineru_config_catalog must be a JSON object")
-    unknown_keys = sorted(set(catalog).difference(_CATALOG_KEYS))
     missing_keys = sorted(_CATALOG_KEYS.difference(catalog))
-    if unknown_keys or missing_keys:
+    if missing_keys:
         raise _unavailable(
-            "mineru_config_catalog must contain exactly "
-            f"{sorted(_CATALOG_KEYS)}; missing={missing_keys}, "
-            f"unknown={unknown_keys}"
+            "mineru_config_catalog must contain "
+            f"{sorted(_CATALOG_KEYS)}; missing={missing_keys}"
         )
     tiers_raw = catalog["tiers"]
     languages_raw = catalog["languages"]
@@ -82,13 +80,11 @@ def _validate_catalog(catalog: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     for descriptor in tiers_raw:
         if not isinstance(descriptor, Mapping):
             raise _unavailable("mineru tier descriptors must be JSON objects")
-        unknown = sorted(set(descriptor).difference(_TIER_DESCRIPTOR_KEYS))
         missing = sorted(_TIER_DESCRIPTOR_KEYS.difference(descriptor))
-        if unknown or missing:
+        if missing:
             raise _unavailable(
-                "mineru tier descriptors must contain exactly "
-                f"{sorted(_TIER_DESCRIPTOR_KEYS)}; missing={missing}, "
-                f"unknown={unknown}"
+                "mineru tier descriptors must contain "
+                f"{sorted(_TIER_DESCRIPTOR_KEYS)}; missing={missing}"
             )
         tier_id = descriptor["id"]
         try:
@@ -102,7 +98,10 @@ def _validate_catalog(catalog: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
                 f"mineru_config_catalog lists duplicate tier id: {tier.value!r}"
             )
         availability = descriptor["availability"]
-        if availability not in MINERU_TIER_AVAILABILITIES:
+        if (
+            not isinstance(availability, str)
+            or availability not in MINERU_TIER_AVAILABILITIES
+        ):
             raise _unavailable(
                 f"mineru tier {tier.value!r} has an unknown availability: "
                 f"{availability!r}"

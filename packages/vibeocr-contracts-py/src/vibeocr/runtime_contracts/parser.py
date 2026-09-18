@@ -267,6 +267,11 @@ def parse_pipeline_selection(payload: dict[str, Any]) -> PipelineSelection:
         raise ContractError(
             f"unsupported option(s) for {pipeline.value}: {', '.join(unknown_options)}"
         )
+    if "mineru" in payload and "engine" in payload:
+        raise ContractError(
+            "mineru config cannot be combined with the engine field; "
+            "reject with VALIDATION_ERROR semantics"
+        )
     engine = None
     if "engine" in payload:
         engine = _require_enum(OcrEngine, payload["engine"], "ocr engine")
@@ -283,11 +288,6 @@ def parse_pipeline_selection(payload: dict[str, Any]) -> PipelineSelection:
             )
         if pipeline is not OCRPipeline.DOCUMENT_PARSING:
             raise ContractError("mineru config requires the MinerU pipeline")
-        if engine is not None:
-            raise ContractError(
-                "mineru config cannot be combined with the engine field; "
-                "reject with VALIDATION_ERROR semantics"
-            )
         if options:
             raise ContractError(
                 "mineru config cannot be combined with legacy pipeline options; "

@@ -5124,6 +5124,7 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                         'send '
                                                                                                                                                         'it.',
                                                                                                                                          'minLength': 1,
+                                                                                                                                         'pattern': '^\\S(?:[\\s\\S]*\\S)?$(?![\\s\\S])',
                                                                                                                                          'type': 'string'},
                                                                                                                             'ocr_mode': {'description': 'Upstream '
                                                                                                                                                         'OCR '
@@ -5248,7 +5249,7 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                           'never '
                                                                                                                                                           'parses '
                                                                                                                                                           'PDFs.',
-                                                                                                                                           'pattern': '^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$',
+                                                                                                                                           'pattern': '^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$(?![\\s\\S])',
                                                                                                                                            'type': 'string'},
                                                                                                                             'tier': {'description': 'Stable '
                                                                                                                                                     'MinerU '
