@@ -75,6 +75,42 @@ public enum OcrEngine
     [JsonStringEnumMemberName("paddleocr")] PaddleOcr,
 }
 
+/// <summary>
+/// Stable MinerU 4 tier ids, mirroring the Python MineruTier enum and the
+/// authoritative MineruTierId OpenAPI schema. The four tiers are not renames
+/// of the legacy backend option values; the tier is required on the wire and
+/// has no auto placeholder.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<MineruTier>))]
+public enum MineruTier
+{
+    [JsonStringEnumMemberName("flash")] Flash,
+    [JsonStringEnumMemberName("basic")] Basic,
+    [JsonStringEnumMemberName("standard")] Standard,
+    [JsonStringEnumMemberName("advanced")] Advanced,
+}
+
+/// <summary>Upstream OCR mode hint; omitting selects auto.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<MineruOcrMode>))]
+public enum MineruOcrMode
+{
+    [JsonStringEnumMemberName("auto")] Auto,
+    [JsonStringEnumMemberName("txt")] Txt,
+    [JsonStringEnumMemberName("ocr")] Ocr,
+}
+
+/// <summary>
+/// Availability of one MinerU tier in the current runtime, mirroring the
+/// MineruTierAvailability OpenAPI schema and the Python helper constants.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<MineruTierAvailability>))]
+public enum MineruTierAvailability
+{
+    [JsonStringEnumMemberName("ready")] Ready,
+    [JsonStringEnumMemberName("preparation_required")] PreparationRequired,
+    [JsonStringEnumMemberName("unavailable")] Unavailable,
+}
+
 [JsonConverter(typeof(JsonStringEnumConverter<JobCommandKind>))]
 public enum JobCommandKind
 {
@@ -260,6 +296,10 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("RECOGNITION_MODE_UNAVAILABLE")] RecognitionModeUnavailable,
     [JsonStringEnumMemberName("RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED")] RecognitionModeLifecycleUnsupported,
     [JsonStringEnumMemberName("RECOGNITION_MODE_PIPELINE_MISMATCH")] RecognitionModePipelineMismatch,
+    [JsonStringEnumMemberName("MINERU_CONFIG_UNAVAILABLE")] MineruConfigUnavailable,
+    [JsonStringEnumMemberName("MINERU_CONFIG_MIGRATION_REQUIRED")] MineruConfigMigrationRequired,
+    [JsonStringEnumMemberName("MINERU_TIER_UNAVAILABLE")] MineruTierUnavailable,
+    [JsonStringEnumMemberName("MINERU_TIER_PREPARATION_REQUIRED")] MineruTierPreparationRequired,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceCommandKind>))]

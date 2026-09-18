@@ -46,6 +46,10 @@ class RuntimeErrorCode(StrEnum):
     RECOGNITION_MODE_UNAVAILABLE = "RECOGNITION_MODE_UNAVAILABLE"
     RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED = "RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED"
     RECOGNITION_MODE_PIPELINE_MISMATCH = "RECOGNITION_MODE_PIPELINE_MISMATCH"
+    MINERU_CONFIG_UNAVAILABLE = "MINERU_CONFIG_UNAVAILABLE"
+    MINERU_CONFIG_MIGRATION_REQUIRED = "MINERU_CONFIG_MIGRATION_REQUIRED"
+    MINERU_TIER_UNAVAILABLE = "MINERU_TIER_UNAVAILABLE"
+    MINERU_TIER_PREPARATION_REQUIRED = "MINERU_TIER_PREPARATION_REQUIRED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +102,10 @@ ERROR_DEFINITIONS: tuple[RuntimeErrorDefinition, ...] = (
     RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_UNAVAILABLE, 'capability', 426, False, 'The selected recognition mode cannot run in the current runtime state.'),
     RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED, 'validation', 400, False, 'The selected recognition mode does not support the requested preload, TTL, pinning or release operation.'),
     RuntimeErrorDefinition(RuntimeErrorCode.RECOGNITION_MODE_PIPELINE_MISMATCH, 'validation', 400, False, 'The legacy execution pipeline does not match the selected recognition mode.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.MINERU_CONFIG_UNAVAILABLE, 'capability', 426, False, 'The runtime does not provide the ocr.mineru-config.v1 typed MinerU configuration capability; the request fails closed without falling back to legacy options or the flash tier.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.MINERU_CONFIG_MIGRATION_REQUIRED, 'validation', 400, False, 'The stored legacy MinerU settings cannot be migrated to an equivalent typed configuration; the user must re-select the tier and options instead of relying on a silent fallback.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.MINERU_TIER_UNAVAILABLE, 'capability', 426, False, 'The selected MinerU tier cannot run in this runtime; the response detail may list the currently selectable tiers.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.MINERU_TIER_PREPARATION_REQUIRED, 'capability', 428, False, 'The selected MinerU tier requires user preparation of runtime components before use.'),
 )
 ERROR_REGISTRY: dict[RuntimeErrorCode, RuntimeErrorDefinition] = {
     definition.code: definition for definition in ERROR_DEFINITIONS

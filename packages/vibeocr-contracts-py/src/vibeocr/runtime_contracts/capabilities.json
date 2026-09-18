@@ -16,7 +16,8 @@
     "ocr.engine-selection.v1",
     "runtime.download-sources.v1",
     "runtime.component-selection.v1",
-    "ocr.recognition-modes.v1"
+    "ocr.recognition-modes.v1",
+    "ocr.mineru-config.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -143,6 +144,14 @@
       "description": "Discover user-semantic recognition modes and their exact execution mapping, provisioning, availability, supported options, and honest model-residency or child-process lifecycle capabilities.",
       "lifecycle": "active",
       "introduced_in": "2.8.0",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "ocr.mineru-config.v1": {
+      "description": "Select the typed MinerU 4 tier, OCR mode, canonical page range and language on mineru_parse jobs, negotiated against the Backend-declared tier and language catalog carried by capability descriptors.",
+      "lifecycle": "active",
+      "introduced_in": "2.9.0",
       "deprecated_in": null,
       "sunset_at": null,
       "replacement": null

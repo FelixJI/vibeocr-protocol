@@ -30,6 +30,65 @@ public sealed class ExecutionPipelineIdJsonConverter : JsonStringEnumConverter<E
     }
 }
 
+[JsonConverter(typeof(MineruOcrModeJsonConverter))]
+public enum MineruOcrMode
+{
+    [JsonStringEnumMemberName("auto")]
+    Auto,
+    [JsonStringEnumMemberName("txt")]
+    Txt,
+    [JsonStringEnumMemberName("ocr")]
+    Ocr
+}
+
+public sealed class MineruOcrModeJsonConverter : JsonStringEnumConverter<MineruOcrMode>
+{
+    public MineruOcrModeJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(MineruTierAvailabilityJsonConverter))]
+public enum MineruTierAvailability
+{
+    [JsonStringEnumMemberName("ready")]
+    Ready,
+    [JsonStringEnumMemberName("preparation_required")]
+    PreparationRequired,
+    [JsonStringEnumMemberName("unavailable")]
+    Unavailable
+}
+
+public sealed class MineruTierAvailabilityJsonConverter : JsonStringEnumConverter<MineruTierAvailability>
+{
+    public MineruTierAvailabilityJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
+[JsonConverter(typeof(MineruTierIdJsonConverter))]
+public enum MineruTierId
+{
+    [JsonStringEnumMemberName("flash")]
+    Flash,
+    [JsonStringEnumMemberName("basic")]
+    Basic,
+    [JsonStringEnumMemberName("standard")]
+    Standard,
+    [JsonStringEnumMemberName("advanced")]
+    Advanced
+}
+
+public sealed class MineruTierIdJsonConverter : JsonStringEnumConverter<MineruTierId>
+{
+    public MineruTierIdJsonConverter()
+        : base(namingPolicy: null, allowIntegerValues: false)
+    {
+    }
+}
+
 [JsonConverter(typeof(OcrEngineAvailabilityJsonConverter))]
 public enum OcrEngineAvailability
 {
@@ -339,6 +398,9 @@ public sealed record CapabilityDescriptor
 
     [JsonPropertyName("component_variant_catalog")]
     public ComponentVariantCatalog? ComponentVariantCatalog { get; init; }
+
+    [JsonPropertyName("mineru_config_catalog")]
+    public MineruConfigCatalog? MineruConfigCatalog { get; init; }
 }
 
 public sealed record CommandResult
@@ -731,6 +793,45 @@ public sealed record JobUpdate
     public required bool More { get; init; }
 }
 
+public sealed record MineruConfig
+{
+    [JsonPropertyName("tier")]
+    public required MineruTierId Tier { get; init; }
+
+    [JsonPropertyName("ocr_mode")]
+    public MineruOcrMode? OcrMode { get; init; }
+
+    [JsonPropertyName("page_range")]
+    public string? PageRange { get; init; }
+
+    [JsonPropertyName("language")]
+    public string? Language { get; init; }
+}
+
+public sealed record MineruConfigCatalog
+{
+    [JsonPropertyName("default_tier")]
+    public required MineruTierId DefaultTier { get; init; }
+
+    [JsonPropertyName("tiers")]
+    public required IReadOnlyList<MineruTierDescriptor> Tiers { get; init; }
+
+    [JsonPropertyName("languages")]
+    public required IReadOnlyList<string> Languages { get; init; }
+}
+
+public sealed record MineruTierDescriptor
+{
+    [JsonPropertyName("id")]
+    public required MineruTierId Id { get; init; }
+
+    [JsonPropertyName("availability")]
+    public required MineruTierAvailability Availability { get; init; }
+
+    [JsonPropertyName("reason_code")]
+    public required string? ReasonCode { get; init; }
+}
+
 public sealed record ModelDiff
 {
     [JsonPropertyName("replaced_pages")]
@@ -1017,6 +1118,9 @@ public sealed record PipelineSelection
 
     [JsonPropertyName("engine")]
     public OcrEngineId? Engine { get; init; }
+
+    [JsonPropertyName("mineru")]
+    public MineruConfig? Mineru { get; init; }
 }
 
 public sealed record PipelineSpec

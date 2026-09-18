@@ -5,6 +5,9 @@ from typing import Any, Literal, NotRequired, Required, TypedDict
 
 DownloadSourceKind = str
 ExecutionPipelineId = Literal['OCR', 'PP-StructureV3', 'MinerU', 'PaddleOCR-VL', 'TABLE_RECOGNITION', 'FORMULA_RECOGNITION']
+MineruOcrMode = Literal['auto', 'txt', 'ocr']
+MineruTierAvailability = Literal['ready', 'preparation_required', 'unavailable']
+MineruTierId = Literal['flash', 'basic', 'standard', 'advanced']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressPhase = Literal['load', 'render', 'ocr', 'write', 'detect', 'correct', 'delete', 'save', 'export', 'compress']
@@ -48,6 +51,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     recognition_mode_catalog: NotRequired[RecognitionModeCatalog]
     download_source_catalog: NotRequired[DownloadSourceCatalog]
     component_variant_catalog: NotRequired[ComponentVariantCatalog]
+    mineru_config_catalog: NotRequired[MineruConfigCatalog]
 
 
 class CommandResult(TypedDict, total=False):
@@ -224,6 +228,25 @@ class JobUpdate(TypedDict, total=False):
     more: Required[bool]
 
 
+class MineruConfig(TypedDict, total=False):
+    tier: Required[MineruTierId]
+    ocr_mode: NotRequired[MineruOcrMode]
+    page_range: NotRequired[str]
+    language: NotRequired[str]
+
+
+class MineruConfigCatalog(TypedDict, total=False):
+    default_tier: Required[MineruTierId]
+    tiers: Required[list[MineruTierDescriptor]]
+    languages: Required[list[str]]
+
+
+class MineruTierDescriptor(TypedDict, total=False):
+    id: Required[MineruTierId]
+    availability: Required[MineruTierAvailability]
+    reason_code: Required[str | None]
+
+
 class ModelDiff(TypedDict, total=False):
     replaced_pages: NotRequired[list[PdfPageInfoMirror]]
     structural_change: NotRequired[bool]
@@ -360,6 +383,7 @@ class PipelineSelection(TypedDict, total=False):
     options_version: Required[Literal[1]]
     options: Required[dict[str, Any]]
     engine: NotRequired[OcrEngineId]
+    mineru: NotRequired[MineruConfig]
 
 
 class PipelineSpec(TypedDict, total=False):

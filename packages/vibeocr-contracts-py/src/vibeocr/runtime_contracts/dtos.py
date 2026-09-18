@@ -8,6 +8,7 @@ helpers convert to JSON-native payloads; that form is the wire contract.
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -95,6 +96,36 @@ class OcrEngine(StrEnum):
     RAPIDOCR = "rapidocr"
     WINDOWS = "windows"
     PADDLEOCR = "paddleocr"
+
+
+class MineruTier(StrEnum):
+    """Stable MinerU 4 tier ids.
+
+    Mirrors the authoritative ``MineruTierId`` enum in ``openapi.yaml``. The
+    four tiers are not renames of the legacy ``backend`` option values; the
+    tier is required and has no ``auto`` placeholder.
+    """
+
+    FLASH = "flash"
+    BASIC = "basic"
+    STANDARD = "standard"
+    ADVANCED = "advanced"
+
+
+class MineruOcrMode(StrEnum):
+    """Upstream OCR mode hint; omitting selects ``auto``."""
+
+    AUTO = "auto"
+    TXT = "txt"
+    OCR = "ocr"
+
+
+MINERU_PAGE_RANGE_PATTERN = (
+    r"^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$"
+)
+"""Canonical page subset syntax shared with the OpenAPI ``MineruConfig``
+``page_range`` pattern. Semantics (page counts, bounds, file types) stay with
+the Backend; the Protocol never parses PDFs."""
 
 
 class JobCommandKind(StrEnum):
@@ -394,6 +425,58 @@ class JobSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class MineruConfig:
+    """Typed MinerU 4 configuration (``ocr.mineru-config.v1``).
+
+    ``tier`` is required; ``ocr_mode`` defaults to ``auto``, ``page_range`` to
+    ``all`` and ``language`` to the upstream default ``ch``, and ``to_payload``
+    always writes the effective values. ``language`` is only an upstream OCR
+    hint. The block is only valid for ``kind=mineru_parse`` jobs on the
+    ``MinerU`` pipeline and must not be combined with legacy ``options`` or
+    ``engine``; the parser enforces the combination rules.
+    """
+
+    tier: MineruTier
+    ocr_mode: MineruOcrMode = MineruOcrMode.AUTO
+    page_range: str = "all"
+    language: str = "ch"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.tier, MineruTier):
+            raise ValueError(
+                f"mineru tier must be a MineruTier value, got {self.tier!r}"
+            )
+        if not isinstance(self.ocr_mode, MineruOcrMode):
+            raise ValueError(
+                f"mineru ocr_mode must be a MineruOcrMode value, got {self.ocr_mode!r}"
+            )
+        if not isinstance(self.page_range, str) or not re.fullmatch(
+            MINERU_PAGE_RANGE_PATTERN, self.page_range
+        ):
+            raise ValueError(
+                "mineru page_range must be 'all' or a comma-separated list of "
+                f"positive/reverse page indexes and closed ranges, got {self.page_range!r}"
+            )
+        if (
+            not isinstance(self.language, str)
+            or not self.language
+            or self.language != self.language.strip()
+        ):
+            raise ValueError(
+                "mineru language must be a non-empty language id without "
+                f"surrounding whitespace, got {self.language!r}"
+            )
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "tier": self.tier.value,
+            "ocr_mode": self.ocr_mode.value,
+            "page_range": self.page_range,
+            "language": self.language,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class PipelineSelection:
     """Frozen user-semantic pipeline selection for one logical job.
 
@@ -402,12 +485,19 @@ class PipelineSelection:
     and fails closed on unknown ids. Omitting it lets the server apply its own
     default engine (``rapidocr``). The field is absent from the wire payload
     when unset because the request schema does not accept an explicit null.
+
+    ``mineru`` carries the typed MinerU 4 configuration protected by the
+    ``ocr.mineru-config.v1`` capability. It is only valid for the ``MinerU``
+    pipeline with ``kind=mineru_parse`` and must not be combined with legacy
+    options or ``engine``; the server rejects mixed requests with
+    ``VALIDATION_ERROR``. Omitting it keeps the legacy payload shape.
     """
 
     pipeline_id: str
     options_version: int = 1
     options: dict[str, Any] = field(default_factory=dict)
     engine: OcrEngine | None = None
+    mineru: MineruConfig | None = None
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -417,6 +507,8 @@ class PipelineSelection:
         }
         if self.engine is not None:
             payload["engine"] = self.engine.value
+        if self.mineru is not None:
+            payload["mineru"] = self.mineru.to_payload()
         return payload
 
 
@@ -983,6 +1075,7 @@ class UnknownJobError:
 
 
 __all__ = [
+    "MINERU_PAGE_RANGE_PATTERN",
     "SCHEMA_VERSION",
     "TERMINAL_ITEM_STATES",
     "TERMINAL_JOB_STATES",
@@ -1000,6 +1093,9 @@ __all__ = [
     "JobState",
     "JobSummary",
     "JobUpdate",
+    "MineruConfig",
+    "MineruOcrMode",
+    "MineruTier",
     "OcrEngine",
     "PipelineSelection",
     "PipelineSpec",

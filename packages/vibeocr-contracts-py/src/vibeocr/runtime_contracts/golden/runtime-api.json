@@ -24,7 +24,8 @@
       "ocr.engine-selection.v1",
       "ocr.recognition-modes.v1",
       "runtime.download-sources.v1",
-      "runtime.component-selection.v1"
+      "runtime.component-selection.v1",
+      "ocr.mineru-config.v1"
     ],
     "capability_descriptors": [
       {
@@ -237,6 +238,43 @@
               "accelerator": "nvidia_cuda",
               "component_id": "mineru-cuda"
             }
+          ]
+        }
+      },
+      {
+        "name": "ocr.mineru-config.v1",
+        "lifecycle": "active",
+        "introduced_in": "2.9.0",
+        "deprecated_in": null,
+        "sunset_at": null,
+        "replacement": null,
+        "mineru_config_catalog": {
+          "default_tier": "basic",
+          "tiers": [
+            {
+              "id": "flash",
+              "availability": "ready",
+              "reason_code": null
+            },
+            {
+              "id": "basic",
+              "availability": "ready",
+              "reason_code": null
+            },
+            {
+              "id": "standard",
+              "availability": "preparation_required",
+              "reason_code": "MINERU_TIER_PREPARATION_REQUIRED"
+            },
+            {
+              "id": "advanced",
+              "availability": "unavailable",
+              "reason_code": "MINERU_TIER_UNAVAILABLE"
+            }
+          ],
+          "languages": [
+            "ch",
+            "en"
           ]
         }
       }

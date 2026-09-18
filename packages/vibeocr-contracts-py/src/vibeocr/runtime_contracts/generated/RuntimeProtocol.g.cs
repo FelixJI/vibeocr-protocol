@@ -21,6 +21,7 @@ public static class RuntimeProtocol
     public const string RUNTIME_DOWNLOAD_SOURCES_V1 = "runtime.download-sources.v1";
     public const string RUNTIME_COMPONENT_SELECTION_V1 = "runtime.component-selection.v1";
     public const string OCR_RECOGNITION_MODES_V1 = "ocr.recognition-modes.v1";
+    public const string OCR_MINERU_CONFIG_V1 = "ocr.mineru-config.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -42,7 +43,8 @@ public static class RuntimeProtocol
         "ocr.engine-selection.v1",
         "runtime.download-sources.v1",
         "runtime.component-selection.v1",
-        "ocr.recognition-modes.v1"
+        "ocr.recognition-modes.v1",
+        "ocr.mineru-config.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
@@ -177,7 +179,11 @@ public enum RuntimeErrorCode
     RECOGNITION_MODE_UNKNOWN,
     RECOGNITION_MODE_UNAVAILABLE,
     RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED,
-    RECOGNITION_MODE_PIPELINE_MISMATCH
+    RECOGNITION_MODE_PIPELINE_MISMATCH,
+    MINERU_CONFIG_UNAVAILABLE,
+    MINERU_CONFIG_MIGRATION_REQUIRED,
+    MINERU_TIER_UNAVAILABLE,
+    MINERU_TIER_PREPARATION_REQUIRED
 }
 
 public sealed record RuntimeReadyEnvelope(

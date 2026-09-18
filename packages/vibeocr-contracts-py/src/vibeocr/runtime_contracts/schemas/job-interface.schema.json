@@ -3,6 +3,28 @@
   "$id": "https://vibeocr/protocol/v2/job-interface.schema.json",
   "title": "VibeOCR v2 Deep Job Interface",
   "$defs": {
+    "MineruTierId": {
+      "type": "string",
+      "enum": ["flash", "basic", "standard", "advanced"]
+    },
+    "MineruOcrMode": {
+      "type": "string",
+      "enum": ["auto", "txt", "ocr"]
+    },
+    "MineruConfig": {
+      "type": "object",
+      "required": ["tier"],
+      "additionalProperties": false,
+      "properties": {
+        "tier": {"$ref": "#/$defs/MineruTierId"},
+        "ocr_mode": {"$ref": "#/$defs/MineruOcrMode"},
+        "page_range": {
+          "type": "string",
+          "pattern": "^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$"
+        },
+        "language": {"type": "string", "minLength": 1}
+      }
+    },
     "PipelineSelection": {
       "type": "object",
       "required": ["pipeline_id", "options_version", "options"],
@@ -20,7 +42,8 @@
           ]
         },
         "options_version": {"type": "integer", "const": 1},
-        "options": {"type": "object"}
+        "options": {"type": "object"},
+        "mineru": {"$ref": "#/$defs/MineruConfig"}
       }
     },
     "SubmitItem": {
