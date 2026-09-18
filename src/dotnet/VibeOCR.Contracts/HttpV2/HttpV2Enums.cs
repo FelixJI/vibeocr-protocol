@@ -12,6 +12,7 @@
 //     wire string is unambiguous regardless of the context naming policy
 //     (lowercase snake for state/kind/priority/mode; SCREAMING_SNAKE for
 //     ErrorCode, which must NOT be lower-cased).
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace VibeOCR.Contracts.HttpV2;
@@ -344,16 +345,54 @@ public enum RuntimeDriftReason
     [JsonStringEnumMemberName("unexpected")] Unexpected,
 }
 
-public sealed class MineruTierJsonConverter : JsonStringEnumConverter<MineruTier>
+public sealed class MineruTierJsonConverter : JsonConverter<MineruTier>
 {
-    public MineruTierJsonConverter() : base(namingPolicy: null, allowIntegerValues: false)
+    public override MineruTier Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType is not JsonTokenType.String)
+            throw new JsonException("MineruTier must be a wire string.");
+        return reader.GetString() switch
+        {
+            "flash" => MineruTier.Flash,
+            "basic" => MineruTier.Basic,
+            "standard" => MineruTier.Standard,
+            "advanced" => MineruTier.Advanced,
+            _ => throw new JsonException("Unknown MineruTier wire value."),
+        };
     }
+
+    public override void Write(Utf8JsonWriter writer, MineruTier value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            MineruTier.Flash => "flash",
+            MineruTier.Basic => "basic",
+            MineruTier.Standard => "standard",
+            MineruTier.Advanced => "advanced",
+            _ => throw new JsonException("Unknown MineruTier value."),
+        });
 }
 
-public sealed class MineruOcrModeJsonConverter : JsonStringEnumConverter<MineruOcrMode>
+public sealed class MineruOcrModeJsonConverter : JsonConverter<MineruOcrMode>
 {
-    public MineruOcrModeJsonConverter() : base(namingPolicy: null, allowIntegerValues: false)
+    public override MineruOcrMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType is not JsonTokenType.String)
+            throw new JsonException("MineruOcrMode must be a wire string.");
+        return reader.GetString() switch
+        {
+            "auto" => MineruOcrMode.Auto,
+            "txt" => MineruOcrMode.Txt,
+            "ocr" => MineruOcrMode.Ocr,
+            _ => throw new JsonException("Unknown MineruOcrMode wire value."),
+        };
     }
+
+    public override void Write(Utf8JsonWriter writer, MineruOcrMode value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            MineruOcrMode.Auto => "auto",
+            MineruOcrMode.Txt => "txt",
+            MineruOcrMode.Ocr => "ocr",
+            _ => throw new JsonException("Unknown MineruOcrMode value."),
+        });
 }

@@ -41,12 +41,29 @@ public enum MineruOcrMode
     Ocr
 }
 
-public sealed class MineruOcrModeJsonConverter : JsonStringEnumConverter<MineruOcrMode>
+public sealed class MineruOcrModeJsonConverter : JsonConverter<MineruOcrMode>
 {
-    public MineruOcrModeJsonConverter()
-        : base(namingPolicy: null, allowIntegerValues: false)
+    public override MineruOcrMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType is not JsonTokenType.String)
+            throw new JsonException("MineruOcrMode must be a wire string.");
+        return reader.GetString() switch
+        {
+            "auto" => MineruOcrMode.Auto,
+            "txt" => MineruOcrMode.Txt,
+            "ocr" => MineruOcrMode.Ocr,
+            _ => throw new JsonException("Unknown MineruOcrMode wire value."),
+        };
     }
+
+    public override void Write(Utf8JsonWriter writer, MineruOcrMode value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            MineruOcrMode.Auto => "auto",
+            MineruOcrMode.Txt => "txt",
+            MineruOcrMode.Ocr => "ocr",
+            _ => throw new JsonException("Unknown MineruOcrMode value."),
+        });
 }
 
 [JsonConverter(typeof(MineruTierAvailabilityJsonConverter))]
@@ -81,12 +98,31 @@ public enum MineruTierId
     Advanced
 }
 
-public sealed class MineruTierIdJsonConverter : JsonStringEnumConverter<MineruTierId>
+public sealed class MineruTierIdJsonConverter : JsonConverter<MineruTierId>
 {
-    public MineruTierIdJsonConverter()
-        : base(namingPolicy: null, allowIntegerValues: false)
+    public override MineruTierId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType is not JsonTokenType.String)
+            throw new JsonException("MineruTierId must be a wire string.");
+        return reader.GetString() switch
+        {
+            "flash" => MineruTierId.Flash,
+            "basic" => MineruTierId.Basic,
+            "standard" => MineruTierId.Standard,
+            "advanced" => MineruTierId.Advanced,
+            _ => throw new JsonException("Unknown MineruTierId wire value."),
+        };
     }
+
+    public override void Write(Utf8JsonWriter writer, MineruTierId value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            MineruTierId.Flash => "flash",
+            MineruTierId.Basic => "basic",
+            MineruTierId.Standard => "standard",
+            MineruTierId.Advanced => "advanced",
+            _ => throw new JsonException("Unknown MineruTierId value."),
+        });
 }
 
 [JsonConverter(typeof(OcrEngineAvailabilityJsonConverter))]

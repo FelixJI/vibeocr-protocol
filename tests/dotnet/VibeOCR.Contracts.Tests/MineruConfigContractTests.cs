@@ -69,6 +69,40 @@ public sealed class MineruConfigContractTests
     }
 
     [Fact]
+    public void OmittedMineruFieldsDeserializeToProtocolDefaults()
+    {
+        var config = HttpV2Json.Deserialize<MineruConfig>("""{"tier":"basic"}""")!;
+        Assert.Equal(MineruOcrMode.Auto, config.OcrMode);
+        Assert.Equal("all", config.PageRange);
+        Assert.Equal("ch", config.Language);
+    }
+
+    [Theory]
+    [InlineData("\" basic \"")]
+    [InlineData("\"basic,standard\"")]
+    public void MineruTierRejectsNonCanonicalStrings(string json)
+    {
+        Assert.Throws<JsonException>(() => DeserializeTier(json));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<WireMineruTierId>(json));
+    }
+
+    [Theory]
+    [InlineData("\" txt \"")]
+    [InlineData("\"auto,ocr\"")]
+    public void MineruOcrModeRejectsNonCanonicalStrings(string json)
+    {
+        Assert.Throws<JsonException>(() => DeserializeMode(json));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<
+            VibeOCR.Runtime.Contracts.Generated.Wire.MineruOcrMode>(json));
+    }
+
+    [Fact]
+    public void MineruTierRemainsRequiredOnDeserialization()
+    {
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<MineruConfig>("{}"));
+    }
+
+    [Fact]
     public void MineruConfigRejectsUnknownRequestFields()
     {
         Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<MineruConfig>(

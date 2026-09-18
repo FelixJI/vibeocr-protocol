@@ -1,5 +1,6 @@
 // HTTP v2 DTO records mirroring the Python vibeocr.protocol.v2 dataclasses.
 // Field order and nesting follow each to_payload() method in dtos.py exactly.
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -100,6 +101,23 @@ public sealed record MineruConfig
     public const string AllPages = "all";
     public const string DefaultLanguage = "ch";
 
+    public MineruConfig() { }
+
+    [JsonConstructor]
+    [SetsRequiredMembers]
+    public MineruConfig(
+        MineruTier tier,
+        MineruOcrMode ocrMode = MineruOcrMode.Auto,
+        string pageRange = AllPages,
+        string language = DefaultLanguage)
+    {
+        Tier = tier;
+        OcrMode = ocrMode;
+        PageRange = pageRange;
+        Language = language;
+    }
+
+    [JsonRequired]
     public required MineruTier Tier { get; init; }
     public MineruOcrMode OcrMode { get; init; } = MineruOcrMode.Auto;
     public string PageRange { get; init; } = AllPages;

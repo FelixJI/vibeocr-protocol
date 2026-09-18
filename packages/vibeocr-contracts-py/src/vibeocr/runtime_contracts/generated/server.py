@@ -2526,7 +2526,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                             'basic',
                                                                                                                                                             'standard',
                                                                                                                                                             'advanced'],
-                                                                                                                                                   'type': 'string'},
+                                                                                                                                                   'type': 'string',
+                                                                                                                                                   'x-vibeocr-exact-enum': True},
                                                                                                                                   'languages': {'items': {'minLength': 1,
                                                                                                                                                           'type': 'string'},
                                                                                                                                                 'minItems': 1,
@@ -2665,7 +2666,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                                                      'basic',
                                                                                                                                                                                      'standard',
                                                                                                                                                                                      'advanced'],
-                                                                                                                                                                            'type': 'string'},
+                                                                                                                                                                            'type': 'string',
+                                                                                                                                                                            'x-vibeocr-exact-enum': True},
                                                                                                                                                                      'reason_code': {'description': 'Stable '
                                                                                                                                                                                                     'machine-readable '
                                                                                                                                                                                                     'reason '
@@ -5157,7 +5159,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                          'enum': ['auto',
                                                                                                                                                   'txt',
                                                                                                                                                   'ocr'],
-                                                                                                                                         'type': 'string'},
+                                                                                                                                         'type': 'string',
+                                                                                                                                         'x-vibeocr-exact-enum': True},
                                                                                                                             'page_range': {'description': 'Canonical '
                                                                                                                                                           'page '
                                                                                                                                                           'subset: '
@@ -5297,7 +5300,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                               'basic',
                                                                                                                                               'standard',
                                                                                                                                               'advanced'],
-                                                                                                                                     'type': 'string'}},
+                                                                                                                                     'type': 'string',
+                                                                                                                                     'x-vibeocr-exact-enum': True}},
                                                                                                              'required': ['tier'],
                                                                                                              'type': 'object'},
                                                                                                   'options': {'type': 'object'},

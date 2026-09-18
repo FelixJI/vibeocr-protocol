@@ -233,3 +233,5 @@ Release Please 同步 Python、NuGet、仓库清单、`version.txt` 与 OpenAPI
 本地源还原和编译两个 NuGet 包，避免“构建成功但消费者无法安装”的发布。
 
 MinerU 客户端目录读取器只校验已知字段，忽略目录及 tier descriptor 中未来新增的可选响应字段；已知字段缺失、类型错误、非法枚举及重复 id 仍返回稳定的配置不可用错误。请求保持严格：源 schema、Python parser 与 .NET helper 均拒绝页范围末尾换行和语言首尾空白，.NET 新请求枚举不接受数字 JSON，MineruConfig 不忽略未知请求字段。
+
+新请求的 MineruTierId/MineruOcrMode 使用 `x-vibeocr-exact-enum` 标记，让 .NET 生成绑定精确匹配 wire 字符串，不进行 trim、数字或逗号组合转换；不改变既有枚举的生成策略。手写 .NET MineruConfig 的 JSON 构造保留省略字段的 auto/all/ch 默认值，tier 仍必填。

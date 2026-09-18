@@ -2783,6 +2783,7 @@
       },
       "MineruOcrMode": {
         "type": "string",
+        "x-vibeocr-exact-enum": true,
         "description": "Upstream OCR mode hint for text-layer handling. auto lets the upstream service decide, txt trusts the embedded text layer, and ocr forces recognition. Omitting the field selects auto.",
         "enum": [
           "auto",
@@ -2827,6 +2828,7 @@
       },
       "MineruTierId": {
         "type": "string",
+        "x-vibeocr-exact-enum": true,
         "description": "Stable MinerU 4 tier ids. The four tiers are not renames of the legacy backend values; legacy settings that cannot be proven equivalent must be re-selected by the user (MINERU_CONFIG_MIGRATION_REQUIRED) instead of silently falling back. Unknown or omitted tier values fail closed.",
         "enum": [
           "flash",
