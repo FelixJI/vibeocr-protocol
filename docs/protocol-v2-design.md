@@ -94,7 +94,13 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
   强制用户选择 CPU/GPU 高级组件。
 - lifecycle 区分 `unmanaged`、`model_residency`、`process_keep_alive`，并逐项声明 preload、
   TTL、pinning、release 是否受支持。RapidOCR/Windows OCR 的内部缓存不属于用户可管理驻留；
-  Paddle 模式支持模型驻留；MinerU 只支持子进程 TTL/释放，不得包装为模型预加载。
+  Paddle 模式支持模型驻留；MinerU 保持 `process_keep_alive`（子进程 TTL/释放，不是模型驻
+  留、永不支持 pinning），但额外支持显式 preload 作为首次准备入口：复用
+  `POST /v2/runtime/preload` 与 `{"pipelines":["MinerU"],"recognition_modes":["mineru_document"]}`
+  触发原生模型准备并实际解析受控样本，按成功 tier 更新能力目录；失败不改 tier，服务健康
+  或准备完成不等于识别可用。响应仍为 `ResidencyStatus`，完成后客户端必须显式重读
+  `mineru_config_catalog`。模型下载/耗时与取消的完整维护进度归后续维护语义，不借 preload
+  扩成通用模型事务。
 - `RuntimePreloadRequest.recognition_modes`、`RuntimeReleaseRequest.recognition_mode`、
   `PipelineSpec.recognition_mode` 与 `ResidencyEntry` 的模式/资源字段都由该 capability 保护。
   为保持 Protocol v2 请求兼容，preload 继续要求 legacy `pipelines`，新客户端从模式目录确定性
@@ -210,6 +216,17 @@ MinerU 4 的 tier 化配置是可协商的 minor 扩展。旧 `options`（backen
 - 模型与依赖边界不变：模型由 MinerU 原生机制准备，"包安装完成"不声称"模型已下载/可识
   别"；旧 `hybrid/medium`、`hybrid/high` 到 `basic`/`standard` 的有据转换及语言的服务
   级隔离由 Backend 实现并验证，协议只冻结以上契约。
+- 首次准备入口与 introduced_in 校正：`ocr.mineru-config.v1` 已实际随正式 v2.8.1 发布，
+  注册表与 golden 的 `introduced_in` 按已发布事实为 `2.8.1`（`ocr.recognition-modes.v1`
+  仍为 `2.8.0`）；该声明不手动 bump 包版本或 tag。显式准备复用
+  `POST /v2/runtime/preload`（语义见上文 recognition mode lifecycle 说明），客户端构造
+  preload 计划必须以调用方已取得的 runtime lifecycle 目录为准（Python
+  `runtime_client.build_recognition_preload_plan` 与 .NET `RecognitionPreload.Build`）：
+  新 Runtime 宣告 `supports_preload=true` 时才发送；旧 Runtime 未声明 capability、缺目录
+  或宣告 false 时明确拒绝（稳定错误码 `RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED`，零网络
+  请求），不把新版静态常量当作旧服务支持证据，也不增加隐藏 health 请求；legacy
+  `pipelines` preload 调用不需要该 capability。tier 未准备时 typed 构造 helper 仍拒绝；
+  preload 完成后调用方用刷新的 tier 目录构造原 typed 请求。
 
 ## 错误合同
 

@@ -100,9 +100,12 @@ _MODEL_RESIDENCY_LIFECYCLE = RecognitionModeLifecycle(
     supports_pinning=True,
     supports_release=True,
 )
-_PROCESS_KEEP_ALIVE_LIFECYCLE = RecognitionModeLifecycle(
+# mineru_document reuses the preload endpoint for explicit first-time
+# preparation; preload never turns the child process into model residency,
+# so pinning stays unsupported.
+_MINERU_PROCESS_KEEP_ALIVE_LIFECYCLE = RecognitionModeLifecycle(
     kind=RecognitionModeLifecycleKind.PROCESS_KEEP_ALIVE,
-    supports_preload=False,
+    supports_preload=True,
     supports_ttl=True,
     supports_pinning=False,
     supports_release=True,
@@ -143,7 +146,7 @@ _PIPELINE_METADATA: dict[OCRPipeline, dict[str, Any]] = {
     OCRPipeline.DOCUMENT_PARSING: {
         "display_name": "深度文档解析（MinerU）",
         "short_name": "文档M",
-        "preloadable": False,
+        "preloadable": True,
         "heavy": True,
         "cache_kind": "mineru",
         "description": "使用 MinerU 解析文档，支持 PDF/图片，提取文本、表格、公式等",
@@ -279,7 +282,7 @@ _RECOGNITION_MODE_DEFINITIONS: dict[RecognitionMode, RecognitionModeDefinition] 
         pipeline=OCRPipeline.DOCUMENT_PARSING,
         engine=None,
         provisioning=RecognitionModeProvisioning.ADVANCED_COMPONENT,
-        lifecycle=_PROCESS_KEEP_ALIVE_LIFECYCLE,
+        lifecycle=_MINERU_PROCESS_KEEP_ALIVE_LIFECYCLE,
         display_name="深度文档解析（MinerU）",
         short_name="深度文档",
         description="使用独立 MinerU 进程深度解析 PDF 或图片，需要高级组件。",
