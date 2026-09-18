@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.8.1
+
+### Features
+
+- **protocol:** 新增 MinerU4 tier 配置兼容契约 (ocr.mineru-config.v1) (#50) (9d5b265)
+
+### Dependencies
+
+- **toolchain:** 更新 SDK 与依赖版本 (#46) (7640585)
+
 ## 2.8.0
 
 ### Features
