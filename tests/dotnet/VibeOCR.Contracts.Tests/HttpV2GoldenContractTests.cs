@@ -168,7 +168,7 @@ public sealed class HttpV2GoldenContractTests
             .Select<HttpV2ErrorCode, string>(WireName)
             .ToArray();
         Assert.Equal(registered.Order(), declared.Order());
-        Assert.Equal(40, registered.Length);
+        Assert.Equal(44, registered.Length);
 
         foreach (JsonElement entry in entries)
         {
@@ -266,6 +266,10 @@ public sealed class HttpV2GoldenContractTests
         HttpV2ErrorCode.RecognitionModeUnavailable => false,
         HttpV2ErrorCode.RecognitionModeLifecycleUnsupported => false,
         HttpV2ErrorCode.RecognitionModePipelineMismatch => false,
+        HttpV2ErrorCode.MineruConfigUnavailable => false,
+        HttpV2ErrorCode.MineruConfigMigrationRequired => false,
+        HttpV2ErrorCode.MineruTierUnavailable => false,
+        HttpV2ErrorCode.MineruTierPreparationRequired => false,
         // Retryable: OOM, transient, draining, backend unavailable, internal.
         _ => true,
     };

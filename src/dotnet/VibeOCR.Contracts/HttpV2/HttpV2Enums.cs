@@ -12,6 +12,7 @@
 //     wire string is unambiguous regardless of the context naming policy
 //     (lowercase snake for state/kind/priority/mode; SCREAMING_SNAKE for
 //     ErrorCode, which must NOT be lower-cased).
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace VibeOCR.Contracts.HttpV2;
@@ -73,6 +74,42 @@ public enum OcrEngine
     [JsonStringEnumMemberName("rapidocr")] RapidOcr,
     [JsonStringEnumMemberName("windows")] Windows,
     [JsonStringEnumMemberName("paddleocr")] PaddleOcr,
+}
+
+/// <summary>
+/// Stable MinerU 4 tier ids, mirroring the Python MineruTier enum and the
+/// authoritative MineruTierId OpenAPI schema. The four tiers are not renames
+/// of the legacy backend option values; the tier is required on the wire and
+/// has no auto placeholder.
+/// </summary>
+[JsonConverter(typeof(MineruTierJsonConverter))]
+public enum MineruTier
+{
+    [JsonStringEnumMemberName("flash")] Flash,
+    [JsonStringEnumMemberName("basic")] Basic,
+    [JsonStringEnumMemberName("standard")] Standard,
+    [JsonStringEnumMemberName("advanced")] Advanced,
+}
+
+/// <summary>Upstream OCR mode hint; omitting selects auto.</summary>
+[JsonConverter(typeof(MineruOcrModeJsonConverter))]
+public enum MineruOcrMode
+{
+    [JsonStringEnumMemberName("auto")] Auto,
+    [JsonStringEnumMemberName("txt")] Txt,
+    [JsonStringEnumMemberName("ocr")] Ocr,
+}
+
+/// <summary>
+/// Availability of one MinerU tier in the current runtime, mirroring the
+/// MineruTierAvailability OpenAPI schema and the Python helper constants.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<MineruTierAvailability>))]
+public enum MineruTierAvailability
+{
+    [JsonStringEnumMemberName("ready")] Ready,
+    [JsonStringEnumMemberName("preparation_required")] PreparationRequired,
+    [JsonStringEnumMemberName("unavailable")] Unavailable,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<JobCommandKind>))]
@@ -260,6 +297,10 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("RECOGNITION_MODE_UNAVAILABLE")] RecognitionModeUnavailable,
     [JsonStringEnumMemberName("RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED")] RecognitionModeLifecycleUnsupported,
     [JsonStringEnumMemberName("RECOGNITION_MODE_PIPELINE_MISMATCH")] RecognitionModePipelineMismatch,
+    [JsonStringEnumMemberName("MINERU_CONFIG_UNAVAILABLE")] MineruConfigUnavailable,
+    [JsonStringEnumMemberName("MINERU_CONFIG_MIGRATION_REQUIRED")] MineruConfigMigrationRequired,
+    [JsonStringEnumMemberName("MINERU_TIER_UNAVAILABLE")] MineruTierUnavailable,
+    [JsonStringEnumMemberName("MINERU_TIER_PREPARATION_REQUIRED")] MineruTierPreparationRequired,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<RuntimeMaintenanceCommandKind>))]
@@ -302,4 +343,56 @@ public enum RuntimeDriftReason
     [JsonStringEnumMemberName("identity_mismatch")] IdentityMismatch,
     [JsonStringEnumMemberName("integrity_failed")] IntegrityFailed,
     [JsonStringEnumMemberName("unexpected")] Unexpected,
+}
+
+public sealed class MineruTierJsonConverter : JsonConverter<MineruTier>
+{
+    public override MineruTier Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType is not JsonTokenType.String)
+            throw new JsonException("MineruTier must be a wire string.");
+        return reader.GetString() switch
+        {
+            "flash" => MineruTier.Flash,
+            "basic" => MineruTier.Basic,
+            "standard" => MineruTier.Standard,
+            "advanced" => MineruTier.Advanced,
+            _ => throw new JsonException("Unknown MineruTier wire value."),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, MineruTier value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            MineruTier.Flash => "flash",
+            MineruTier.Basic => "basic",
+            MineruTier.Standard => "standard",
+            MineruTier.Advanced => "advanced",
+            _ => throw new JsonException("Unknown MineruTier value."),
+        });
+}
+
+public sealed class MineruOcrModeJsonConverter : JsonConverter<MineruOcrMode>
+{
+    public override MineruOcrMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType is not JsonTokenType.String)
+            throw new JsonException("MineruOcrMode must be a wire string.");
+        return reader.GetString() switch
+        {
+            "auto" => MineruOcrMode.Auto,
+            "txt" => MineruOcrMode.Txt,
+            "ocr" => MineruOcrMode.Ocr,
+            _ => throw new JsonException("Unknown MineruOcrMode wire value."),
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, MineruOcrMode value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            MineruOcrMode.Auto => "auto",
+            MineruOcrMode.Txt => "txt",
+            MineruOcrMode.Ocr => "ocr",
+            _ => throw new JsonException("Unknown MineruOcrMode value."),
+        });
 }

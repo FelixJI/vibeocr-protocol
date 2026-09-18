@@ -286,6 +286,34 @@
       "http_status": 400,
       "retryable": false,
       "message": "The legacy execution pipeline does not match the selected recognition mode."
+    },
+    {
+      "code": "MINERU_CONFIG_UNAVAILABLE",
+      "category": "capability",
+      "http_status": 426,
+      "retryable": false,
+      "message": "The runtime does not provide the ocr.mineru-config.v1 typed MinerU configuration capability; the request fails closed without falling back to legacy options or the flash tier."
+    },
+    {
+      "code": "MINERU_CONFIG_MIGRATION_REQUIRED",
+      "category": "validation",
+      "http_status": 400,
+      "retryable": false,
+      "message": "The stored legacy MinerU settings cannot be migrated to an equivalent typed configuration; the user must re-select the tier and options instead of relying on a silent fallback."
+    },
+    {
+      "code": "MINERU_TIER_UNAVAILABLE",
+      "category": "capability",
+      "http_status": 426,
+      "retryable": false,
+      "message": "The selected MinerU tier cannot run in this runtime; the response detail may list the currently selectable tiers."
+    },
+    {
+      "code": "MINERU_TIER_PREPARATION_REQUIRED",
+      "category": "capability",
+      "http_status": 428,
+      "retryable": false,
+      "message": "The selected MinerU tier requires user preparation of runtime components before use."
     }
   ]
 }

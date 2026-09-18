@@ -10,6 +10,10 @@ from .client import (
     SupervisorClient,
     bind_operation_path,
 )
+from .mineru_config import (
+    MineruConfigError,
+    build_mineru_pipeline_selection,
+)
 from .runtime_host import (
     RuntimeHostResponse,
     RuntimeHostValidationError,
@@ -21,6 +25,7 @@ from .sync_client import SyncSupervisorClient
 __all__ = [
     "AsyncRuntimeTransport",
     "MultipartAttachment",
+    "MineruConfigError",
     "RuntimeClientError",
     "RuntimeHttpClient",
     "RuntimeHttpResponse",
@@ -29,6 +34,7 @@ __all__ = [
     "SupervisorClient",
     "SyncSupervisorClient",
     "bind_operation_path",
+    "build_mineru_pipeline_selection",
     "get_background_loop",
     "parse_runtime_host_response",
     "shutdown_background_loop",

@@ -23,6 +23,7 @@ namespace VibeOCR.Contracts.HttpV2;
 [JsonSerializable(typeof(StageEvent))]
 [JsonSerializable(typeof(JobRef))]
 [JsonSerializable(typeof(JobSnapshot))]
+[JsonSerializable(typeof(MineruConfig))]
 [JsonSerializable(typeof(PipelineSelection))]
 [JsonSerializable(typeof(SubmitItem))]
 [JsonSerializable(typeof(SubmitRequest))]

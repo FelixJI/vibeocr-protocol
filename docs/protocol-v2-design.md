@@ -164,6 +164,53 @@ PaddleX、PaddleOCR 与 MinerU 的模型仍由各自原生下载器管理；协�
 - 引擎可用性状态不在此目录重复表达：就绪状态沿用 `OcrEngineCatalog`（OCR 引擎）与
   `GET /v2/runtime/status` 的组件 desired/actual 状态。
 
+## MinerU 新版本配置（ocr.mineru-config.v1）
+
+MinerU 4 的 tier 化配置是可协商的 minor 扩展。旧 `options`（backend/effort 等 0-based
+页边界）与 `options_version=1` 全部原样保留；四 tier 与旧 backend 名不是简单重命名：
+
+- `PipelineSelection.mineru` 是 capability 保护的可选请求对象 `MineruConfig`，仅在
+  `kind=mineru_parse` 且 `pipeline_id=MinerU` 时合法。`tier` 必填，取值
+  flash/basic/standard/advanced（唯一事实源是 OpenAPI `MineruTierId` 枚举；Python
+  `dtos.MineruTier`、生成绑定与 .NET `MineruTier` 全部由它投影）。`ocr_mode` 省略为
+  `auto`，`page_range` 省略为 `all`，`language` 省略为 `ch`；`language` 只是上游接受的
+  OCR hint，不保证任何 tier 都改变输出语种。显式 null、未知字段、未知枚举值一律拒绝；
+  tier 不允许 `auto` 或省略。
+- `page_range` 只接收规范子集：字面 `all` 或逗号分隔的 1-based 正整数、反向页索引
+  （`rN`）及闭区间（如 `1-5,8,r3-r1`）；0、`r0`、空片段、首尾空白、`all` 与数字混用
+  在语法层拒绝（冻结 pattern 与双语言实现共享）。实际页数、区间方向/越界与文件类型由
+  Backend 按输入验证；非 PDF 只允许省略或 `all`，并映射为上游省略范围，Protocol 不引入
+  PDF 解析依赖。
+- 混合配置 fail closed：`mineru` 与非空 legacy `options` 或 `engine` 同时出现时返回
+  `VALIDATION_ERROR`，不允许二选一吞参数。该跨字段限制在 Python parser、双语言构造
+  helper 与服务端 conformance 执行；不对已发布 PipelineSelection schema 追加
+  `allOf`/条件约束。
+- 目录 `MineruConfigCatalog` 挂在既有 capability descriptor 载体上：OpenAPI
+  `CapabilityDescriptor` 与 runtime-host `$defs.CapabilityDescriptor` 均新增可选字段
+  `mineru_config_catalog`，仅 `ocr.mineru-config.v1` descriptor 携带。目录包含
+  `default_tier`（四档之一，VibeOCR 初始产品默认 basic，不继承裸 api-server 的
+  standard 默认）、`tiers`（每项 `id`/`availability`
+  （ready/preparation_required/unavailable）/`reason_code`，无重复）与去重非空的
+  `languages`。目录描述真实运行时能力，schema 有四档不代表四档可运行；不携带包名、pip
+  参数、模型文件路径或业务依赖图。
+- 客户端在新的配置调用点必须使用已读取的 capability/目录：缺 capability、缺目录、目录
+  非法（未知/重复 tier、默认 tier 不在目录、语言空/重复）、tier 未 ready 或语言不在
+  目录都 fail closed 且零网络请求（Python
+  `runtime_client.build_mineru_pipeline_selection` 与 .NET
+  `MineruConfigSelection.Build`），错误携带稳定错误码，不自动回退 legacy 或 flash。
+  旧请求的构造不需要新 capability；generic transport 不增加隐藏 health 请求、缓存或
+  通用调度器。
+- 稳定错误码：普通格式/混合配置错误复用 `VALIDATION_ERROR`；
+  `MINERU_CONFIG_UNAVAILABLE`（capability/426）、
+  `MINERU_TIER_UNAVAILABLE`（capability/426）、
+  `MINERU_TIER_PREPARATION_REQUIRED`（capability/428）全部不可重试；
+  `MINERU_CONFIG_MIGRATION_REQUIRED`（validation/400）用于旧设置不能等价迁移时提示
+  用户重选。不复用仅限 maintenance 的 `RUNTIME_CAPABILITY_UNAVAILABLE` 冒充识别错误，
+  也不把准备完成/模型已下载/服务 ready 等同于识别可用。
+- 模型与依赖边界不变：模型由 MinerU 原生机制准备，"包安装完成"不声称"模型已下载/可识
+  别"；旧 `hybrid/medium`、`hybrid/high` 到 `basic`/`standard` 的有据转换及语言的服务
+  级隔离由 Backend 实现并验证，协议只冻结以上契约。
+
 ## 错误合同
 
 HTTP v2 错误对象固定包含八个字段：`schema_version`、`instance_id`、`code`、
@@ -184,3 +231,7 @@ HTTP v2 错误对象固定包含八个字段：`schema_version`、`instance_id`�
 Release Please 同步 Python、NuGet、仓库清单、`version.txt` 与 OpenAPI
 `info.version`。发布工作流在上传前安装两个 wheel、读取打包资源，并通过临时项目从
 本地源还原和编译两个 NuGet 包，避免“构建成功但消费者无法安装”的发布。
+
+MinerU 客户端目录读取器只校验已知字段，忽略目录及 tier descriptor 中未来新增的可选响应字段；已知字段缺失、类型错误、非法枚举及重复 id 仍返回稳定的配置不可用错误。请求保持严格：源 schema、Python parser 与 .NET helper 均拒绝页范围末尾换行和语言首尾空白，.NET 新请求枚举不接受数字 JSON，MineruConfig 不忽略未知请求字段。
+
+新请求的 MineruTierId/MineruOcrMode 使用 `x-vibeocr-exact-enum` 标记，让 .NET 生成绑定精确匹配 wire 字符串，不进行 trim、数字或逗号组合转换；不改变既有枚举的生成策略。手写 .NET MineruConfig 的 JSON 构造保留省略字段的 auto/all/ch 默认值，tier 仍必填。

@@ -1,5 +1,6 @@
 // HTTP v2 DTO records mirroring the Python vibeocr.protocol.v2 dataclasses.
 // Field order and nesting follow each to_payload() method in dtos.py exactly.
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -86,6 +87,43 @@ public sealed record JobSnapshot
     public ProgressSnapshot? Progress { get; init; }
 }
 
+/// <summary>
+/// Typed MinerU 4 configuration (ocr.mineru-config.v1), carried by the
+/// optional PipelineSelection.Mineru block. Tier is required; omitting the
+/// other fields selects auto / all / the upstream default language hint ch,
+/// and the wire payload always carries the effective values. Language is only
+/// an upstream OCR hint. The block is only valid for mineru_parse jobs on the
+/// MinerU pipeline and must not be combined with legacy options or Engine.
+/// </summary>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record MineruConfig
+{
+    public const string AllPages = "all";
+    public const string DefaultLanguage = "ch";
+
+    public MineruConfig() { }
+
+    [JsonConstructor]
+    [SetsRequiredMembers]
+    public MineruConfig(
+        MineruTier tier,
+        MineruOcrMode ocrMode = MineruOcrMode.Auto,
+        string pageRange = AllPages,
+        string language = DefaultLanguage)
+    {
+        Tier = tier;
+        OcrMode = ocrMode;
+        PageRange = pageRange;
+        Language = language;
+    }
+
+    [JsonRequired]
+    public required MineruTier Tier { get; init; }
+    public MineruOcrMode OcrMode { get; init; } = MineruOcrMode.Auto;
+    public string PageRange { get; init; } = AllPages;
+    public string Language { get; init; } = DefaultLanguage;
+}
+
 public sealed record PipelineSelection
 {
     public required string PipelineId { get; init; }
@@ -100,6 +138,15 @@ public sealed record PipelineSelection
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OcrEngine? Engine { get; init; }
+
+    /// <summary>
+    /// Typed MinerU 4 configuration guarded by the ocr.mineru-config.v1
+    /// capability. Null omits the wire field and keeps the legacy payload
+    /// shape; when present the Backend rejects mixing it with non-empty
+    /// legacy Options or Engine using VALIDATION_ERROR.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MineruConfig? Mineru { get; init; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

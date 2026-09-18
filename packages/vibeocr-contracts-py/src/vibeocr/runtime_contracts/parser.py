@@ -16,6 +16,7 @@ shape we actually put on the wire.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -25,6 +26,7 @@ from .contracts.pipelines import (
     get_pipeline_supported_options,
 )
 from .dtos import (
+    MINERU_PAGE_RANGE_PATTERN,
     SCHEMA_VERSION,
     TERMINAL_ITEM_STATES,
     TERMINAL_JOB_STATES,
@@ -42,6 +44,10 @@ from .dtos import (
     JobState,
     JobSummary,
     JobUpdate,
+    MineruConfig,
+    MineruOcrMode,
+    MineruTier,
+    OcrEngine,
     PipelineSelection,
     PipelineSpec,
     ProgressSnapshot,
@@ -199,12 +205,44 @@ def _reject_unknown_fields(
         raise ContractError(f"{label} has unknown field(s): {', '.join(unknown)}")
 
 
+def _parse_mineru_config(payload: Any) -> MineruConfig:
+    if not isinstance(payload, dict):
+        raise ContractError("mineru config must be a JSON object")
+    _reject_unknown_fields(
+        payload,
+        frozenset({"tier", "ocr_mode", "page_range", "language"}),
+        "mineru config",
+    )
+    _require_fields(payload, ("tier",), "mineru config")
+    tier = _require_enum(MineruTier, payload["tier"], "mineru tier")
+    ocr_mode = MineruOcrMode.AUTO
+    if "ocr_mode" in payload:
+        ocr_mode = _require_enum(MineruOcrMode, payload["ocr_mode"], "mineru ocr_mode")
+    page_range = payload.get("page_range", "all")
+    if not isinstance(page_range, str) or not re.fullmatch(
+        MINERU_PAGE_RANGE_PATTERN, page_range
+    ):
+        raise ContractError(
+            "mineru page_range must be 'all' or a comma-separated list of "
+            "positive/reverse page indexes and closed ranges"
+        )
+    language = payload.get("language", "ch")
+    if not isinstance(language, str) or not language or language != language.strip():
+        raise ContractError(
+            "mineru language must be a non-empty language id without "
+            "surrounding whitespace"
+        )
+    return MineruConfig(
+        tier=tier, ocr_mode=ocr_mode, page_range=page_range, language=language
+    )
+
+
 def parse_pipeline_selection(payload: dict[str, Any]) -> PipelineSelection:
     if not isinstance(payload, dict):
         raise ContractError("pipeline selection must be a JSON object")
     _reject_unknown_fields(
         payload,
-        frozenset({"pipeline_id", "options_version", "options"}),
+        frozenset({"pipeline_id", "options_version", "options", "engine", "mineru"}),
         "pipeline selection",
     )
     _require_fields(
@@ -229,10 +267,39 @@ def parse_pipeline_selection(payload: dict[str, Any]) -> PipelineSelection:
         raise ContractError(
             f"unsupported option(s) for {pipeline.value}: {', '.join(unknown_options)}"
         )
+    if "mineru" in payload and "engine" in payload:
+        raise ContractError(
+            "mineru config cannot be combined with the engine field; "
+            "reject with VALIDATION_ERROR semantics"
+        )
+    engine = None
+    if "engine" in payload:
+        engine = _require_enum(OcrEngine, payload["engine"], "ocr engine")
+        if pipeline is not OCRPipeline.OCR:
+            raise ContractError(
+                "engine is only valid for the plain-text OCR pipeline; use "
+                "OCR_ENGINE_NOT_VALID_FOR_PIPELINE semantics"
+            )
+    mineru = None
+    if "mineru" in payload:
+        if payload["mineru"] is None:
+            raise ContractError(
+                "mineru config must be a JSON object, not an explicit null"
+            )
+        if pipeline is not OCRPipeline.DOCUMENT_PARSING:
+            raise ContractError("mineru config requires the MinerU pipeline")
+        if options:
+            raise ContractError(
+                "mineru config cannot be combined with legacy pipeline options; "
+                "reject with VALIDATION_ERROR semantics"
+            )
+        mineru = _parse_mineru_config(payload["mineru"])
     return PipelineSelection(
         pipeline_id=pipeline.value,
         options_version=version,
         options=dict(options),
+        engine=engine,
+        mineru=mineru,
     )
 
 
@@ -336,6 +403,8 @@ def parse_submit_request(payload: dict[str, Any]) -> SubmitRequest:
         and pipeline.pipeline_id == OCRPipeline.DOCUMENT_PARSING.value
     ):
         raise ContractError("MinerU requires kind=mineru_parse")
+    if pipeline.mineru is not None and kind is not JobKind.MINERU_PARSE:
+        raise ContractError("mineru config requires kind=mineru_parse")
     items_raw = payload["items"]
     if not isinstance(items_raw, list) or not items_raw:
         raise ContractError("submit request items must be a non-empty list")

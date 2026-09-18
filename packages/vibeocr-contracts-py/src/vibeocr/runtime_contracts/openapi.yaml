@@ -1674,6 +1674,9 @@
           },
           "component_variant_catalog": {
             "$ref": "#/components/schemas/ComponentVariantCatalog"
+          },
+          "mineru_config_catalog": {
+            "$ref": "#/components/schemas/MineruConfigCatalog"
           }
         },
         "additionalProperties": false
@@ -2040,7 +2043,11 @@
               "RECOGNITION_MODE_UNKNOWN",
               "RECOGNITION_MODE_UNAVAILABLE",
               "RECOGNITION_MODE_LIFECYCLE_UNSUPPORTED",
-              "RECOGNITION_MODE_PIPELINE_MISMATCH"
+              "RECOGNITION_MODE_PIPELINE_MISMATCH",
+              "MINERU_CONFIG_UNAVAILABLE",
+              "MINERU_CONFIG_MIGRATION_REQUIRED",
+              "MINERU_TIER_UNAVAILABLE",
+              "MINERU_TIER_PREPARATION_REQUIRED"
             ]
           },
           "message": {
@@ -2197,7 +2204,8 @@
                 "ocr.engine-selection.v1",
                 "runtime.download-sources.v1",
                 "runtime.component-selection.v1",
-                "ocr.recognition-modes.v1"
+                "ocr.recognition-modes.v1",
+                "ocr.mineru-config.v1"
               ]
             }
           },
@@ -2713,6 +2721,121 @@
           }
         },
         "additionalProperties": false
+      },
+      "MineruConfig": {
+        "type": "object",
+        "description": "Typed MinerU 4 configuration, carried by the optional PipelineSelection.mineru block and protected by the ocr.mineru-config.v1 capability. The block is only valid for kind=mineru_parse jobs with pipeline_id=MinerU; a request that combines it with non-empty legacy options or the engine field fails closed with VALIDATION_ERROR instead of silently dropping either side (server-side conformance case; conditional constraints stay out of the released request schema). tier is required and must not be omitted or set to null. Omitting ocr_mode selects auto, omitting page_range selects all, omitting language selects the upstream default hint ch. language is only an OCR hint the upstream service accepts; it does not guarantee that every tier changes the output language. Clients MUST NOT send this block unless the runtime advertises ocr.mineru-config.v1, and MUST NOT fall back to legacy options or the flash tier when the capability is missing.",
+        "required": [
+          "tier"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "tier": {
+            "$ref": "#/components/schemas/MineruTierId"
+          },
+          "ocr_mode": {
+            "$ref": "#/components/schemas/MineruOcrMode"
+          },
+          "page_range": {
+            "type": "string",
+            "pattern": "^(all|r?[1-9][0-9]*(-r?[1-9][0-9]*)?(,r?[1-9][0-9]*(-r?[1-9][0-9]*)?)*)$(?![\\s\\S])",
+            "description": "Canonical page subset: the literal all, or a comma-separated list of 1-based positive page indexes and closed ranges; rN counts from the last page and rA-rB denotes a reversed closed range (for example 1-5,8,r3-r1). Zero, r0, empty fragments, surrounding whitespace and mixing all with numbers are rejected syntactically. Actual page counts, range direction/bounds and file types are validated by the Backend against the input; for non-PDF inputs clients may only omit the field or send all, and the Backend maps both to an omitted upstream range. The Protocol never parses PDFs."
+          },
+          "language": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$(?![\\s\\S])",
+            "description": "Single upstream OCR language id without surrounding whitespace; omitting selects the upstream default ch. The id must be listed by the ocr.mineru-config.v1 catalog before a client may send it."
+          }
+        }
+      },
+      "MineruConfigCatalog": {
+        "type": "object",
+        "description": "Structured catalog of MinerU 4 tiers and accepted language ids, carried only by the ocr.mineru-config.v1 capability descriptor. The catalog describes the real runtime: listing all four tiers in the wire schema never implies that every tier can run. default_tier is the product default the Backend declares (VibeOCR initially basic); it is not the bare upstream default. Servers MUST NOT list duplicate tier ids and languages. The catalog never carries package names, pip arguments, model file paths, a business dependency graph, display text or product defaults beyond default_tier.",
+        "required": [
+          "default_tier",
+          "tiers",
+          "languages"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "default_tier": {
+            "$ref": "#/components/schemas/MineruTierId"
+          },
+          "tiers": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/MineruTierDescriptor"
+            }
+          },
+          "languages": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "MineruOcrMode": {
+        "type": "string",
+        "x-vibeocr-exact-enum": true,
+        "description": "Upstream OCR mode hint for text-layer handling. auto lets the upstream service decide, txt trusts the embedded text layer, and ocr forces recognition. Omitting the field selects auto.",
+        "enum": [
+          "auto",
+          "txt",
+          "ocr"
+        ]
+      },
+      "MineruTierAvailability": {
+        "type": "string",
+        "description": "Availability of one MinerU tier in the current runtime. ready means mineru_parse jobs may select it now; preparation_required means the user must prepare runtime components first; unavailable means the tier cannot run in this runtime. Preparation being finished, models being downloaded or the service being ready never implies by itself that a tier is ready for recognition.",
+        "enum": [
+          "ready",
+          "preparation_required",
+          "unavailable"
+        ]
+      },
+      "MineruTierDescriptor": {
+        "type": "object",
+        "description": "Capability and availability state of one MinerU tier. reason_code is a stable machine-readable cause id that clients localize themselves; the Backend never ships display text.",
+        "required": [
+          "id",
+          "availability",
+          "reason_code"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/MineruTierId"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/MineruTierAvailability"
+          },
+          "reason_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "description": "Stable machine-readable reason why the tier is not ready; null when the tier is ready. Clients localize this id and never receive display text."
+          }
+        }
+      },
+      "MineruTierId": {
+        "type": "string",
+        "x-vibeocr-exact-enum": true,
+        "description": "Stable MinerU 4 tier ids. The four tiers are not renames of the legacy backend values; legacy settings that cannot be proven equivalent must be re-selected by the user (MINERU_CONFIG_MIGRATION_REQUIRED) instead of silently falling back. Unknown or omitted tier values fail closed.",
+        "enum": [
+          "flash",
+          "basic",
+          "standard",
+          "advanced"
+        ]
       },
       "ModelDiff": {
         "description": "变更操作的回包增量。\n\n主进程收到后 apply 到 mirror:\n- replaced_pages: 整页替换(变更后的完整 PageInfoMirror)\n- structural_change: 结构性变更(删页/插页/重排)→ 主进程直接用 full_model 替换\n- full_model: 结构性变更或全量刷新时携带完整 model\n- modified_flag / structural_flag: 更新 is_modified / has_structural_change",
@@ -3523,7 +3646,7 @@
       },
       "PipelineSelection": {
         "type": "object",
-        "description": "Frozen user-semantic pipeline selection for one logical job. The optional engine field selects the plain-text OCR engine and is only valid when pipeline_id is 'OCR': the server MUST reject it for any other pipeline with OCR_ENGINE_NOT_VALID_FOR_PIPELINE instead of silently ignoring it, and MUST fail closed on unknown values with OCR_ENGINE_UNKNOWN. Clients SHOULD always send the user's current selection; when the field is omitted the server applies its own default engine (rapidocr).",
+        "description": "Frozen user-semantic pipeline selection for one logical job. The optional engine field selects the plain-text OCR engine and is only valid when pipeline_id is 'OCR': the server MUST reject it for any other pipeline with OCR_ENGINE_NOT_VALID_FOR_PIPELINE instead of silently ignoring it, and MUST fail closed on unknown values with OCR_ENGINE_UNKNOWN. Clients SHOULD always send the user's current selection; when the field is omitted the server applies its own default engine (rapidocr). The optional mineru block carries the typed MinerU 4 configuration protected by ocr.mineru-config.v1: it is only valid for pipeline_id=MinerU with kind=mineru_parse, and the server MUST reject requests that combine it with non-empty legacy options or the engine field using VALIDATION_ERROR instead of silently dropping either side (server-side conformance case). Clients MUST omit the block entirely when the runtime does not advertise the capability; omitting it keeps the legacy payload shape unchanged.",
         "required": [
           "pipeline_id",
           "options_version",
@@ -3543,6 +3666,9 @@
           },
           "engine": {
             "$ref": "#/components/schemas/OcrEngineId"
+          },
+          "mineru": {
+            "$ref": "#/components/schemas/MineruConfig"
           }
         }
       },

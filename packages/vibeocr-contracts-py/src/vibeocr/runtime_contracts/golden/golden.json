@@ -262,4 +262,45 @@
       }
     ]
   }
+,
+  "pipeline_selection_mineru": {
+    "pipeline_id": "MinerU",
+    "options_version": 1,
+    "options": {},
+    "mineru": {
+      "tier": "basic",
+      "ocr_mode": "auto",
+      "page_range": "all",
+      "language": "ch"
+    }
+  },
+  "mineru_config_catalog": {
+    "default_tier": "basic",
+    "tiers": [
+      {
+        "id": "flash",
+        "availability": "ready",
+        "reason_code": null
+      },
+      {
+        "id": "basic",
+        "availability": "ready",
+        "reason_code": null
+      },
+      {
+        "id": "standard",
+        "availability": "preparation_required",
+        "reason_code": "MINERU_TIER_PREPARATION_REQUIRED"
+      },
+      {
+        "id": "advanced",
+        "availability": "unavailable",
+        "reason_code": "MINERU_TIER_UNAVAILABLE"
+      }
+    ],
+    "languages": [
+      "ch",
+      "en"
+    ]
+  }
 }

@@ -7,6 +7,8 @@ Accelerator = Literal['cpu', 'nvidia_cuda']
 DownloadSourceKind = str
 ExecutionPipelineId = Literal['OCR', 'PP-StructureV3', 'MinerU', 'PaddleOCR-VL', 'TABLE_RECOGNITION', 'FORMULA_RECOGNITION']
 IntegrityStatus = Literal['verified', 'not-installed']
+MineruTierAvailability = Literal['ready', 'preparation_required', 'unavailable']
+MineruTierId = Literal['flash', 'basic', 'standard', 'advanced']
 OcrEngineAvailability = Literal['ready', 'preparation_required', 'unavailable']
 OcrEngineId = Literal['rapidocr', 'windows', 'paddleocr']
 ProgressUnit = Literal['steps', 'items', 'bytes']
@@ -36,6 +38,7 @@ class CapabilityDescriptor(TypedDict, total=False):
     recognition_mode_catalog: NotRequired[RecognitionModeCatalog]
     download_source_catalog: NotRequired[DownloadSourceCatalog]
     component_variant_catalog: NotRequired[ComponentVariantCatalog]
+    mineru_config_catalog: NotRequired[MineruConfigCatalog]
 
 
 class ComponentVariantCatalog(TypedDict, total=False):
@@ -56,6 +59,18 @@ class DownloadSourceDescriptor(TypedDict, total=False):
     kind: Required[DownloadSourceKind]
     id: Required[str]
     endpoint: Required[str]
+
+
+class MineruConfigCatalog(TypedDict, total=False):
+    default_tier: Required[MineruTierId]
+    tiers: Required[list[MineruTierDescriptor]]
+    languages: Required[list[str]]
+
+
+class MineruTierDescriptor(TypedDict, total=False):
+    id: Required[MineruTierId]
+    availability: Required[MineruTierAvailability]
+    reason_code: Required[str | None]
 
 
 class OcrEngineCatalog(TypedDict, total=False):

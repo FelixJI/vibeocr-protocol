@@ -513,6 +513,39 @@ def _csharp_wire_types(openapi: dict) -> str:
                     for value in schema["enum"]
                     if value is not None
                 )
+                if schema.get("x-vibeocr-exact-enum") is True:
+                    read_cases = "\n".join(
+                        f"            {json.dumps(value)} => {name}.{_pascal(value)},"
+                        for value in schema["enum"]
+                    )
+                    write_cases = "\n".join(
+                        f"            {name}.{_pascal(value)} => {json.dumps(value)},"
+                        for value in schema["enum"]
+                    )
+                    enums.append(
+                        f"[JsonConverter(typeof({name}JsonConverter))]\n"
+                        f"public enum {name}\n{{\n{members}\n}}\n\n"
+                        f"public sealed class {name}JsonConverter : JsonConverter<{name}>\n"
+                        "{\n"
+                        f"    public override {name} Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)\n"
+                        "    {\n"
+                        "        if (reader.TokenType is not JsonTokenType.String)\n"
+                        f'            throw new JsonException("{name} must be a wire string.");\n'
+                        "        return reader.GetString() switch\n"
+                        "        {\n"
+                        f"{read_cases}\n"
+                        f'            _ => throw new JsonException("Unknown {name} wire value."),\n'
+                        "        };\n"
+                        "    }\n\n"
+                        f"    public override void Write(Utf8JsonWriter writer, {name} value, JsonSerializerOptions options) =>\n"
+                        "        writer.WriteStringValue(value switch\n"
+                        "        {\n"
+                        f"{write_cases}\n"
+                        f'            _ => throw new JsonException("Unknown {name} value."),\n'
+                        "        });\n"
+                        "}"
+                    )
+                    continue
                 enums.append(
                     f"[JsonConverter(typeof({name}JsonConverter))]\n"
                     f"public enum {name}\n{{\n{members}\n}}\n\n"
