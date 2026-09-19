@@ -202,6 +202,71 @@ public sealed class InstallPlanClientTests
                 TestContext.Current.CancellationToken));
     }
 
+    [Theory]
+    [InlineData("preview")]
+    [InlineData("ensure")]
+    [InlineData("retry")]
+    public async Task OldRuntimeReceivesNoPlanRequest(string kind)
+    {
+        var handler = new OldRuntimeHandler();
+        await using var client = new RuntimeHttpClient(new Uri("http://127.0.0.1:9"), "token", handler);
+        var capabilities = new[] { "runtime.install-plan.v1" };
+        var error = await Assert.ThrowsAsync<RuntimeClientException>(async () =>
+        {
+            if (kind == "preview")
+                await client.PreviewRuntimeInstallPlanAsync(new RuntimeInstallPlanRequest
+                { RequiredCapabilities = capabilities }, TestContext.Current.CancellationToken);
+            else if (kind == "ensure")
+                await client.StartRuntimeMaintenanceAsync(new RuntimeMaintenanceRequest
+                { Operation = RuntimeMaintenanceOperation.Ensure, OperationId = "op", PlanId = "plan",
+                  RequiredCapabilities = capabilities }, TestContext.Current.CancellationToken);
+            else
+                await client.CommandRuntimeMaintenanceAsync(new RuntimeMaintenanceCommand
+                { Command = RuntimeMaintenanceCommandKind.Retry, CommandId = "cmd", TargetOperationId = "old",
+                  NewOperationId = "new", PlanId = "plan", RequiredCapabilities = capabilities },
+                    TestContext.Current.CancellationToken);
+        });
+        Assert.Equal(HttpV2ErrorCode.RuntimeCapabilityUnavailable, error.Code);
+        Assert.Equal(1, handler.Calls);
+    }
+
+    [Theory]
+    [InlineData("preview")]
+    [InlineData("ensure")]
+    [InlineData("retry")]
+    public async Task MissingRequiredCapabilityIsRejectedBeforeAnyNetworkCall(string kind)
+    {
+        var handler = new OldRuntimeHandler();
+        await using var client = new RuntimeHttpClient(new Uri("http://127.0.0.1:9"), "token", handler);
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+        {
+            if (kind == "preview")
+                await client.PreviewRuntimeInstallPlanAsync(new RuntimeInstallPlanRequest
+                { RequiredCapabilities = Array.Empty<string>() }, TestContext.Current.CancellationToken);
+            else if (kind == "ensure")
+                await client.StartRuntimeMaintenanceAsync(new RuntimeMaintenanceRequest
+                { Operation = RuntimeMaintenanceOperation.Ensure, OperationId = "op", PlanId = "plan" },
+                    TestContext.Current.CancellationToken);
+            else
+                await client.CommandRuntimeMaintenanceAsync(new RuntimeMaintenanceCommand
+                { Command = RuntimeMaintenanceCommandKind.Retry, CommandId = "cmd", TargetOperationId = "old",
+                  NewOperationId = "new", PlanId = "plan" }, TestContext.Current.CancellationToken);
+        });
+        Assert.Equal(0, handler.Calls);
+    }
+
+    private sealed class OldRuntimeHandler : HttpMessageHandler
+    {
+        public int Calls { get; private set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            Assert.Equal(HttpMethod.Get, request.Method);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            { Content = new StringContent("{\"capabilities\":[\"runtime.maintenance.v2\"]}") });
+        }
+    }
+
     private sealed class FakeHandler : HttpMessageHandler
     {
         private readonly string _body;
@@ -225,6 +290,13 @@ public sealed class InstallPlanClientTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            if (request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"capabilities\":[\"runtime.install-plan.v1\"]}"),
+                };
+            }
             Path = request.RequestUri?.AbsolutePath;
             AuthorizationScheme = request.Headers.Authorization?.Scheme;
             AuthorizationParameter = request.Headers.Authorization?.Parameter;

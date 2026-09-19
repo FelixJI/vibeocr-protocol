@@ -229,7 +229,7 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                     "plan_id requires an explicit operation_id.", nameof(request));
             }
             if (request.ProfileId is not null
-                || request.ComponentIds is { Count: > 0 }
+                || request.ComponentIds is not null
                 || request.InstallComponentIds is not null
                 || request.DownloadSourceIds is not null)
             {
@@ -238,6 +238,11 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                     + "install_component_ids and download_source_ids.",
                     nameof(request));
             }
+        }
+        if (request.PlanId is not null)
+        {
+            ValidateInstallPlanCapability(request.RequiredCapabilities);
+            await RequireInstallPlanCapabilityAsync(cancellationToken).ConfigureAwait(false);
         }
         using StringContent content = new(
             HttpV2Json.Serialize(request), Encoding.UTF8, "application/json");
@@ -249,6 +254,32 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
             response,
             HttpV2JsonContext.Default.RuntimeMaintenanceReceipt,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void ValidateInstallPlanCapability(IReadOnlyList<string>? requiredCapabilities)
+    {
+        if (requiredCapabilities is null || !requiredCapabilities.Contains("runtime.install-plan.v1"))
+        {
+            throw new ArgumentException("plan requests require runtime.install-plan.v1 capability.");
+        }
+    }
+
+    private async Task RequireInstallPlanCapabilityAsync(CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await GetAsync(
+            RuntimeOperationPaths.GetRuntimeHealth, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument health = await JsonDocument.ParseAsync(
+            stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!health.RootElement.TryGetProperty("capabilities", out JsonElement capabilities)
+            || capabilities.ValueKind != JsonValueKind.Array
+            || !capabilities.EnumerateArray().Any(value =>
+                value.ValueKind == JsonValueKind.String && value.GetString() == "runtime.install-plan.v1"))
+        {
+            throw new RuntimeClientException(HttpV2ErrorCode.RuntimeCapabilityUnavailable,
+                "Runtime does not support runtime.install-plan.v1", retryable: false);
+        }
     }
 
     /// <summary>
@@ -267,6 +298,8 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                 "download_source_ids must be non-empty when provided.",
                 nameof(request));
         }
+        ValidateInstallPlanCapability(request.RequiredCapabilities);
+        await RequireInstallPlanCapabilityAsync(cancellationToken).ConfigureAwait(false);
         using StringContent content = new(
             HttpV2Json.Serialize(request), Encoding.UTF8, "application/json");
         using HttpResponseMessage response = await PostAsync(
@@ -317,6 +350,11 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                     + "and download_source_ids.",
                     nameof(command));
             }
+        }
+        if (command.PlanId is not null)
+        {
+            ValidateInstallPlanCapability(command.RequiredCapabilities);
+            await RequireInstallPlanCapabilityAsync(cancellationToken).ConfigureAwait(false);
         }
         using StringContent content = new(
             HttpV2Json.Serialize(command), Encoding.UTF8, "application/json");

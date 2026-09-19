@@ -797,6 +797,8 @@ class RuntimeMaintenanceRequest:
                     "plan_id is mutually exclusive with profile_id, "
                     "component_ids, install_component_ids and download_source_ids"
                 )
+            if "runtime.install-plan.v1" not in self.required_capabilities:
+                raise ValueError("plan_id requires runtime.install-plan.v1 capability")
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {"operation": self.operation.value}
@@ -864,6 +866,8 @@ class RuntimeMaintenanceCommand:
                     "plan_id is mutually exclusive with install_component_ids "
                     "and download_source_ids"
                 )
+            if "runtime.install-plan.v1" not in self.required_capabilities:
+                raise ValueError("plan_id requires runtime.install-plan.v1 capability")
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -1107,6 +1111,8 @@ class RuntimeInstallPlanRequest:
     download_source_ids: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
+        if "runtime.install-plan.v1" not in self.required_capabilities:
+            raise ValueError("preview requires runtime.install-plan.v1 capability")
         if self.download_source_ids is not None and not self.download_source_ids:
             raise ValueError("download_source_ids must be non-empty when provided")
 

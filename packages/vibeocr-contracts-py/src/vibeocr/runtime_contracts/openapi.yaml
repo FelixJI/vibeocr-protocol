@@ -4596,11 +4596,17 @@
             },
             "then": {
               "required": [
-                "operation_id"
+                "operation_id",
+                "required_capabilities"
               ],
               "properties": {
                 "operation": {
                   "const": "ensure"
+                },
+                "required_capabilities": {
+                  "contains": {
+                    "const": "runtime.install-plan.v1"
+                  }
                 }
               },
               "not": {
@@ -4764,6 +4770,11 @@
               "properties": {
                 "command": {
                   "const": "retry"
+                },
+                "required_capabilities": {
+                  "contains": {
+                    "const": "runtime.install-plan.v1"
+                  }
                 }
               },
               "not": {
@@ -4779,7 +4790,10 @@
                     ]
                   }
                 ]
-              }
+              },
+              "required": [
+                "required_capabilities"
+              ]
             }
           }
         ],

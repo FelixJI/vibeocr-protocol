@@ -303,3 +303,6 @@ Release Please 同步 Python、NuGet、仓库清单、`version.txt` 与 OpenAPI
 MinerU 客户端目录读取器只校验已知字段，忽略目录及 tier descriptor 中未来新增的可选响应字段；已知字段缺失、类型错误、非法枚举及重复 id 仍返回稳定的配置不可用错误。请求保持严格：源 schema、Python parser 与 .NET helper 均拒绝页范围末尾换行和语言首尾空白，.NET 新请求枚举不接受数字 JSON，MineruConfig 不忽略未知请求字段。
 
 新请求的 MineruTierId/MineruOcrMode 使用 `x-vibeocr-exact-enum` 标记，让 .NET 生成绑定精确匹配 wire 字符串，不进行 trim、数字或逗号组合转换；不改变既有枚举的生成策略。手写 .NET MineruConfig 的 JSON 构造保留省略字段的 auto/all/ch 默认值，tier 仍必填。
+
+
+Python 与 .NET 的安装计划 HTTP 入口在每次预览、携带 `plan_id` 的确认或重试前，读取认证的 health 并检查服务端 `runtime.install-plan.v1` 能力；缺失时返回 `RUNTIME_CAPABILITY_UNAVAILABLE`，不发送目标请求。请求自身的 `required_capabilities` 不能代替服务端能力证据，未携带 `plan_id` 的旧维护调用保持原路径。Host 调用方必须先读取既有 `inspect` 能力目录，再发送能力保护的请求；Host schema 对确认/重试实施同样的条件必需校验。

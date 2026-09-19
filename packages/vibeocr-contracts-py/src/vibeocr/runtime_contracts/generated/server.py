@@ -269,7 +269,9 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                 {'if': {'required': ['plan_id']},
                                                  'then': {'not': {'anyOf': [{'required': ['install_component_ids']},
                                                                             {'required': ['download_source_ids']}]},
-                                                          'properties': {'command': {'const': 'retry'}}}}],
+                                                          'properties': {'command': {'const': 'retry'},
+                                                                         'required_capabilities': {'contains': {'const': 'runtime.install-plan.v1'}}},
+                                                          'required': ['required_capabilities']}}],
                                       'description': 'Runtime maintenance command request. On '
                                                      'retry, install_component_ids and '
                                                      'download_source_ids may explicitly replace '
@@ -332,8 +334,10 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                                      {'required': ['component_ids']},
                                                                      {'required': ['install_component_ids']},
                                                                      {'required': ['download_source_ids']}]},
-                                                   'properties': {'operation': {'const': 'ensure'}},
-                                                   'required': ['operation_id']}}],
+                                                   'properties': {'operation': {'const': 'ensure'},
+                                                                  'required_capabilities': {'contains': {'const': 'runtime.install-plan.v1'}}},
+                                                   'required': ['operation_id',
+                                                                'required_capabilities']}}],
                                'description': 'Runtime maintenance start request. For ensure, '
                                               'install_component_ids is the manual '
                                               'optional-component scope: an empty array explicitly '

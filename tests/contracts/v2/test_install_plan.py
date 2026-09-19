@@ -578,6 +578,7 @@ def test_host_ensure_confirms_plan_without_touching_selection_overrides() -> Non
     validator = _host_validator("RuntimeHostRequest")
     base = {
         "protocol_version": 2,
+        "required_capabilities": [RUNTIME_INSTALL_PLAN_V1],
         "operation": "ensure",
         "product_root": "C:/VibeOCR",
         "component_lock": "C:/VibeOCR/component-lock.json",
@@ -613,6 +614,7 @@ def test_host_ensure_confirms_plan_without_touching_selection_overrides() -> Non
         validator.validate(
             {
                 "protocol_version": 2,
+                "required_capabilities": [RUNTIME_INSTALL_PLAN_V1],
                 "operation": "inspect",
                 "product_root": "C:/VibeOCR",
                 "component_lock": "C:/VibeOCR/component-lock.json",
@@ -625,6 +627,7 @@ def test_host_ensure_confirms_plan_without_touching_selection_overrides() -> Non
     host_command = _host_validator("RuntimeMaintenanceCommandRequest")
     command_base = {
         "protocol_version": 2,
+        "required_capabilities": [RUNTIME_INSTALL_PLAN_V1],
         "request_kind": "command",
         "command": "retry",
         "command_id": "command-1",
@@ -643,6 +646,7 @@ def test_host_ensure_confirms_plan_without_touching_selection_overrides() -> Non
         host_command.validate(
             {
                 "protocol_version": 2,
+                "required_capabilities": [RUNTIME_INSTALL_PLAN_V1],
                 "request_kind": "command",
                 "command": "cancel",
                 "command_id": "command-2",
@@ -725,6 +729,7 @@ def test_client_previews_install_plan_against_mock_endpoint() -> None:
         assert response.negotiated_capabilities == (RUNTIME_INSTALL_PLAN_V1,)
 
         assert [item.path for item in server.state.requests] == [
+            "/v2/health",
             "/v2/runtime/install-plan",
         ]
 
@@ -733,6 +738,8 @@ def test_client_previews_install_plan_against_mock_endpoint() -> None:
 
         def request_json(self, operation_id: str, **kwargs: object) -> object:
             self.calls.append((operation_id, kwargs))
+            if operation_id == "getRuntimeHealth":
+                return {"capabilities": [RUNTIME_INSTALL_PLAN_V1]}
             return {
                 "schema_version": 2,
                 "plan": _golden()["install_plan"],
@@ -744,10 +751,11 @@ def test_client_previews_install_plan_against_mock_endpoint() -> None:
         dtos.RuntimeInstallPlanRequest(required_capabilities=(RUNTIME_INSTALL_PLAN_V1,))
     )
     assert recording.calls == [
+        ("getRuntimeHealth", {}),
         (
             "previewRuntimeInstallPlan",
             {"json_body": {"required_capabilities": [RUNTIME_INSTALL_PLAN_V1]}},
-        )
+        ),
     ]
     assert response.plan.accelerator is dtos.RuntimeAccelerator.CPU
 
@@ -763,3 +771,151 @@ def test_preview_requires_authentication_on_the_wire() -> None:
             )
     assert raised.value.status_code == 401
     assert raised.value.code is ErrorCode.UNAUTHORIZED
+
+
+@pytest.mark.parametrize("capabilities", [None, [], ["runtime.maintenance.v2"]])
+@pytest.mark.parametrize("host", [False, True])
+@pytest.mark.parametrize("retry", [False, True])
+def test_plan_confirmation_requires_capability_on_every_wire_branch(
+    capabilities, host, retry
+) -> None:
+    payload = (
+        {
+            "command": "retry",
+            "command_id": "cmd",
+            "target_operation_id": "old",
+            "new_operation_id": "new",
+            "plan_id": "plan",
+        }
+        if retry
+        else {"operation": "ensure", "operation_id": "op", "plan_id": "plan"}
+    )
+    if host:
+        payload.update(
+            protocol_version=2,
+            product_root="C:/Product",
+            component_lock="C:/Product/lock",
+            runtime_manifest="C:/Product/manifest",
+        )
+        if retry:
+            payload["request_kind"] = "command"
+    if capabilities is not None:
+        payload["required_capabilities"] = capabilities
+    name = (
+        "RuntimeMaintenanceCommandRequest"
+        if retry
+        else ("RuntimeHostRequest" if host else "RuntimeMaintenanceRequest")
+    )
+    validator = _host_validator(name) if host else _schema_validator(name)
+    with pytest.raises(jsonschema.ValidationError):
+        validator.validate(payload)
+    payload["required_capabilities"] = [RUNTIME_INSTALL_PLAN_V1]
+    validator.validate(payload)
+    # The same legacy operation still works without new fields or negotiation.
+    del payload["plan_id"]
+    del payload["required_capabilities"]
+    validator.validate(payload)
+
+
+def _plan_call_request(kind):
+    if kind == "preview_runtime_install_plan":
+        return dtos.RuntimeInstallPlanRequest(
+            required_capabilities=(RUNTIME_INSTALL_PLAN_V1,)
+        )
+    if kind == "start_runtime_maintenance":
+        return dtos.RuntimeMaintenanceRequest(
+            operation=dtos.RuntimeMaintenanceOperation.ENSURE,
+            operation_id="op",
+            plan_id="plan",
+            required_capabilities=(RUNTIME_INSTALL_PLAN_V1,),
+        )
+    return dtos.RuntimeMaintenanceCommand(
+        command_id="cmd",
+        command=dtos.RuntimeMaintenanceCommandKind.RETRY,
+        target_operation_id="old",
+        new_operation_id="new",
+        plan_id="plan",
+        required_capabilities=(RUNTIME_INSTALL_PLAN_V1,),
+    )
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        "preview_runtime_install_plan",
+        "start_runtime_maintenance",
+        "command_runtime_maintenance",
+    ],
+)
+def test_sync_sdk_does_not_send_plan_requests_to_old_runtime(method) -> None:
+    class OldRuntime(RuntimeHttpClient):
+        def request_json(self, operation_id, **kwargs):
+            assert operation_id == "getRuntimeHealth", "new request sent to old runtime"
+            return {"capabilities": ["runtime.maintenance.v2"]}
+
+    client = OldRuntime(base_url="http://127.0.0.1:9")
+    with pytest.raises(RuntimeClientError) as error:
+        getattr(client, method)(_plan_call_request(method))
+    assert error.value.code == ErrorCode.RUNTIME_CAPABILITY_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        "preview_runtime_install_plan",
+        "start_runtime_maintenance",
+        "command_runtime_maintenance",
+    ],
+)
+def test_async_sdk_does_not_send_plan_requests_to_old_runtime(method) -> None:
+    import asyncio
+
+    import httpx
+    from vibeocr.runtime_client.client import SupervisorClient
+
+    calls = []
+    health = json.loads((V2 / "golden/runtime-api.json").read_text(encoding="utf-8"))[
+        "health"
+    ]
+    health["capabilities"] = ["runtime.maintenance.v2"]
+
+    def respond(request):
+        calls.append((request.method, request.url.path))
+        assert request.method == "GET"
+        return httpx.Response(200, json=health)
+
+    async def invoke():
+        async with httpx.AsyncClient(
+            base_url="http://127.0.0.1:9", transport=httpx.MockTransport(respond)
+        ) as transport:
+            client = SupervisorClient(
+                base_url="http://127.0.0.1:9", session_token="token"
+            )
+            client._client = transport
+            with pytest.raises(RuntimeClientError) as error:
+                await getattr(client, method)(_plan_call_request(method))
+            assert error.value.code == ErrorCode.RUNTIME_CAPABILITY_UNAVAILABLE
+
+    asyncio.run(invoke())
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("kind", ["preview", "ensure", "retry"])
+def test_plan_dto_rejects_missing_capability_before_serialization(kind) -> None:
+    with pytest.raises(ValueError, match="runtime.install-plan.v1"):
+        if kind == "preview":
+            dtos.RuntimeInstallPlanRequest(required_capabilities=())
+        elif kind == "ensure":
+            dtos.RuntimeMaintenanceRequest(
+                operation=dtos.RuntimeMaintenanceOperation.ENSURE,
+                operation_id="op",
+                plan_id="plan",
+            )
+        else:
+            dtos.RuntimeMaintenanceCommand(
+                command_id="cmd",
+                command=dtos.RuntimeMaintenanceCommandKind.RETRY,
+                target_operation_id="old",
+                new_operation_id="new",
+                plan_id="plan",
+            )
