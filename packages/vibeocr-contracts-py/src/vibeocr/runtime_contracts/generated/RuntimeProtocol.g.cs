@@ -22,6 +22,7 @@ public static class RuntimeProtocol
     public const string RUNTIME_COMPONENT_SELECTION_V1 = "runtime.component-selection.v1";
     public const string OCR_RECOGNITION_MODES_V1 = "ocr.recognition-modes.v1";
     public const string OCR_MINERU_CONFIG_V1 = "ocr.mineru-config.v1";
+    public const string RUNTIME_INSTALL_PLAN_V1 = "runtime.install-plan.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -44,7 +45,8 @@ public static class RuntimeProtocol
         "runtime.download-sources.v1",
         "runtime.component-selection.v1",
         "ocr.recognition-modes.v1",
-        "ocr.mineru-config.v1"
+        "ocr.mineru-config.v1",
+        "runtime.install-plan.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
@@ -84,6 +86,7 @@ public static class RuntimeProtocol
         new("POST", "/v2/pdf/sessions/{session_id}/update_block_text", "updatePdfBlockText"),
         new("POST", "/v2/qrcode/decode", "decodeQrCode"),
         new("POST", "/v2/qrcode/generate", "generateQrCode"),
+        new("POST", "/v2/runtime/install-plan", "previewRuntimeInstallPlan"),
         new("POST", "/v2/runtime/maintenance", "startRuntimeMaintenance"),
         new("POST", "/v2/runtime/maintenance/command", "commandRuntimeMaintenance"),
         new("POST", "/v2/runtime/preload", "preloadRuntime"),
@@ -131,6 +134,7 @@ public static class RuntimeOperationPaths
     public const string UpdatePdfBlockText = "/v2/pdf/sessions/{session_id}/update_block_text";
     public const string DecodeQrCode = "/v2/qrcode/decode";
     public const string GenerateQrCode = "/v2/qrcode/generate";
+    public const string PreviewRuntimeInstallPlan = "/v2/runtime/install-plan";
     public const string StartRuntimeMaintenance = "/v2/runtime/maintenance";
     public const string CommandRuntimeMaintenance = "/v2/runtime/maintenance/command";
     public const string PreloadRuntime = "/v2/runtime/preload";
@@ -169,6 +173,8 @@ public enum RuntimeErrorCode
     RUNTIME_BUSY,
     RUNTIME_INSTALL_FAILED,
     RUNTIME_IO_ERROR,
+    RUNTIME_INSTALL_PLAN_STALE,
+    RUNTIME_INSTALL_PLAN_BLOCKED,
     OCR_ENGINE_UNKNOWN,
     OCR_ENGINE_UNAVAILABLE,
     OCR_ENGINE_PREPARATION_REQUIRED,

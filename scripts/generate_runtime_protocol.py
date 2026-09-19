@@ -362,10 +362,13 @@ def _analyze_schema_type(schema: dict) -> _SchemaType:
 
     raw_type = schema.get("type")
     if isinstance(raw_type, list):
-        return _SchemaType(
-            "union",
-            children=tuple(_analyze_schema_type({"type": item}) for item in raw_type),
-        )
+        children = []
+        for item in raw_type:
+            child_schema: dict = {"type": item}
+            if item == "array" and "items" in schema:
+                child_schema["items"] = schema["items"]
+            children.append(_analyze_schema_type(child_schema))
+        return _SchemaType("union", children=tuple(children))
 
     if "enum" in schema:
         values = schema["enum"]

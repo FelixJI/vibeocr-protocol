@@ -18,6 +18,7 @@ RUNTIME_DOWNLOAD_SOURCES_V1 = "runtime.download-sources.v1"
 RUNTIME_COMPONENT_SELECTION_V1 = "runtime.component-selection.v1"
 OCR_RECOGNITION_MODES_V1 = "ocr.recognition-modes.v1"
 OCR_MINERU_CONFIG_V1 = "ocr.mineru-config.v1"
+RUNTIME_INSTALL_PLAN_V1 = "runtime.install-plan.v1"
 
 ALL_CAPABILITIES: tuple[str, ...] = (
     'ocr.recognition.v2',
@@ -37,6 +38,7 @@ ALL_CAPABILITIES: tuple[str, ...] = (
     'runtime.component-selection.v1',
     'ocr.recognition-modes.v1',
     'ocr.mineru-config.v1',
+    'runtime.install-plan.v1',
 )
 READY_ENVELOPE_VERSION = 1
 PROTOCOL_VERSION = 2

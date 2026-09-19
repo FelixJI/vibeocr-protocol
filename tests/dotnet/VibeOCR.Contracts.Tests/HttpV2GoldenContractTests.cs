@@ -168,7 +168,7 @@ public sealed class HttpV2GoldenContractTests
             .Select<HttpV2ErrorCode, string>(WireName)
             .ToArray();
         Assert.Equal(registered.Order(), declared.Order());
-        Assert.Equal(44, registered.Length);
+        Assert.Equal(46, registered.Length);
 
         foreach (JsonElement entry in entries)
         {
@@ -255,6 +255,8 @@ public sealed class HttpV2GoldenContractTests
         HttpV2ErrorCode.RuntimeCapabilityUnavailable => false,
         HttpV2ErrorCode.RuntimeIdentityMismatch => false,
         HttpV2ErrorCode.RuntimeInstallFailed => false,
+        HttpV2ErrorCode.RuntimeInstallPlanStale => false,
+        HttpV2ErrorCode.RuntimeInstallPlanBlocked => false,
         HttpV2ErrorCode.OcrEngineUnknown => false,
         HttpV2ErrorCode.OcrEngineUnavailable => false,
         HttpV2ErrorCode.OcrEnginePreparationRequired => false,

@@ -35,6 +35,8 @@ class RuntimeErrorCode(StrEnum):
     RUNTIME_BUSY = "RUNTIME_BUSY"
     RUNTIME_INSTALL_FAILED = "RUNTIME_INSTALL_FAILED"
     RUNTIME_IO_ERROR = "RUNTIME_IO_ERROR"
+    RUNTIME_INSTALL_PLAN_STALE = "RUNTIME_INSTALL_PLAN_STALE"
+    RUNTIME_INSTALL_PLAN_BLOCKED = "RUNTIME_INSTALL_PLAN_BLOCKED"
     OCR_ENGINE_UNKNOWN = "OCR_ENGINE_UNKNOWN"
     OCR_ENGINE_UNAVAILABLE = "OCR_ENGINE_UNAVAILABLE"
     OCR_ENGINE_PREPARATION_REQUIRED = "OCR_ENGINE_PREPARATION_REQUIRED"
@@ -91,6 +93,8 @@ ERROR_DEFINITIONS: tuple[RuntimeErrorDefinition, ...] = (
     RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_BUSY, 'transient', 423, True, 'Another Runtime maintenance operation owns the Runtime store lock.'),
     RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_INSTALL_FAILED, 'backend_unavailable', 500, False, 'The Runtime maintenance installation or verification failed.'),
     RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_IO_ERROR, 'transient', 500, True, 'A transient local I/O error interrupted Runtime maintenance.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_INSTALL_PLAN_STALE, 'conflict', 409, False, 'The install plan is expired, unknown, or its verified baseline changed; preview a new plan before confirming maintenance.'),
+    RuntimeErrorDefinition(RuntimeErrorCode.RUNTIME_INSTALL_PLAN_BLOCKED, 'conflict', 409, False, 'The install plan reports unresolved blockers; resolve them or preview a new plan instead of starting maintenance.'),
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_UNKNOWN, 'validation', 400, False, 'The requested OCR engine id is not a stable OcrEngineId value; the request fails closed without falling back to another engine.'),
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_UNAVAILABLE, 'capability', 426, False, 'The selected OCR engine cannot run in this runtime; the response detail may list the currently selectable engine ids.'),
     RuntimeErrorDefinition(RuntimeErrorCode.OCR_ENGINE_PREPARATION_REQUIRED, 'capability', 428, False, 'The selected OCR engine requires user preparation of a runtime component before use.'),
