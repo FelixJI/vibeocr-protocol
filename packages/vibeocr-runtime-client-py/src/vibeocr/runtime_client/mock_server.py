@@ -167,6 +167,19 @@ class MockRuntimeServer:
         if (request.method, request.path) in residency_operations:
             return _json_response(200, self._contract_golden["residency_status"])
 
+        if (
+            request.path == operation_path("previewRuntimeInstallPlan")
+            and request.method == "POST"
+        ):
+            return _json_response(
+                200,
+                {
+                    "schema_version": 2,
+                    "plan": deepcopy(self._contract_golden["install_plan"]),
+                    "negotiated_capabilities": ["runtime.install-plan.v1"],
+                },
+            )
+
         if request.path == operation_path("getSettings") and request.method == "GET":
             return _json_response(200, self._contract_golden["settings_snapshot"])
         if request.path == operation_path("putSettings") and request.method == "PUT":

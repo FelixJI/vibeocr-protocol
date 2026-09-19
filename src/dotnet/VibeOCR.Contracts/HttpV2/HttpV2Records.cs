@@ -263,6 +263,14 @@ public sealed record RuntimeMaintenanceRequest
     public required RuntimeMaintenanceOperation Operation { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ProfileId { get; init; }
+    /// <summary>
+    /// Confirmed install plan id (runtime.install-plan.v1). Valid for ensure
+    /// only, requires an explicit OperationId, and is mutually exclusive with
+    /// ProfileId, ComponentIds, InstallComponentIds and DownloadSourceIds.
+    /// Null keeps the legacy semantics without plan confirmation.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanId { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? ComponentIds { get; init; }
     /// <summary>
@@ -292,6 +300,14 @@ public sealed record RuntimeMaintenanceCommand
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ExpectedSequence { get; init; }
     /// <summary>
+    /// Fresh install plan id (runtime.install-plan.v1) for a retry that
+    /// replaces the source operation's plan confirmation. Invalid for cancel
+    /// and mutually exclusive with the selection overrides; when present,
+    /// RequiredCapabilities must contain runtime.install-plan.v1.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanId { get; init; }
+    /// <summary>
     /// On retry, explicitly re-selects a still-compatible install scope
     /// (runtime.component-selection.v1). Null omits the wire field and reuses
     /// the source operation's normalized intent.
@@ -304,6 +320,8 @@ public sealed record RuntimeMaintenanceCommand
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RequiredCapabilities { get; init; }
 }
 
 public sealed record RuntimeComponentStatus
@@ -355,6 +373,83 @@ public sealed record RuntimeMaintenanceStatus
     public IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? EffectiveDownloadSourceIds { get; init; }
+    /// <summary>Install plan id echo when this operation confirmed a previewed plan.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanId { get; init; }
+}
+
+public sealed record RuntimeInstallPlanRequest
+{
+    public required IReadOnlyList<string> RequiredCapabilities { get; init; }
+    /// <summary>Null keeps the persistent preference or product default.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RuntimeAccelerator? Accelerator { get; init; }
+    /// <summary>
+    /// Manual install scope (runtime.component-selection.v1): null omits the
+    /// wire field (Backend default), an empty list explicitly selects no
+    /// optional components.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
+    /// <summary>
+    /// Download source selection (runtime.download-sources.v1); must be
+    /// non-empty when present, null omits the field.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+}
+
+public sealed record RuntimeInstallPlanResponse
+{
+    public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    public required RuntimeInstallPlan Plan { get; init; }
+    public IReadOnlyList<string> NegotiatedCapabilities { get; init; } = Array.Empty<string>();
+}
+
+public sealed record RuntimeInstallPlan
+{
+    public required string PlanId { get; init; }
+    public required string ExpiresAt { get; init; }
+    public required RuntimeAccelerator Accelerator { get; init; }
+    public required string ProfileId { get; init; }
+    /// <summary>Nullable request echo: null means omitted, empty means explicit empty selection.</summary>
+    public required IReadOnlyList<string>? RequestedComponentIds { get; init; }
+    public IReadOnlyList<string> EffectiveComponentIds { get; init; } = Array.Empty<string>();
+    /// <summary>Nullable request echo: null means omitted, never an empty list.</summary>
+    public required IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
+    public IReadOnlyList<string> EffectiveDownloadSourceIds { get; init; } = Array.Empty<string>();
+    public required RuntimeSourceIdentity Source { get; init; }
+    public IReadOnlyList<RuntimeInstallPlanComponent> Components { get; init; } =
+        Array.Empty<RuntimeInstallPlanComponent>();
+    public IReadOnlyList<RuntimeInstallPlanBlocker> Blockers { get; init; } =
+        Array.Empty<RuntimeInstallPlanBlocker>();
+    public required RuntimeInstallPlanCost Cost { get; init; }
+}
+
+public sealed record RuntimeInstallPlanComponent
+{
+    public required string ComponentId { get; init; }
+    public required RuntimeInstallPlanAction Action { get; init; }
+    public required RuntimeInstallPlanDependencyState DependencyState { get; init; }
+    public IReadOnlyList<string> ReasonCodes { get; init; } = Array.Empty<string>();
+}
+
+public sealed record RuntimeInstallPlanBlocker
+{
+    public required string Code { get; init; }
+    /// <summary>Optional stable component id the blocker is about.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ComponentId { get; init; }
+    public required string NextAction { get; init; }
+}
+
+public sealed record RuntimeInstallPlanCost
+{
+    /// <summary>Plan-wide deduplicated total; null means honestly unknown.</summary>
+    public required long? DownloadBytes { get; init; }
+    /// <summary>Plan-wide deduplicated total; null means honestly unknown.</summary>
+    public required long? AdditionalDiskBytes { get; init; }
+    public IReadOnlyList<string> UnknownReasonCodes { get; init; } = Array.Empty<string>();
 }
 
 public sealed record RuntimeMaintenanceReceipt

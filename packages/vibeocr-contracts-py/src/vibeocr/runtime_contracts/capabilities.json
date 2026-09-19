@@ -17,7 +17,8 @@
     "runtime.download-sources.v1",
     "runtime.component-selection.v1",
     "ocr.recognition-modes.v1",
-    "ocr.mineru-config.v1"
+    "ocr.mineru-config.v1",
+    "runtime.install-plan.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -152,6 +153,14 @@
       "description": "Select the typed MinerU 4 tier, OCR mode, canonical page range and language on mineru_parse jobs, negotiated against the Backend-declared tier and language catalog carried by capability descriptors.",
       "lifecycle": "active",
       "introduced_in": "2.8.1",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "runtime.install-plan.v1": {
+      "description": "Preview a read-only Runtime install plan for ensure over runtime.maintenance.v2, runtime.component-selection.v1 and runtime.download-sources.v1: requested and effective component/source closures, retain/install/replace/remove actions with machine reason codes, honest blockers with next actions, deduplicated cost totals and expiry, confirmed later via plan_id on maintenance start or retry without installing, downloading, or changing any active environment.",
+      "lifecycle": "active",
+      "introduced_in": "2.9.0",
       "deprecated_in": null,
       "sunset_at": null,
       "replacement": null

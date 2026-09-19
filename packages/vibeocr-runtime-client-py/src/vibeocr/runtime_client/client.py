@@ -25,6 +25,8 @@ from vibeocr.runtime_contracts import (
     JobRef,
     JobUpdate,
     ResidencyStatus,
+    RuntimeInstallPlanRequest,
+    RuntimeInstallPlanResponse,
     RuntimeMaintenanceCommand,
     RuntimeMaintenanceCommandKind,
     RuntimeMaintenanceEvent,
@@ -52,6 +54,7 @@ from vibeocr.runtime_contracts.parser import (
     parse_job_update,
     parse_pipeline_spec,
     parse_residency_entry,
+    parse_runtime_install_plan_response,
     parse_runtime_maintenance_event,
     parse_runtime_maintenance_receipt,
     parse_runtime_maintenance_update,
@@ -412,6 +415,17 @@ class RuntimeHttpClient:
 
     def residency(self) -> WireResidencyStatus:
         return cast("WireResidencyStatus", self.request_json("getRuntimeResidency"))
+
+    def preview_runtime_install_plan(
+        self, request: RuntimeInstallPlanRequest
+    ) -> RuntimeInstallPlanResponse:
+        """Preview a read-only install plan (runtime.install-plan.v1)."""
+
+        return parse_runtime_install_plan_response(
+            self.request_json(
+                "previewRuntimeInstallPlan", json_body=request.to_payload()
+            )
+        )
 
     def start_runtime_maintenance(
         self, request: RuntimeMaintenanceRequest
@@ -922,6 +936,22 @@ class SupervisorClient:
             )
         value = await asyncio.to_thread(self._require_transport().residency)
         return _parse_residency(value)
+
+    async def preview_runtime_install_plan(
+        self, request: RuntimeInstallPlanRequest
+    ) -> RuntimeInstallPlanResponse:
+        """Preview a read-only install plan (runtime.install-plan.v1)."""
+
+        if self._client is not None:
+            response = await self._client.post(
+                operation_path("previewRuntimeInstallPlan"),
+                json=request.to_payload(),
+            )
+            value = self._async_response_object(response, "previewRuntimeInstallPlan")
+            return parse_runtime_install_plan_response(value)
+        return await asyncio.to_thread(
+            self._require_transport().preview_runtime_install_plan, request
+        )
 
     async def start_runtime_maintenance(
         self, request: RuntimeMaintenanceRequest

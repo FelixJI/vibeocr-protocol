@@ -7,10 +7,12 @@
     { "$ref": "#/$defs/RuntimeHostRequest" },
     { "$ref": "#/$defs/RuntimeMaintenanceCommandRequest" },
     { "$ref": "#/$defs/RuntimeMaintenanceObserveRequest" },
+    { "$ref": "#/$defs/RuntimeInstallPlanRequest" },
     { "$ref": "#/$defs/RuntimeMaintenanceEvent" },
     { "$ref": "#/$defs/RuntimeMaintenanceUpdate" },
     { "$ref": "#/$defs/RuntimeHostSuccess" },
-    { "$ref": "#/$defs/RuntimeHostFailure" }
+    { "$ref": "#/$defs/RuntimeHostFailure" },
+    { "$ref": "#/$defs/RuntimeInstallPlanResponse" }
   ],
   "$defs": {
     "Accelerator": {
@@ -284,6 +286,11 @@
           "default": null
         },
         "operation_id": { "type": "string", "minLength": 1 },
+        "plan_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Confirmed runtime.install-plan.v1 install plan id for ensure only (runtime.install-plan.v1); requires an explicit operation_id, requires required_capabilities to contain runtime.install-plan.v1, and is mutually exclusive with accelerator, component_ids, install_component_ids, and download_source_ids. The product binding fields above keep their mandatory meaning."
+        },
         "component_ids": {
           "type": "array",
           "uniqueItems": true,
@@ -322,6 +329,21 @@
             ]
           },
           "then": { "properties": { "operation": { "const": "ensure" } } }
+        },
+        {
+          "if": { "required": ["plan_id"] },
+          "then": {
+            "required": ["operation_id"],
+            "properties": { "operation": { "const": "ensure" } },
+            "not": {
+              "anyOf": [
+                { "required": ["accelerator"] },
+                { "required": ["component_ids"] },
+                { "required": ["install_component_ids"] },
+                { "required": ["download_source_ids"] }
+              ]
+            }
+          }
         }
       ]
     },
@@ -350,6 +372,11 @@
         "target_operation_id": { "type": "string", "minLength": 1 },
         "new_operation_id": { "type": "string", "minLength": 1 },
         "expected_sequence": { "type": "integer", "minimum": 0 },
+        "plan_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fresh runtime.install-plan.v1 install plan id for a retry that replaces the source operation's plan confirmation; invalid for cancel, mutually exclusive with install_component_ids and download_source_ids, and requires required_capabilities to contain runtime.install-plan.v1."
+        },
         "product_root": { "type": "string", "minLength": 1 },
         "component_lock": { "type": "string", "minLength": 1 },
         "runtime_manifest": { "type": "string", "minLength": 1 },
@@ -364,6 +391,11 @@
           "description": "Each selected id overrides its source kind; kinds not present use the Backend-declared default for that kind. Omitting the field reuses the source operation intent."
         },
         "install_component_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "required_capabilities": {
           "type": "array",
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
@@ -391,6 +423,25 @@
             ]
           },
           "then": { "properties": { "command": { "const": "retry" } } }
+        },
+        {
+          "if": {
+            "properties": { "command": { "const": "cancel" } },
+            "required": ["command"]
+          },
+          "then": { "not": { "required": ["plan_id"] } }
+        },
+        {
+          "if": { "required": ["plan_id"] },
+          "then": {
+            "properties": { "command": { "const": "retry" } },
+            "not": {
+              "anyOf": [
+                { "required": ["install_component_ids"] },
+                { "required": ["download_source_ids"] }
+              ]
+            }
+          }
         }
       ]
     },
@@ -419,6 +470,180 @@
         "layout_manifest": { "type": "string", "minLength": 1 },
         "product_id": { "type": "string", "minLength": 1 }
       }
+    },
+    "RuntimeInstallPlanRequest": {
+      "type": "object",
+      "description": "Cold-start Runtime Host install plan preview request (runtime.install-plan.v1). Uses the same product binding fields as inspect for baseline validation and the same selection semantics as the HTTP install-plan preview. required_capabilities MUST contain runtime.install-plan.v1; the Host MUST NOT run ensure to answer a preview. Clients send this request kind only when the capability is known to exist from the inspect capability_descriptors negotiation.",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "request_kind",
+        "product_root",
+        "component_lock",
+        "runtime_manifest",
+        "required_capabilities"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "request_kind": { "const": "install_plan" },
+        "product_root": { "type": "string", "minLength": 1 },
+        "component_lock": { "type": "string", "minLength": 1 },
+        "runtime_manifest": { "type": "string", "minLength": 1 },
+        "layout_manifest": { "type": "string", "minLength": 1 },
+        "product_id": { "type": "string", "minLength": 1 },
+        "accelerator": { "$ref": "#/$defs/Accelerator" },
+        "install_component_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "download_source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "required_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "contains": { "const": "runtime.install-plan.v1" }
+        }
+      }
+    },
+    "RuntimeInstallPlanResponse": {
+      "type": "object",
+      "description": "Dedicated Runtime Host install plan preview response. It is deliberately not the success envelope: it carries no ok flag and no legacy operation ambiguity, and failures reuse the existing failure envelope with operation null and error.canonical_code carrying the canonical code such as RUNTIME_INSTALL_PLAN_STALE.",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "response_kind",
+        "plan"
+      ],
+      "properties": {
+        "protocol_version": { "const": 2 },
+        "response_kind": { "const": "install_plan" },
+        "plan": { "$ref": "#/$defs/RuntimeInstallPlan" }
+      }
+    },
+    "RuntimeInstallPlan": {
+      "type": "object",
+      "description": "One read-only install plan shared with the HTTP install-plan preview. plan_id is opaque and expires at expires_at; stale, expired, or unknown plans fail with RUNTIME_INSTALL_PLAN_STALE and blocked plans with RUNTIME_INSTALL_PLAN_BLOCKED (canonical codes on the Host failure envelope). requested_* fields are nullable echoes: null means omitted (Backend default), an empty array explicitly selected no optional components. components is the union of the effective closure and the actually affected old components; remove never authorizes deleting retained environments, native models, or caches.",
+      "additionalProperties": false,
+      "required": [
+        "plan_id",
+        "expires_at",
+        "accelerator",
+        "profile_id",
+        "requested_component_ids",
+        "effective_component_ids",
+        "requested_download_source_ids",
+        "effective_download_source_ids",
+        "source",
+        "components",
+        "blockers",
+        "cost"
+      ],
+      "properties": {
+        "plan_id": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "accelerator": { "$ref": "#/$defs/Accelerator" },
+        "profile_id": { "type": "string", "minLength": 1 },
+        "requested_component_ids": {
+          "type": ["array", "null"],
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "effective_component_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "requested_download_source_ids": {
+          "type": ["array", "null"],
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "effective_download_source_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source": { "$ref": "#/$defs/RuntimeSourceIdentity" },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RuntimeInstallPlanComponent" }
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RuntimeInstallPlanBlocker" }
+        },
+        "cost": { "$ref": "#/$defs/RuntimeInstallPlanCost" }
+      }
+    },
+    "RuntimeInstallPlanComponent": {
+      "type": "object",
+      "description": "One component row of the effective install closure union; mirrors the HTTP RuntimeInstallPlanComponent semantics.",
+      "additionalProperties": false,
+      "required": ["component_id", "action", "dependency_state", "reason_codes"],
+      "properties": {
+        "component_id": { "type": "string", "minLength": 1 },
+        "action": {
+          "type": "string",
+          "enum": ["retain", "install", "replace", "remove"]
+        },
+        "dependency_state": {
+          "type": "string",
+          "enum": ["satisfied", "pending"]
+        },
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "RuntimeInstallPlanBlocker": {
+      "type": "object",
+      "description": "One actual known blocker with an open stable code and a next user action; mirrors the HTTP RuntimeInstallPlanBlocker semantics.",
+      "additionalProperties": false,
+      "required": ["code", "next_action"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "component_id": { "type": "string", "minLength": 1 },
+        "next_action": { "type": "string", "minLength": 1 }
+      }
+    },
+    "RuntimeInstallPlanCost": {
+      "type": "object",
+      "description": "Plan-wide deduplicated cost totals; null totals are honestly unknown and MUST carry unknown_reason_codes; mirrors the HTTP RuntimeInstallPlanCost semantics.",
+      "additionalProperties": false,
+      "required": ["download_bytes", "additional_disk_bytes", "unknown_reason_codes"],
+      "properties": {
+        "download_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "additional_disk_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "unknown_reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              { "properties": { "download_bytes": { "type": "null" } } },
+              { "properties": { "additional_disk_bytes": { "type": "null" } } }
+            ]
+          },
+          "then": {
+            "properties": {
+              "unknown_reason_codes": { "minItems": 1 }
+            }
+          }
+        }
+      ]
     },
     "ProgressUnit": {
       "type": "string",
@@ -576,6 +801,7 @@
           "items": { "type": "string", "minLength": 1 }
         },
         "source": { "$ref": "#/$defs/RuntimeSourceIdentity" },
+        "plan_id": { "type": "string", "minLength": 1 },
         "updated_at": { "type": "string", "format": "date-time" },
         "progress": {
           "anyOf": [

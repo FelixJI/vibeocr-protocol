@@ -243,6 +243,20 @@ class RuntimeAccelerator(StrEnum):
     NVIDIA_CUDA = "nvidia_cuda"
 
 
+class RuntimeInstallPlanAction(StrEnum):
+    """What confirming a plan does to one component row."""
+
+    RETAIN = "retain"
+    INSTALL = "install"
+    REPLACE = "replace"
+    REMOVE = "remove"
+
+
+class RuntimeInstallPlanDependencyState(StrEnum):
+    SATISFIED = "satisfied"
+    PENDING = "pending"
+
+
 # ---------------------------------------------------------------------------
 # Job DTOs
 # ---------------------------------------------------------------------------
@@ -741,6 +755,12 @@ class RuntimeMaintenanceRequest:
     the Backend default, while an empty tuple explicitly selects no optional
     components. ``download_source_ids`` snapshots the source preference for
     the operation so later settings changes cannot alter an in-flight install.
+
+    ``plan_id`` (``runtime.install-plan.v1``) confirms a previewed install
+    plan: it is valid for ``ensure`` only, requires an explicit
+    ``operation_id``, and is mutually exclusive with every selection override
+    (``profile_id``, ``component_ids``, ``install_component_ids``,
+    ``download_source_ids``). Requests without it keep legacy semantics.
     """
 
     operation: RuntimeMaintenanceOperation
@@ -750,6 +770,7 @@ class RuntimeMaintenanceRequest:
     install_component_ids: tuple[str, ...] | None = None
     download_source_ids: tuple[str, ...] | None = None
     required_capabilities: tuple[str, ...] = ()
+    plan_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.download_source_ids is not None and not self.download_source_ids:
@@ -761,6 +782,21 @@ class RuntimeMaintenanceRequest:
             raise ValueError(
                 "install_component_ids and download_source_ids require ensure"
             )
+        if self.plan_id is not None:
+            if self.operation is not RuntimeMaintenanceOperation.ENSURE:
+                raise ValueError("plan_id requires ensure")
+            if self.operation_id is None:
+                raise ValueError("plan_id requires an explicit operation_id")
+            if (
+                self.profile_id is not None
+                or self.component_ids
+                or self.install_component_ids is not None
+                or self.download_source_ids is not None
+            ):
+                raise ValueError(
+                    "plan_id is mutually exclusive with profile_id, "
+                    "component_ids, install_component_ids and download_source_ids"
+                )
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {"operation": self.operation.value}
@@ -768,6 +804,8 @@ class RuntimeMaintenanceRequest:
             payload["operation_id"] = self.operation_id
         if self.profile_id is not None:
             payload["profile_id"] = self.profile_id
+        if self.plan_id is not None:
+            payload["plan_id"] = self.plan_id
         if self.component_ids:
             payload["component_ids"] = list(self.component_ids)
         if self.install_component_ids is not None:
@@ -781,6 +819,15 @@ class RuntimeMaintenanceRequest:
 
 @dataclass(frozen=True, slots=True)
 class RuntimeMaintenanceCommand:
+    """HTTP runtime maintenance command request.
+
+    ``plan_id`` (``runtime.install-plan.v1``) may only ride a retry that
+    replaces the source operation's plan confirmation: it is invalid for
+    ``cancel``, is mutually exclusive with the selection overrides, and
+    ``required_capabilities`` must contain ``runtime.install-plan.v1`` when
+    it is present.
+    """
+
     command_id: str
     command: RuntimeMaintenanceCommandKind
     target_operation_id: str
@@ -788,6 +835,8 @@ class RuntimeMaintenanceCommand:
     expected_sequence: int | None = None
     install_component_ids: tuple[str, ...] | None = None
     download_source_ids: tuple[str, ...] | None = None
+    plan_id: str | None = None
+    required_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -804,6 +853,17 @@ class RuntimeMaintenanceCommand:
             raise ValueError(
                 "install_component_ids and download_source_ids require retry"
             )
+        if self.plan_id is not None:
+            if self.command is not RuntimeMaintenanceCommandKind.RETRY:
+                raise ValueError("plan_id requires retry")
+            if (
+                self.install_component_ids is not None
+                or self.download_source_ids is not None
+            ):
+                raise ValueError(
+                    "plan_id is mutually exclusive with install_component_ids "
+                    "and download_source_ids"
+                )
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -815,10 +875,14 @@ class RuntimeMaintenanceCommand:
             payload["new_operation_id"] = self.new_operation_id
         if self.expected_sequence is not None:
             payload["expected_sequence"] = self.expected_sequence
+        if self.plan_id is not None:
+            payload["plan_id"] = self.plan_id
         if self.install_component_ids is not None:
             payload["install_component_ids"] = list(self.install_component_ids)
         if self.download_source_ids is not None:
             payload["download_source_ids"] = list(self.download_source_ids)
+        if self.required_capabilities:
+            payload["required_capabilities"] = list(self.required_capabilities)
         return payload
 
 
@@ -894,6 +958,7 @@ class RuntimeMaintenanceStatus:
     requested_download_source_ids: tuple[str, ...] = ()
     effective_download_source_ids: tuple[str, ...] = ()
     source: RuntimeSourceIdentity | None = None
+    plan_id: str | None = None
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -909,6 +974,8 @@ class RuntimeMaintenanceStatus:
             "progress": self.progress.to_payload() if self.progress else None,
             "message_code": self.message_code,
         }
+        if self.plan_id is not None:
+            payload["plan_id"] = self.plan_id
         if self.requested_component_ids:
             payload["requested_component_ids"] = list(self.requested_component_ids)
         if self.effective_component_ids:
@@ -1017,6 +1084,177 @@ class RuntimeStatusSnapshot:
 
 
 # ---------------------------------------------------------------------------
+# Runtime install plan DTOs (runtime.install-plan.v1)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInstallPlanRequest:
+    """HTTP install plan preview request (``runtime.install-plan.v1``).
+
+    ``required_capabilities`` must contain ``runtime.install-plan.v1``.
+    ``install_component_ids`` keeps the ``runtime.component-selection.v1``
+    omission semantics (``None`` = Backend default, empty tuple = explicitly
+    no optional components) and ``download_source_ids`` keeps the
+    ``runtime.download-sources.v1`` non-empty rule. ``accelerator`` omitted
+    (``None``) keeps the persistent preference or product default. The
+    preview installs nothing and creates no maintenance operation.
+    """
+
+    required_capabilities: tuple[str, ...]
+    accelerator: RuntimeAccelerator | None = None
+    install_component_ids: tuple[str, ...] | None = None
+    download_source_ids: tuple[str, ...] | None = None
+
+    def __post_init__(self) -> None:
+        if self.download_source_ids is not None and not self.download_source_ids:
+            raise ValueError("download_source_ids must be non-empty when provided")
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "required_capabilities": list(self.required_capabilities),
+        }
+        if self.accelerator is not None:
+            payload["accelerator"] = self.accelerator.value
+        if self.install_component_ids is not None:
+            payload["install_component_ids"] = list(self.install_component_ids)
+        if self.download_source_ids is not None:
+            payload["download_source_ids"] = list(self.download_source_ids)
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInstallPlanComponent:
+    component_id: str
+    action: RuntimeInstallPlanAction
+    dependency_state: RuntimeInstallPlanDependencyState
+    reason_codes: tuple[str, ...] = ()
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "component_id": self.component_id,
+            "action": self.action.value,
+            "dependency_state": self.dependency_state.value,
+            "reason_codes": list(self.reason_codes),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInstallPlanBlocker:
+    code: str
+    next_action: str
+    component_id: str | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "code": self.code,
+            "next_action": self.next_action,
+        }
+        if self.component_id is not None:
+            payload["component_id"] = self.component_id
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInstallPlanCost:
+    """Plan-wide deduplicated totals; ``None`` means honestly unknown."""
+
+    download_bytes: int | None
+    additional_disk_bytes: int | None
+    unknown_reason_codes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if (
+            self.download_bytes is None or self.additional_disk_bytes is None
+        ) and not self.unknown_reason_codes:
+            raise ValueError(
+                "unknown cost totals require unknown_reason_codes instead of "
+                "zero placeholders"
+            )
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "download_bytes": self.download_bytes,
+            "additional_disk_bytes": self.additional_disk_bytes,
+            "unknown_reason_codes": list(self.unknown_reason_codes),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInstallPlan:
+    """One read-only install plan (``runtime.install-plan.v1``).
+
+    ``requested_component_ids``/``requested_download_source_ids`` are nullable
+    echoes of the request: ``None`` means the field was omitted (Backend
+    default) while an empty tuple means an explicit empty selection.
+    ``components`` is the union of the effective closure and the actually
+    affected old components; ``plan_id`` is opaque and expires at
+    ``expires_at``.
+    """
+
+    plan_id: str
+    expires_at: str
+    accelerator: RuntimeAccelerator
+    profile_id: str
+    effective_component_ids: tuple[str, ...]
+    effective_download_source_ids: tuple[str, ...]
+    source: RuntimeSourceIdentity
+    cost: RuntimeInstallPlanCost
+    components: tuple[RuntimeInstallPlanComponent, ...] = ()
+    blockers: tuple[RuntimeInstallPlanBlocker, ...] = ()
+    requested_component_ids: tuple[str, ...] | None = None
+    requested_download_source_ids: tuple[str, ...] | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            self.requested_download_source_ids is not None
+            and not self.requested_download_source_ids
+        ):
+            raise ValueError(
+                "requested_download_source_ids must be non-empty when not null"
+            )
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "plan_id": self.plan_id,
+            "expires_at": self.expires_at,
+            "accelerator": self.accelerator.value,
+            "profile_id": self.profile_id,
+            "requested_component_ids": (
+                None
+                if self.requested_component_ids is None
+                else list(self.requested_component_ids)
+            ),
+            "effective_component_ids": list(self.effective_component_ids),
+            "requested_download_source_ids": (
+                None
+                if self.requested_download_source_ids is None
+                else list(self.requested_download_source_ids)
+            ),
+            "effective_download_source_ids": list(self.effective_download_source_ids),
+            "source": self.source.to_payload(),
+            "components": [component.to_payload() for component in self.components],
+            "blockers": [blocker.to_payload() for blocker in self.blockers],
+            "cost": self.cost.to_payload(),
+        }
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInstallPlanResponse:
+    plan: RuntimeInstallPlan
+    negotiated_capabilities: tuple[str, ...] = ()
+    schema_version: int = SCHEMA_VERSION
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "plan": self.plan.to_payload(),
+            "negotiated_capabilities": list(self.negotiated_capabilities),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Settings DTO
 # ---------------------------------------------------------------------------
 
@@ -1107,6 +1345,14 @@ __all__ = [
     "RuntimeAccelerator",
     "RuntimeComponentState",
     "RuntimeComponentStatus",
+    "RuntimeInstallPlan",
+    "RuntimeInstallPlanAction",
+    "RuntimeInstallPlanBlocker",
+    "RuntimeInstallPlanComponent",
+    "RuntimeInstallPlanCost",
+    "RuntimeInstallPlanDependencyState",
+    "RuntimeInstallPlanRequest",
+    "RuntimeInstallPlanResponse",
     "RuntimeMaintenanceOperation",
     "RuntimeMaintenancePhase",
     "RuntimeMaintenanceStatus",

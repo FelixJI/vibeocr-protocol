@@ -12,6 +12,7 @@ from jsonschema.exceptions import ValidationError
 from vibeocr.runtime_contracts.generated.runtime_host_types import (
     RuntimeHostFailure,
     RuntimeHostSuccess,
+    RuntimeInstallPlanResponse,
     RuntimeMaintenanceEvent,
     RuntimeMaintenanceUpdate,
 )
@@ -21,6 +22,7 @@ RuntimeHostResponse: TypeAlias = (
     | RuntimeHostFailure
     | RuntimeMaintenanceEvent
     | RuntimeMaintenanceUpdate
+    | RuntimeInstallPlanResponse
 )
 
 _RESPONSE_DEFINITIONS = (
@@ -28,6 +30,7 @@ _RESPONSE_DEFINITIONS = (
     "RuntimeMaintenanceUpdate",
     "RuntimeHostSuccess",
     "RuntimeHostFailure",
+    "RuntimeInstallPlanResponse",
 )
 
 
