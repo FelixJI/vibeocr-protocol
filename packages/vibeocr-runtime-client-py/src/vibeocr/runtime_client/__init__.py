@@ -14,6 +14,11 @@ from .mineru_config import (
     MineruConfigError,
     build_mineru_pipeline_selection,
 )
+from .recognition_preload import (
+    RecognitionPreloadError,
+    RecognitionPreloadPlan,
+    build_recognition_preload_plan,
+)
 from .runtime_host import (
     RuntimeHostResponse,
     RuntimeHostValidationError,
@@ -26,6 +31,8 @@ __all__ = [
     "AsyncRuntimeTransport",
     "MultipartAttachment",
     "MineruConfigError",
+    "RecognitionPreloadError",
+    "RecognitionPreloadPlan",
     "RuntimeClientError",
     "RuntimeHttpClient",
     "RuntimeHttpResponse",
@@ -35,6 +42,7 @@ __all__ = [
     "SyncSupervisorClient",
     "bind_operation_path",
     "build_mineru_pipeline_selection",
+    "build_recognition_preload_plan",
     "get_background_loop",
     "parse_runtime_host_response",
     "shutdown_background_loop",

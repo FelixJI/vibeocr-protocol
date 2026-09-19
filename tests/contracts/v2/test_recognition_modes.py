@@ -84,7 +84,7 @@ EXPECTED_LIFECYCLE = {
     "paddle_text": ("model_residency", True, True, True, True),
     "paddle_structure": ("model_residency", True, True, True, True),
     "paddle_document_vl": ("model_residency", True, True, True, True),
-    "mineru_document": ("process_keep_alive", False, True, False, True),
+    "mineru_document": ("process_keep_alive", True, True, False, True),
     "paddle_table": ("model_residency", True, True, True, True),
     "paddle_formula": ("model_residency", True, True, True, True),
 }
@@ -206,9 +206,14 @@ def test_recognition_modes_project_to_legacy_execution_without_lifecycle_ambigui
     assert get_recognition_mode_definition(
         RecognitionMode.PADDLE_TEXT
     ).lifecycle.supports_pinning
-    assert not get_recognition_mode_definition(
-        RecognitionMode.MINERU_DOCUMENT
-    ).lifecycle.supports_preload
+    # mineru_document reuses the shared preload endpoint for explicit
+    # first-time preparation while staying process_keep_alive: preload is
+    # supported, pinning never is.
+    mineru = get_recognition_mode_definition(RecognitionMode.MINERU_DOCUMENT)
+    assert mineru.lifecycle.supports_preload
+    assert not mineru.lifecycle.supports_pinning
+    assert mineru.lifecycle.kind.value == "process_keep_alive"
+    assert OCRPipeline.DOCUMENT_PARSING in get_preloadable_pipelines()
 
 
 def test_lifecycle_contract_targets_modes_and_names_the_managed_resource() -> None:

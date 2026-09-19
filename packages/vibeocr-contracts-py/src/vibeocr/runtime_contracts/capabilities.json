@@ -151,7 +151,7 @@
     "ocr.mineru-config.v1": {
       "description": "Select the typed MinerU 4 tier, OCR mode, canonical page range and language on mineru_parse jobs, negotiated against the Backend-declared tier and language catalog carried by capability descriptors.",
       "lifecycle": "active",
-      "introduced_in": "2.9.0",
+      "introduced_in": "2.8.1",
       "deprecated_in": null,
       "sunset_at": null,
       "replacement": null

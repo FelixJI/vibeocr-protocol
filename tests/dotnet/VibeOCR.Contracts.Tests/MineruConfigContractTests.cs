@@ -232,7 +232,7 @@ public sealed class MineruConfigContractTests
         {
             Name = "ocr.mineru-config.v1",
             Lifecycle = "active",
-            IntroducedIn = "2.9.0",
+            IntroducedIn = "2.8.1",
             DeprecatedIn = null,
             SunsetAt = null,
             Replacement = null,

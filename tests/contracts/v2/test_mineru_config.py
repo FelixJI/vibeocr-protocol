@@ -371,7 +371,7 @@ def test_mineru_config_capability_is_registered_everywhere() -> None:
     assert "ocr.mineru-config.v1" in registry["capabilities"]
     definition = registry["definitions"]["ocr.mineru-config.v1"]
     assert definition["lifecycle"] == "active"
-    assert definition["introduced_in"] == "2.9.0"
+    assert definition["introduced_in"] == "2.8.1"
 
     assert OCR_MINERU_CONFIG_V1 == "ocr.mineru-config.v1"
     assert OCR_MINERU_CONFIG_V1 in ALL_CAPABILITIES

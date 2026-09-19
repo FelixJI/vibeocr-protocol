@@ -302,12 +302,26 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                'required': ['operation'],
                                'type': 'object'},
  'RuntimePreloadRequest': {'additionalProperties': False,
-                           'description': 'Preload model-residency recognition modes. '
+                           'description': 'Preload recognition modes whose runtime-declared '
+                                          'lifecycle supports preload. Besides model-residency '
+                                          'warm-up this includes mineru_document: its preload is '
+                                          'the explicit first-time preparation entry (the Backend '
+                                          'triggers the native MinerU model preparation and '
+                                          'actually parses a controlled sample, then updates the '
+                                          'tier catalog by the tiers that succeeded; a failure '
+                                          'MUST NOT switch the requested tier or claim an '
+                                          'unsuccessfully verified tier as ready; tiers already '
+                                          'verified successfully MAY remain ready, and service '
+                                          'health alone is never readiness evidence). The response '
+                                          'stays ResidencyStatus and clients MUST explicitly '
+                                          're-read the mineru config catalog after completion. '
                                           'recognition_modes is authoritative when '
                                           'ocr.recognition-modes.v1 is negotiated; pipelines '
                                           'remains the required legacy execution projection for '
                                           'Protocol v2 compatibility. The server validates that '
-                                          'both fields agree.',
+                                          "both fields agree. Preload never changes a mode's "
+                                          'lifecycle kind: mineru_document remains '
+                                          'process_keep_alive without pinning.',
                            'properties': {'pipelines': {'items': {'minLength': 1, 'type': 'string'},
                                                         'minItems': 1,
                                                         'type': 'array',
@@ -3110,7 +3124,34 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                                                                                                              'is '
                                                                                                                                                                                                                              'not '
                                                                                                                                                                                                                              'model '
-                                                                                                                                                                                                                             'residency.',
+                                                                                                                                                                                                                             'residency. '
+                                                                                                                                                                                                                             'mineru_document '
+                                                                                                                                                                                                                             'is '
+                                                                                                                                                                                                                             'process_keep_alive '
+                                                                                                                                                                                                                             'and '
+                                                                                                                                                                                                                             'additionally '
+                                                                                                                                                                                                                             'supports '
+                                                                                                                                                                                                                             'explicit '
+                                                                                                                                                                                                                             'preload '
+                                                                                                                                                                                                                             'for '
+                                                                                                                                                                                                                             'first-time '
+                                                                                                                                                                                                                             'preparation '
+                                                                                                                                                                                                                             'via '
+                                                                                                                                                                                                                             'the '
+                                                                                                                                                                                                                             'shared '
+                                                                                                                                                                                                                             'preload '
+                                                                                                                                                                                                                             'endpoint; '
+                                                                                                                                                                                                                             'preload '
+                                                                                                                                                                                                                             'never '
+                                                                                                                                                                                                                             'turns '
+                                                                                                                                                                                                                             'it '
+                                                                                                                                                                                                                             'into '
+                                                                                                                                                                                                                             'model '
+                                                                                                                                                                                                                             'residency '
+                                                                                                                                                                                                                             'and '
+                                                                                                                                                                                                                             'never '
+                                                                                                                                                                                                                             'enables '
+                                                                                                                                                                                                                             'pinning.',
                                                                                                                                                                                                               'enum': ['unmanaged',
                                                                                                                                                                                                                        'model_residency',
                                                                                                                                                                                                                        'process_keep_alive'],
