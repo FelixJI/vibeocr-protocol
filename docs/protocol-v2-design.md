@@ -97,8 +97,9 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
   Paddle 模式支持模型驻留；MinerU 保持 `process_keep_alive`（子进程 TTL/释放，不是模型驻
   留、永不支持 pinning），但额外支持显式 preload 作为首次准备入口：复用
   `POST /v2/runtime/preload` 与 `{"pipelines":["MinerU"],"recognition_modes":["mineru_document"]}`
-  触发原生模型准备并实际解析受控样本，按成功 tier 更新能力目录；失败不改 tier，服务健康
-  或准备完成不等于识别可用。响应仍为 `ResidencyStatus`，完成后客户端必须显式重读
+  触发原生模型准备并实际解析受控样本，按成功 tier 更新能力目录；失败不得切换所请求的
+  tier，也不得把未成功验证的 tier 标记为 ready；已成功验证的 tier 可以保留 ready，
+  不要求整次准备原子回滚。服务健康或准备完成不等于识别可用。响应仍为 `ResidencyStatus`，完成后客户端必须显式重读
   `mineru_config_catalog`。模型下载/耗时与取消的完整维护进度归后续维护语义，不借 preload
   扩成通用模型事务。
 - `RuntimePreloadRequest.recognition_modes`、`RuntimeReleaseRequest.recognition_mode`、
