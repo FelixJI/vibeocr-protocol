@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.2
+
+### Features
+
+- **protocol:** 补齐 MinerU 显式 preload 准备契约 (#52) (b632204)
+
 ## 2.8.1
 
 ### Features
