@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.3
+
+### Features
+
+- **protocol:** 新增 runtime.install-plan.v1 安装计划预览契约 (#54) (d50ba78)
+
 ## 2.8.2
 
 ### Features
