@@ -622,8 +622,8 @@
       "additionalProperties": false,
       "required": ["download_bytes", "additional_disk_bytes", "unknown_reason_codes"],
       "properties": {
-        "download_bytes": { "type": ["integer", "null"], "minimum": 0 },
-        "additional_disk_bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "download_bytes": { "type": ["integer", "null"], "format": "int64", "minimum": 0 },
+        "additional_disk_bytes": { "type": ["integer", "null"], "format": "int64", "minimum": 0 },
         "unknown_reason_codes": {
           "type": "array",
           "uniqueItems": true,

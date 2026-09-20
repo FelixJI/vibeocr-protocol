@@ -930,3 +930,50 @@ def test_preview_request_rejects_explicit_null_without_changing_intent(field) ->
         _schema_validator("RuntimeInstallPlanRequest").validate(payload)
     with pytest.raises(parser.ContractError):
         parser.parse_runtime_install_plan_request(payload)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "plan_id",
+        "profile_id",
+        "effective_component_ids",
+        "effective_download_source_ids",
+        "source",
+        "blockers",
+    ],
+)
+def test_invalid_plan_response_cannot_erase_confirmation_binding(field) -> None:
+    plan = _golden()["install_plan"]
+    plan[field] = None
+    with pytest.raises(parser.ContractError):
+        parser.parse_runtime_install_plan_response(
+            {
+                "schema_version": 2,
+                "plan": plan,
+                "negotiated_capabilities": [RUNTIME_INSTALL_PLAN_V1],
+            }
+        )
+
+
+def test_large_plan_cost_and_future_optional_response_fields_round_trip() -> None:
+    plan = _golden()["install_plan"]
+    plan["cost"]["download_bytes"] = 3221225472
+    plan["cost"]["additional_disk_bytes"] = 4294967296
+    plan["future_optional"] = True
+    response = parser.parse_runtime_install_plan_response(
+        {
+            "schema_version": 2,
+            "plan": plan,
+            "negotiated_capabilities": [RUNTIME_INSTALL_PLAN_V1],
+            "future_optional": True,
+        }
+    )
+    assert response.plan.cost.download_bytes == 3221225472
+    request = dtos.RuntimeMaintenanceRequest(
+        operation=dtos.RuntimeMaintenanceOperation.ENSURE,
+        operation_id="confirmed",
+        plan_id=response.plan.plan_id,
+        required_capabilities=(RUNTIME_INSTALL_PLAN_V1,),
+    )
+    assert request.to_payload()["plan_id"] == plan["plan_id"]

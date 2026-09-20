@@ -845,10 +845,10 @@ public sealed record RuntimeInstallPlanComponent
 public sealed record RuntimeInstallPlanCost
 {
     [JsonPropertyName("download_bytes")]
-    public required int? DownloadBytes { get; init; }
+    public required long? DownloadBytes { get; init; }
 
     [JsonPropertyName("additional_disk_bytes")]
-    public required int? AdditionalDiskBytes { get; init; }
+    public required long? AdditionalDiskBytes { get; init; }
 
     [JsonPropertyName("unknown_reason_codes")]
     public required IReadOnlyList<string> UnknownReasonCodes { get; init; }

@@ -400,57 +400,126 @@ public sealed record RuntimeInstallPlanRequest
     public IReadOnlyList<string>? DownloadSourceIds { get; init; }
 }
 
-public sealed record RuntimeInstallPlanResponse
+public sealed record RuntimeInstallPlanResponse : IJsonOnDeserialized
 {
+    [JsonRequired]
     public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    [JsonRequired]
     public required RuntimeInstallPlan Plan { get; init; }
+    [JsonRequired]
     public IReadOnlyList<string> NegotiatedCapabilities { get; init; } = Array.Empty<string>();
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        if (SchemaVersion != 2 || Plan is null)
+            throw new JsonException("Invalid install plan response.");
+        InstallPlanResponseValidation.Ids(NegotiatedCapabilities);
+    }
 }
 
-public sealed record RuntimeInstallPlan
+public sealed record RuntimeInstallPlan : IJsonOnDeserialized
 {
+    [JsonRequired]
     public required string PlanId { get; init; }
+    [JsonRequired]
     public required string ExpiresAt { get; init; }
+    [JsonRequired]
     public required RuntimeAccelerator Accelerator { get; init; }
+    [JsonRequired]
     public required string ProfileId { get; init; }
     /// <summary>Nullable request echo: null means omitted, empty means explicit empty selection.</summary>
+    [JsonRequired]
     public required IReadOnlyList<string>? RequestedComponentIds { get; init; }
+    [JsonRequired]
     public IReadOnlyList<string> EffectiveComponentIds { get; init; } = Array.Empty<string>();
     /// <summary>Nullable request echo: null means omitted, never an empty list.</summary>
+    [JsonRequired]
     public required IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
+    [JsonRequired]
     public IReadOnlyList<string> EffectiveDownloadSourceIds { get; init; } = Array.Empty<string>();
+    [JsonRequired]
     public required RuntimeSourceIdentity Source { get; init; }
+    [JsonRequired]
     public IReadOnlyList<RuntimeInstallPlanComponent> Components { get; init; } =
         Array.Empty<RuntimeInstallPlanComponent>();
+    [JsonRequired]
     public IReadOnlyList<RuntimeInstallPlanBlocker> Blockers { get; init; } =
         Array.Empty<RuntimeInstallPlanBlocker>();
+    [JsonRequired]
     public required RuntimeInstallPlanCost Cost { get; init; }
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Text(PlanId);
+        InstallPlanResponseValidation.Text(ProfileId);
+        if (!DateTimeOffset.TryParse(ExpiresAt, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out _)
+            || Source is null || Cost is null || Components is null || Blockers is null
+            || Components.Any(item => item is null) || Blockers.Any(item => item is null))
+            throw new JsonException("Invalid install plan fields.");
+        InstallPlanResponseValidation.Ids(EffectiveComponentIds);
+        InstallPlanResponseValidation.Ids(EffectiveDownloadSourceIds);
+        if (RequestedComponentIds is not null)
+            InstallPlanResponseValidation.Ids(RequestedComponentIds);
+        if (RequestedDownloadSourceIds is not null)
+            InstallPlanResponseValidation.Ids(RequestedDownloadSourceIds, allowEmpty: false);
+    }
 }
 
-public sealed record RuntimeInstallPlanComponent
+public sealed record RuntimeInstallPlanComponent : IJsonOnDeserialized
 {
+    [JsonRequired]
     public required string ComponentId { get; init; }
+    [JsonRequired]
     public required RuntimeInstallPlanAction Action { get; init; }
+    [JsonRequired]
     public required RuntimeInstallPlanDependencyState DependencyState { get; init; }
+    [JsonRequired]
     public IReadOnlyList<string> ReasonCodes { get; init; } = Array.Empty<string>();
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Text(ComponentId);
+        InstallPlanResponseValidation.Ids(ReasonCodes);
+    }
 }
 
-public sealed record RuntimeInstallPlanBlocker
+public sealed record RuntimeInstallPlanBlocker : IJsonOnDeserialized
 {
+    [JsonRequired]
     public required string Code { get; init; }
     /// <summary>Optional stable component id the blocker is about.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ComponentId { get; init; }
+    [JsonRequired]
     public required string NextAction { get; init; }
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Text(Code);
+        InstallPlanResponseValidation.Text(NextAction);
+        if (ComponentId is not null) InstallPlanResponseValidation.Text(ComponentId);
+    }
 }
 
-public sealed record RuntimeInstallPlanCost
+public sealed record RuntimeInstallPlanCost : IJsonOnDeserialized
 {
     /// <summary>Plan-wide deduplicated total; null means honestly unknown.</summary>
+    [JsonRequired]
     public required long? DownloadBytes { get; init; }
     /// <summary>Plan-wide deduplicated total; null means honestly unknown.</summary>
+    [JsonRequired]
     public required long? AdditionalDiskBytes { get; init; }
+    [JsonRequired]
     public IReadOnlyList<string> UnknownReasonCodes { get; init; } = Array.Empty<string>();
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Ids(UnknownReasonCodes);
+        if (DownloadBytes < 0 || AdditionalDiskBytes < 0
+            || ((DownloadBytes is null || AdditionalDiskBytes is null) && UnknownReasonCodes.Count == 0))
+            throw new JsonException("Unknown install cost requires a reason; known cost must be non-negative.");
+    }
 }
 
 public sealed record RuntimeMaintenanceReceipt
@@ -546,4 +615,24 @@ public sealed record HttpV2ErrorPayload
     /// <summary>Typed error detail. Defaults to an empty object on the wire.</summary>
     public IDictionary<string, JsonElement> Detail { get; init; } = new Dictionary<string, JsonElement>();
     public string? JobId { get; init; }
+}
+
+
+internal static class InstallPlanResponseValidation
+{
+    internal static void Text(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            throw new JsonException("Install plan text fields must be non-empty strings.");
+    }
+
+    internal static void Ids(IReadOnlyList<string>? values, bool allowEmpty = true)
+    {
+        if (values is null || (!allowEmpty && values.Count == 0))
+            throw new JsonException("Invalid install plan id array.");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string item in values)
+            if (string.IsNullOrEmpty(item) || !seen.Add(item))
+                throw new JsonException("Install plan ids must be unique non-empty strings.");
+    }
 }

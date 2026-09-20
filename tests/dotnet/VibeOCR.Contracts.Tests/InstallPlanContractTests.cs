@@ -18,6 +18,53 @@ public sealed class InstallPlanContractTests
 {
     private static readonly string V2Directory = FindV2Directory();
 
+    [Fact]
+    public void LargeCostsRoundTripAcrossHandwrittenAndGeneratedBindings()
+    {
+        const string json = "{\"download_bytes\":3221225472,\"additional_disk_bytes\":4294967296,\"unknown_reason_codes\":[]}";
+        var wire = JsonSerializer.Deserialize<Wire.RuntimeInstallPlanCost>(json)!;
+        var host = JsonSerializer.Deserialize<Host.RuntimeInstallPlanCost>(json)!;
+        var typed = HttpV2Json.Deserialize<RuntimeInstallPlanCost>(json)!;
+        Assert.Equal(3221225472L, wire.DownloadBytes);
+        Assert.Equal(4294967296L, host.AdditionalDiskBytes);
+        Assert.Equal(typed.DownloadBytes, JsonSerializer.Deserialize<Host.RuntimeInstallPlanCost>(JsonSerializer.Serialize(host))!.DownloadBytes);
+        Assert.Equal(typed.AdditionalDiskBytes, JsonSerializer.Deserialize<Wire.RuntimeInstallPlanCost>(JsonSerializer.Serialize(wire))!.AdditionalDiskBytes);
+    }
+
+    [Theory]
+    [InlineData("plan_id")]
+    [InlineData("profile_id")]
+    [InlineData("effective_component_ids")]
+    [InlineData("effective_download_source_ids")]
+    [InlineData("components")]
+    [InlineData("blockers")]
+    public void KnownPlanFieldsCannotBeMissingOrNull(string field)
+    {
+        JsonObject plan = JsonNode.Parse(LoadGolden().RootElement.GetProperty("install_plan").GetRawText())!.AsObject();
+        plan[field] = null;
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<RuntimeInstallPlan>(plan.ToJsonString()));
+        plan.Remove(field);
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<RuntimeInstallPlan>(plan.ToJsonString()));
+    }
+
+    [Theory]
+    [InlineData("{\"download_bytes\":null,\"additional_disk_bytes\":0,\"unknown_reason_codes\":[]}")]
+    [InlineData("{\"download_bytes\":null,\"additional_disk_bytes\":0}")]
+    [InlineData("{\"download_bytes\":-1,\"additional_disk_bytes\":0,\"unknown_reason_codes\":[]}")]
+    public void UnknownOrInvalidCostCannotLookLikeKnownZero(string json)
+    {
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<RuntimeInstallPlanCost>(json));
+    }
+
+    [Fact]
+    public void PlanResponseStillAcceptsUnknownOptionalFields()
+    {
+        JsonObject plan = JsonNode.Parse(LoadGolden().RootElement.GetProperty("install_plan").GetRawText())!.AsObject();
+        plan["future_optional"] = true;
+        var parsed = HttpV2Json.Deserialize<RuntimeInstallPlan>(plan.ToJsonString())!;
+        Assert.Equal("plan-7f3a91c2e8d4", parsed.PlanId);
+    }
+
     [Theory]
     [InlineData("\"pip_args\":[]")]
     [InlineData("\"accelerator\":0")]

@@ -4454,14 +4454,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "format": "int64"
           },
           "additional_disk_bytes": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "format": "int64"
           },
           "unknown_reason_codes": {
             "type": "array",

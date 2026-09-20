@@ -6399,10 +6399,12 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                               'these '
                                                                                               'dependency '
                                                                                               'totals.',
-                                                                               'properties': {'additional_disk_bytes': {'minimum': 0,
+                                                                               'properties': {'additional_disk_bytes': {'format': 'int64',
+                                                                                                                        'minimum': 0,
                                                                                                                         'type': ['integer',
                                                                                                                                  'null']},
-                                                                                              'download_bytes': {'minimum': 0,
+                                                                                              'download_bytes': {'format': 'int64',
+                                                                                                                 'minimum': 0,
                                                                                                                  'type': ['integer',
                                                                                                                           'null']},
                                                                                               'unknown_reason_codes': {'items': {'minLength': 1,
