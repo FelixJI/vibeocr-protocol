@@ -378,6 +378,7 @@ public sealed record RuntimeMaintenanceStatus
     public string? PlanId { get; init; }
 }
 
+[JsonConverter(typeof(RuntimeInstallPlanRequestJsonConverter))]
 public sealed record RuntimeInstallPlanRequest
 {
     public required IReadOnlyList<string> RequiredCapabilities { get; init; }

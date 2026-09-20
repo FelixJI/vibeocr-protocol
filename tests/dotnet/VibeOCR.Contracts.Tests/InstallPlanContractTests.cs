@@ -18,6 +18,44 @@ public sealed class InstallPlanContractTests
 {
     private static readonly string V2Directory = FindV2Directory();
 
+    [Theory]
+    [InlineData("\"pip_args\":[]")]
+    [InlineData("\"accelerator\":0")]
+    [InlineData("\"accelerator\":null")]
+    [InlineData("\"install_component_ids\":null")]
+    [InlineData("\"download_source_ids\":null")]
+    [InlineData("\"download_source_ids\":[]")]
+    [InlineData("\"install_component_ids\":[\"engine\",\"engine\"]")]
+    public void PreviewRequestRejectsInvalidWireSelections(string field)
+    {
+        string json = "{\"required_capabilities\":[\"runtime.install-plan.v1\"]," + field + "}";
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<RuntimeInstallPlanRequest>(json));
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("null")]
+    [InlineData("{\"required_capabilities\":null}")]
+    [InlineData("{\"required_capabilities\":[]}")]
+    [InlineData("{\"required_capabilities\":[\"runtime.maintenance.v2\"]}")]
+    public void PreviewRequestRequiresExplicitCapabilityOnRead(string json)
+    {
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<RuntimeInstallPlanRequest>(json));
+    }
+
+    [Fact]
+    public void PreviewRequestKeepsOmissionAndEmptyScopeDistinctOnRead()
+    {
+        var omitted = HttpV2Json.Deserialize<RuntimeInstallPlanRequest>(
+            "{\"required_capabilities\":[\"runtime.install-plan.v1\"]}")!;
+        var empty = HttpV2Json.Deserialize<RuntimeInstallPlanRequest>(
+            "{\"required_capabilities\":[\"runtime.install-plan.v1\"],\"install_component_ids\":[]}")!;
+        Assert.Null(omitted.InstallComponentIds);
+        Assert.Empty(empty.InstallComponentIds!);
+        Assert.False(JsonNode.Parse(HttpV2Json.Serialize(omitted))!.AsObject().ContainsKey("install_component_ids"));
+        Assert.Empty(JsonNode.Parse(HttpV2Json.Serialize(empty))!["install_component_ids"]!.AsArray());
+    }
+
     [Fact]
     public void InstallPlanRequestGoldenRoundTripsThroughHandwrittenMirror()
     {

@@ -919,3 +919,14 @@ def test_plan_dto_rejects_missing_capability_before_serialization(kind) -> None:
                 new_operation_id="new",
                 plan_id="plan",
             )
+
+
+@pytest.mark.parametrize(
+    "field", ["accelerator", "install_component_ids", "download_source_ids"]
+)
+def test_preview_request_rejects_explicit_null_without_changing_intent(field) -> None:
+    payload = {"required_capabilities": [RUNTIME_INSTALL_PLAN_V1], field: None}
+    with pytest.raises(jsonschema.ValidationError):
+        _schema_validator("RuntimeInstallPlanRequest").validate(payload)
+    with pytest.raises(parser.ContractError):
+        parser.parse_runtime_install_plan_request(payload)

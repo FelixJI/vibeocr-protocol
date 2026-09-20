@@ -1408,7 +1408,7 @@ def parse_runtime_install_plan_request(
             "runtime.install-plan.v1"
         )
     accelerator = None
-    if payload.get("accelerator") is not None:
+    if "accelerator" in payload:
         accelerator = _require_enum(
             RuntimeAccelerator,
             payload["accelerator"],
@@ -1416,6 +1416,8 @@ def parse_runtime_install_plan_request(
         )
     install_component_ids = None
     if "install_component_ids" in payload:
+        if payload["install_component_ids"] is None:
+            raise ContractError("install_component_ids must be an array, not null")
         install_component_ids = _parse_component_ids(
             payload["install_component_ids"], "install_component_ids"
         )
