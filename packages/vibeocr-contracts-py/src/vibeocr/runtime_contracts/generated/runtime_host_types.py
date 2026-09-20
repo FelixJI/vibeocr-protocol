@@ -159,6 +159,7 @@ class RuntimeHostRequest(TypedDict, total=False):
     layout_manifest: NotRequired[str | None]
     product_id: NotRequired[str | None]
     operation_id: NotRequired[str]
+    plan_id: NotRequired[str]
     component_ids: NotRequired[list[str]]
     required_capabilities: NotRequired[list[str]]
     download_source_ids: NotRequired[list[str]]
@@ -178,6 +179,60 @@ class RuntimeHostSuccess(TypedDict, total=False):
     capability_descriptors: NotRequired[list[CapabilityDescriptor]]
 
 
+class RuntimeInstallPlan(TypedDict, total=False):
+    plan_id: Required[str]
+    expires_at: Required[str]
+    accelerator: Required[Accelerator]
+    profile_id: Required[str]
+    requested_component_ids: Required[list[str] | None]
+    effective_component_ids: Required[list[str]]
+    requested_download_source_ids: Required[list[str] | None]
+    effective_download_source_ids: Required[list[str]]
+    source: Required[RuntimeSourceIdentity]
+    components: Required[list[RuntimeInstallPlanComponent]]
+    blockers: Required[list[RuntimeInstallPlanBlocker]]
+    cost: Required[RuntimeInstallPlanCost]
+
+
+class RuntimeInstallPlanBlocker(TypedDict, total=False):
+    code: Required[str]
+    component_id: NotRequired[str]
+    next_action: Required[str]
+
+
+class RuntimeInstallPlanComponent(TypedDict, total=False):
+    component_id: Required[str]
+    action: Required[Literal['retain', 'install', 'replace', 'remove']]
+    dependency_state: Required[Literal['satisfied', 'pending']]
+    reason_codes: Required[list[str]]
+
+
+class RuntimeInstallPlanCost(TypedDict, total=False):
+    download_bytes: Required[int | None]
+    additional_disk_bytes: Required[int | None]
+    unknown_reason_codes: Required[list[str]]
+
+
+class RuntimeInstallPlanRequest(TypedDict, total=False):
+    protocol_version: Required[Literal[2]]
+    request_kind: Required[Literal['install_plan']]
+    product_root: Required[str]
+    component_lock: Required[str]
+    runtime_manifest: Required[str]
+    layout_manifest: NotRequired[str]
+    product_id: NotRequired[str]
+    accelerator: NotRequired[Accelerator]
+    install_component_ids: NotRequired[list[str]]
+    download_source_ids: NotRequired[list[str]]
+    required_capabilities: Required[list[str]]
+
+
+class RuntimeInstallPlanResponse(TypedDict, total=False):
+    protocol_version: Required[Literal[2]]
+    response_kind: Required[Literal['install_plan']]
+    plan: Required[RuntimeInstallPlan]
+
+
 class RuntimeLaunch(TypedDict, total=False):
     python_executable: Required[str]
     supervisor_module: Required[str]
@@ -194,6 +249,7 @@ class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
     target_operation_id: Required[str]
     new_operation_id: NotRequired[str]
     expected_sequence: NotRequired[int]
+    plan_id: NotRequired[str]
     product_root: Required[str]
     component_lock: Required[str]
     runtime_manifest: Required[str]
@@ -202,6 +258,7 @@ class RuntimeMaintenanceCommandRequest(TypedDict, total=False):
     product_id: NotRequired[str]
     download_source_ids: NotRequired[list[str]]
     install_component_ids: NotRequired[list[str]]
+    required_capabilities: NotRequired[list[str]]
     accepted_event_streams: NotRequired[list[RuntimeHostEventStream]]
 
 
@@ -244,6 +301,7 @@ class RuntimeMaintenanceSnapshot(TypedDict, total=False):
     requested_component_ids: NotRequired[list[str]]
     effective_component_ids: NotRequired[list[str]]
     source: NotRequired[RuntimeSourceIdentity]
+    plan_id: NotRequired[str]
     updated_at: Required[str]
     progress: NotRequired[ProgressSnapshot | None]
 

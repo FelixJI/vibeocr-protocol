@@ -322,6 +322,7 @@ if set(_CSHARP_SCALAR_TYPES) != _SCALAR_SCHEMA_TYPES:
 class _SchemaType:
     kind: str
     name: str | None = None
+    format: str | None = None
     children: tuple[_SchemaType, ...] = ()
     values: tuple[object, ...] = ()
 
@@ -362,10 +363,15 @@ def _analyze_schema_type(schema: dict) -> _SchemaType:
 
     raw_type = schema.get("type")
     if isinstance(raw_type, list):
-        return _SchemaType(
-            "union",
-            children=tuple(_analyze_schema_type({"type": item}) for item in raw_type),
-        )
+        children = []
+        for item in raw_type:
+            child_schema: dict = {"type": item}
+            if "format" in schema:
+                child_schema["format"] = schema["format"]
+            if item == "array" and "items" in schema:
+                child_schema["items"] = schema["items"]
+            children.append(_analyze_schema_type(child_schema))
+        return _SchemaType("union", children=tuple(children))
 
     if "enum" in schema:
         values = schema["enum"]
@@ -384,7 +390,7 @@ def _analyze_schema_type(schema: dict) -> _SchemaType:
         return _SchemaType("any")
     if raw_type not in _SCALAR_SCHEMA_TYPES:
         raise ValueError(f"unsupported OpenAPI schema type: {raw_type}")
-    return _SchemaType("scalar", name=raw_type)
+    return _SchemaType("scalar", name=raw_type, format=schema.get("format"))
 
 
 def _render_python_type(schema_type: _SchemaType) -> str:
@@ -486,6 +492,8 @@ def _render_csharp_type(
         return f"IReadOnlyList<{_render_csharp_type(schema_type.children[0], aliases)}>"
     if schema_type.kind == "scalar":
         assert schema_type.name is not None
+        if schema_type.name == "integer" and schema_type.format == "int64":
+            return "long"
         return _CSHARP_SCALAR_TYPES[schema_type.name]
     return "JsonElement"
 

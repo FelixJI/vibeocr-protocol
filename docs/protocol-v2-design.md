@@ -171,6 +171,56 @@ PaddleX、PaddleOCR 与 MinerU 的模型仍由各自原生下载器管理；协�
 - 引擎可用性状态不在此目录重复表达：就绪状态沿用 `OcrEngineCatalog`（OCR 引擎）与
   `GET /v2/runtime/status` 的组件 desired/actual 状态。
 
+## 安装计划预览（runtime.install-plan.v1）
+
+安装前的用户可见预览是可协商的 minor 扩展，依赖 runtime.maintenance.v2、
+runtime.component-selection.v1 与 runtime.download-sources.v1：
+
+- HTTP 新增 `POST /v2/runtime/install-plan`（`previewRuntimeInstallPlan`），请求
+  `RuntimeInstallPlanRequest`：可选 `accelerator`（省略沿用持久偏好/产品默认）、
+  `install_component_ids`、`download_source_ids`（沿用既有省略/显式空与非空规则），
+  必填 `required_capabilities` 且必须包含 `runtime.install-plan.v1`（schema 层
+  `contains` 锁定）；严格拒绝未知字段，不把包名、下载 URL 或 pip 参数作为前端控制
+  API。响应 `RuntimeInstallPlanResponse`（`schema_version: 2` + `plan` +
+  `negotiated_capabilities`）。缺 capability 时预览显式 unsupported（426），禁止静默
+  安装；预览不安装、不下载依赖/模型、不改活动环境或持久选择、不创建维护操作，
+  仅允许 Backend 保存短期计划元数据。
+- 冷启动 Host 新增独立 `request_kind: "install_plan"` 请求（复用既有产品绑定字段
+  product_root/component_lock/runtime_manifest 与可选 layout_manifest/product_id），
+  不扩旧 `RuntimeHostOperation` enum；返回独立 `RuntimeInstallPlanResponse`
+  （`protocol_version: 2` + `response_kind: "install_plan"` + `plan`），与旧 success
+  envelope 无歧义；失败复用既有 failure envelope，`operation` 为 null，canonical
+  code 走 `error.canonical_code`，Host 外层 code 复用 `invalid_request`，不扩旧
+  Host error enum。冷启动先用既有 inspect 的 capability_descriptors 协商，只在
+  capability 已知存在时发送。
+- `RuntimeInstallPlan`：`plan_id`（opaque，非客户端摘要）+ `expires_at` +
+  `accelerator` + `profile_id`；`requested_component_ids` /
+  `requested_download_source_ids` 为 nullable 回显（null=请求省略，[]=显式空选择），
+  `effective_*` 为有效闭包；`source` 复用 `RuntimeSourceIdentity`；`components`
+  是有效闭包与实际受影响旧组件的并集，每项含 `action`
+  （retain/install/replace/remove；remove 表示候选激活后不再属于活动环境，不授权
+  删除保留环境/模型/缓存）、`dependency_state`（satisfied/pending；跨引擎共享满足
+  项可标 satisfied）与开放 `reason_codes`（effective 扩展项必须携带机器原因）；
+  `blockers` 每项含开放稳定 `code`、可选 `component_id` 与 `next_action`（如
+  reselect/change_source/free_space/close_tasks）；`cost` 是全计划去重总量
+  （`download_bytes` / `additional_disk_bytes` 非负或 null），未知必须显式 null 并带
+  `unknown_reason_codes`，不得用 0 冒充；模型成本不计入依赖已知总量，未知原生模型
+  准备成本在原因中说明。数组 id 唯一，组件用发布目录 stable id。
+- 确认走既有 maintenance：HTTP `RuntimeMaintenanceRequest` 与 Host
+  `RuntimeHostRequest` 的 ensure 新增可选 `plan_id`（要求显式 `operation_id`、
+  `required_capabilities` 含 runtime.install-plan.v1，与 profile_id/component_ids/
+  install_component_ids/download_source_ids（Host 另含 accelerator）互斥）；两个
+  `RuntimeMaintenanceCommandRequest` 同步新增可选 `required_capabilities` 与
+  `plan_id`（仅 retry、与选择覆盖字段互斥、cancel 禁带）；retry 沿用
+  command_id/target_operation_id/new_operation_id，不新增 operation_id；执行回显
+  `RuntimeMaintenanceStatus`（含 Host snapshot 投影）新增可选 `plan_id`。
+- 基线重验与失败语义由 Backend #97-B 用既有 writer 锁在首次执行前原子完成：基线
+  变更/过期/未知计划统一 `RUNTIME_INSTALL_PLAN_STALE`（conflict/409，不可重试，
+  下一动作重新预览），有阻断返回 `RUNTIME_INSTALL_PLAN_BLOCKED`（conflict/409，
+  不可重试）；同 operation_id + 同计划确认重放既有 receipt，不再次执行；同 id 不同
+  intent 冲突复用既有 conflict 错误；首次确认成功后同 plan_id 不得以不同
+  operation_id 再启动；重试必须重新预览取得新 plan_id 与新 operation_id。
+
 ## MinerU 新版本配置（ocr.mineru-config.v1）
 
 MinerU 4 的 tier 化配置是可协商的 minor 扩展。旧 `options`（backend/effort 等 0-based
@@ -253,3 +303,6 @@ Release Please 同步 Python、NuGet、仓库清单、`version.txt` 与 OpenAPI
 MinerU 客户端目录读取器只校验已知字段，忽略目录及 tier descriptor 中未来新增的可选响应字段；已知字段缺失、类型错误、非法枚举及重复 id 仍返回稳定的配置不可用错误。请求保持严格：源 schema、Python parser 与 .NET helper 均拒绝页范围末尾换行和语言首尾空白，.NET 新请求枚举不接受数字 JSON，MineruConfig 不忽略未知请求字段。
 
 新请求的 MineruTierId/MineruOcrMode 使用 `x-vibeocr-exact-enum` 标记，让 .NET 生成绑定精确匹配 wire 字符串，不进行 trim、数字或逗号组合转换；不改变既有枚举的生成策略。手写 .NET MineruConfig 的 JSON 构造保留省略字段的 auto/all/ch 默认值，tier 仍必填。
+
+
+Python 与 .NET 的安装计划 HTTP 入口在每次预览、携带 `plan_id` 的确认或重试前，读取认证的 health 并检查服务端 `runtime.install-plan.v1` 能力；缺失时返回 `RUNTIME_CAPABILITY_UNAVAILABLE`，不发送目标请求。请求自身的 `required_capabilities` 不能代替服务端能力证据，未携带 `plan_id` 的旧维护调用保持原路径。Host 调用方必须先读取既有 `inspect` 能力目录，再发送能力保护的请求；Host schema 对确认/重试实施同样的条件必需校验。

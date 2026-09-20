@@ -25,7 +25,8 @@
       "ocr.recognition-modes.v1",
       "runtime.download-sources.v1",
       "runtime.component-selection.v1",
-      "ocr.mineru-config.v1"
+      "ocr.mineru-config.v1",
+      "runtime.install-plan.v1"
     ],
     "capability_descriptors": [
       {

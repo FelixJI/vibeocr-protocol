@@ -216,6 +216,34 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
                 "Install and download source selection require ensure.",
                 nameof(request));
         }
+        if (request.PlanId is not null)
+        {
+            if (request.Operation != RuntimeMaintenanceOperation.Ensure)
+            {
+                throw new ArgumentException(
+                    "plan_id requires ensure.", nameof(request));
+            }
+            if (string.IsNullOrWhiteSpace(request.OperationId))
+            {
+                throw new ArgumentException(
+                    "plan_id requires an explicit operation_id.", nameof(request));
+            }
+            if (request.ProfileId is not null
+                || request.ComponentIds is not null
+                || request.InstallComponentIds is not null
+                || request.DownloadSourceIds is not null)
+            {
+                throw new ArgumentException(
+                    "plan_id is mutually exclusive with profile_id, component_ids, "
+                    + "install_component_ids and download_source_ids.",
+                    nameof(request));
+            }
+        }
+        if (request.PlanId is not null)
+        {
+            ValidateInstallPlanCapability(request.RequiredCapabilities);
+            await RequireInstallPlanCapabilityAsync(cancellationToken).ConfigureAwait(false);
+        }
         using StringContent content = new(
             HttpV2Json.Serialize(request), Encoding.UTF8, "application/json");
         using HttpResponseMessage response = await PostAsync(
@@ -225,6 +253,62 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
         return await ReadJsonAsync(
             response,
             HttpV2JsonContext.Default.RuntimeMaintenanceReceipt,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void ValidateInstallPlanCapability(IReadOnlyList<string>? requiredCapabilities)
+    {
+        if (requiredCapabilities is null || !requiredCapabilities.Contains("runtime.install-plan.v1"))
+        {
+            throw new ArgumentException("plan requests require runtime.install-plan.v1 capability.");
+        }
+    }
+
+    private async Task RequireInstallPlanCapabilityAsync(CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await GetAsync(
+            RuntimeOperationPaths.GetRuntimeHealth, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument health = await JsonDocument.ParseAsync(
+            stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!health.RootElement.TryGetProperty("capabilities", out JsonElement capabilities)
+            || capabilities.ValueKind != JsonValueKind.Array
+            || !capabilities.EnumerateArray().Any(value =>
+                value.ValueKind == JsonValueKind.String && value.GetString() == "runtime.install-plan.v1"))
+        {
+            throw new RuntimeClientException(HttpV2ErrorCode.RuntimeCapabilityUnavailable,
+                "Runtime does not support runtime.install-plan.v1", retryable: false);
+        }
+    }
+
+    /// <summary>
+    /// Preview a read-only install plan (runtime.install-plan.v1). Installs
+    /// nothing, downloads nothing, changes no active environment, and creates
+    /// no maintenance operation.
+    /// </summary>
+    public async Task<RuntimeInstallPlanResponse> PreviewRuntimeInstallPlanAsync(
+        RuntimeInstallPlanRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.DownloadSourceIds is { Count: 0 })
+        {
+            throw new ArgumentException(
+                "download_source_ids must be non-empty when provided.",
+                nameof(request));
+        }
+        ValidateInstallPlanCapability(request.RequiredCapabilities);
+        await RequireInstallPlanCapabilityAsync(cancellationToken).ConfigureAwait(false);
+        using StringContent content = new(
+            HttpV2Json.Serialize(request), Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await PostAsync(
+            RuntimeOperationPaths.PreviewRuntimeInstallPlan,
+            content,
+            cancellationToken).ConfigureAwait(false);
+        return await ReadJsonAsync(
+            response,
+            HttpV2JsonContext.Default.RuntimeInstallPlanResponse,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -250,6 +334,27 @@ public sealed class RuntimeHttpClient : IAsyncDisposable
             throw new ArgumentException(
                 "Install and download source selection require retry.",
                 nameof(command));
+        }
+        if (command.PlanId is not null)
+        {
+            if (command.Command != RuntimeMaintenanceCommandKind.Retry)
+            {
+                throw new ArgumentException(
+                    "plan_id requires retry.", nameof(command));
+            }
+            if (command.InstallComponentIds is not null
+                || command.DownloadSourceIds is not null)
+            {
+                throw new ArgumentException(
+                    "plan_id is mutually exclusive with install_component_ids "
+                    + "and download_source_ids.",
+                    nameof(command));
+            }
+        }
+        if (command.PlanId is not null)
+        {
+            ValidateInstallPlanCapability(command.RequiredCapabilities);
+            await RequireInstallPlanCapabilityAsync(cancellationToken).ConfigureAwait(false);
         }
         using StringContent content = new(
             HttpV2Json.Serialize(command), Encoding.UTF8, "application/json");

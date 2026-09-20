@@ -218,13 +218,60 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                             'type': 'array'}},
                    'required': ['pages', 'angle'],
                    'type': 'object'},
+ 'RuntimeInstallPlanRequest': {'additionalProperties': False,
+                               'description': 'Runtime install plan preview request '
+                                              '(runtime.install-plan.v1). required_capabilities '
+                                              'MUST include runtime.install-plan.v1; a Backend '
+                                              'without the capability rejects the preview as '
+                                              'explicitly unsupported instead of silently '
+                                              'installing. install_component_ids follows '
+                                              'runtime.component-selection.v1 semantics: an empty '
+                                              'array explicitly selects no optional components '
+                                              'while omission selects the Backend default, and '
+                                              'unknown ids fail closed with '
+                                              'RUNTIME_COMPONENT_UNKNOWN. download_source_ids '
+                                              'follows runtime.download-sources.v1 and MUST NOT be '
+                                              'empty when present. Omitting accelerator keeps the '
+                                              'persistent preference or product default. The '
+                                              'preview installs nothing, downloads no dependencies '
+                                              'or models, changes no active environment or '
+                                              'persistent selection, and creates no maintenance '
+                                              'operation; the Backend may retain short-lived plan '
+                                              'metadata for later confirmation.',
+                               'properties': {'accelerator': {'enum': ['cpu', 'nvidia_cuda'],
+                                                              'type': 'string'},
+                                              'download_source_ids': {'items': {'minLength': 1,
+                                                                                'type': 'string'},
+                                                                      'minItems': 1,
+                                                                      'type': 'array',
+                                                                      'uniqueItems': True},
+                                              'install_component_ids': {'items': {'minLength': 1,
+                                                                                  'type': 'string'},
+                                                                        'type': 'array',
+                                                                        'uniqueItems': True},
+                                              'required_capabilities': {'contains': {'const': 'runtime.install-plan.v1'},
+                                                                        'items': {'minLength': 1,
+                                                                                  'type': 'string'},
+                                                                        'type': 'array',
+                                                                        'uniqueItems': True}},
+                               'required': ['required_capabilities'],
+                               'type': 'object'},
  'RuntimeMaintenanceCommandRequest': {'additionalProperties': False,
                                       'allOf': [{'if': {'properties': {'command': {'const': 'retry'}},
                                                         'required': ['command']},
                                                  'then': {'required': ['new_operation_id']}},
                                                 {'if': {'anyOf': [{'required': ['install_component_ids']},
                                                                   {'required': ['download_source_ids']}]},
-                                                 'then': {'properties': {'command': {'const': 'retry'}}}}],
+                                                 'then': {'properties': {'command': {'const': 'retry'}}}},
+                                                {'if': {'properties': {'command': {'const': 'cancel'}},
+                                                        'required': ['command']},
+                                                 'then': {'not': {'required': ['plan_id']}}},
+                                                {'if': {'required': ['plan_id']},
+                                                 'then': {'not': {'anyOf': [{'required': ['install_component_ids']},
+                                                                            {'required': ['download_source_ids']}]},
+                                                          'properties': {'command': {'const': 'retry'},
+                                                                         'required_capabilities': {'contains': {'const': 'runtime.install-plan.v1'}}},
+                                                          'required': ['required_capabilities']}}],
                                       'description': 'Runtime maintenance command request. On '
                                                      'retry, install_component_ids and '
                                                      'download_source_ids may explicitly replace '
@@ -237,7 +284,21 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                      'install_component_ids array explicitly '
                                                      'selects no optional components. Selection '
                                                      'fields are invalid for cancel and MUST be '
-                                                     'omitted when their capability is absent.',
+                                                     'omitted when their capability is absent. '
+                                                     'plan_id (runtime.install-plan.v1) may only '
+                                                     'ride a retry that replaces the source '
+                                                     "operation's plan confirmation: it is invalid "
+                                                     'for cancel, mutually exclusive with '
+                                                     'install_component_ids and '
+                                                     'download_source_ids, and requires '
+                                                     'required_capabilities to contain '
+                                                     'runtime.install-plan.v1. Reusing a plan id '
+                                                     'after its operation was accepted replays the '
+                                                     'existing receipt rather than retrying; a '
+                                                     'genuinely new retry must preview a fresh '
+                                                     'plan_id together with a new operation id. '
+                                                     'Commands without plan_id keep their legacy '
+                                                     'semantics.',
                                       'properties': {'command': {'enum': ['cancel', 'retry'],
                                                                  'type': 'string'},
                                                      'command_id': {'minLength': 1,
@@ -255,6 +316,11 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                                                'uniqueItems': True},
                                                      'new_operation_id': {'minLength': 1,
                                                                           'type': 'string'},
+                                                     'plan_id': {'minLength': 1, 'type': 'string'},
+                                                     'required_capabilities': {'items': {'minLength': 1,
+                                                                                         'type': 'string'},
+                                                                               'type': 'array',
+                                                                               'uniqueItems': True},
                                                      'target_operation_id': {'minLength': 1,
                                                                              'type': 'string'}},
                                       'required': ['command_id', 'command', 'target_operation_id'],
@@ -262,7 +328,16 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
  'RuntimeMaintenanceRequest': {'additionalProperties': False,
                                'allOf': [{'if': {'anyOf': [{'required': ['install_component_ids']},
                                                            {'required': ['download_source_ids']}]},
-                                          'then': {'properties': {'operation': {'const': 'ensure'}}}}],
+                                          'then': {'properties': {'operation': {'const': 'ensure'}}}},
+                                         {'if': {'required': ['plan_id']},
+                                          'then': {'not': {'anyOf': [{'required': ['profile_id']},
+                                                                     {'required': ['component_ids']},
+                                                                     {'required': ['install_component_ids']},
+                                                                     {'required': ['download_source_ids']}]},
+                                                   'properties': {'operation': {'const': 'ensure'},
+                                                                  'required_capabilities': {'contains': {'const': 'runtime.install-plan.v1'}}},
+                                                   'required': ['operation_id',
+                                                                'required_capabilities']}}],
                                'description': 'Runtime maintenance start request. For ensure, '
                                               'install_component_ids is the manual '
                                               'optional-component scope: an empty array explicitly '
@@ -277,7 +352,20 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                               'setting/default. Clients MUST omit both fields when '
                                               'their capability is absent; they are invalid for '
                                               'inspect/repair. component_ids keeps its '
-                                              'repair-scope meaning.',
+                                              'repair-scope meaning. plan_id '
+                                              '(runtime.install-plan.v1) confirms a previewed '
+                                              'install plan for ensure only: it requires an '
+                                              'explicit operation_id and required_capabilities '
+                                              'containing runtime.install-plan.v1, is mutually '
+                                              'exclusive with profile_id, component_ids, '
+                                              'install_component_ids, and download_source_ids, and '
+                                              'the Backend revalidates the plan baseline '
+                                              'atomically before first execution, rejecting stale, '
+                                              'expired, or unknown plans with '
+                                              'RUNTIME_INSTALL_PLAN_STALE and blocked plans with '
+                                              'RUNTIME_INSTALL_PLAN_BLOCKED. Requests without '
+                                              'plan_id keep their legacy semantics and never claim '
+                                              'user plan confirmation.',
                                'properties': {'component_ids': {'items': {'minLength': 1,
                                                                           'type': 'string'},
                                                                 'type': 'array',
@@ -294,6 +382,7 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                               'operation': {'enum': ['inspect', 'ensure', 'repair'],
                                                             'type': 'string'},
                                               'operation_id': {'minLength': 1, 'type': 'string'},
+                                              'plan_id': {'minLength': 1, 'type': 'string'},
                                               'profile_id': {'minLength': 1, 'type': 'string'},
                                               'required_capabilities': {'items': {'minLength': 1,
                                                                                   'type': 'string'},
@@ -1302,6 +1391,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                              'verify_runtime',
                                                                                              'commit_runtime'],
                                                                                     'type': 'string'},
+                                                                          'plan_id': {'minLength': 1,
+                                                                                      'type': 'string'},
                                                                           'profile_id': {'minLength': 1,
                                                                                          'type': 'string'},
                                                                           'progress': {'anyOf': [{'additionalProperties': False,
@@ -3432,6 +3523,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                   'verify_runtime',
                                                                                                   'commit_runtime'],
                                                                                          'type': 'string'},
+                                                                               'plan_id': {'minLength': 1,
+                                                                                           'type': 'string'},
                                                                                'profile_id': {'minLength': 1,
                                                                                               'type': 'string'},
                                                                                'progress': {'anyOf': [{'additionalProperties': False,
@@ -5503,6 +5596,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                                                                  'verify_runtime',
                                                                                                                                  'commit_runtime'],
                                                                                                                         'type': 'string'},
+                                                                                                              'plan_id': {'minLength': 1,
+                                                                                                                          'type': 'string'},
                                                                                                               'profile_id': {'minLength': 1,
                                                                                                                              'type': 'string'},
                                                                                                               'progress': {'anyOf': [{'additionalProperties': False,
@@ -5615,6 +5710,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                              'verify_runtime',
                                                                                              'commit_runtime'],
                                                                                     'type': 'string'},
+                                                                          'plan_id': {'minLength': 1,
+                                                                                      'type': 'string'},
                                                                           'profile_id': {'minLength': 1,
                                                                                          'type': 'string'},
                                                                           'progress': {'anyOf': [{'additionalProperties': False,
@@ -5992,6 +6089,390 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                  'vram_total_mb',
                                  'vram_used_mb'],
                     'type': 'object'},
+ 'previewRuntimeInstallPlan': {'additionalProperties': False,
+                               'description': 'Runtime install plan preview response. The plan is '
+                                              'read-only and creating it is not a maintenance '
+                                              'operation. negotiated_capabilities echoes the '
+                                              'capabilities the Backend actually negotiated for '
+                                              'this preview. Confirming the plan later uses '
+                                              'plan_id on an ensure maintenance start or retry, '
+                                              'which revalidates the baseline atomically before '
+                                              'first execution; replaying the same operation id '
+                                              'and plan returns the existing receipt without '
+                                              'executing again.',
+                               'properties': {'negotiated_capabilities': {'items': {'minLength': 1,
+                                                                                    'type': 'string'},
+                                                                          'type': 'array',
+                                                                          'uniqueItems': True},
+                                              'plan': {'additionalProperties': False,
+                                                       'description': 'One read-only Runtime '
+                                                                      'install plan. plan_id is '
+                                                                      'opaque and not a '
+                                                                      'client-computed digest; it '
+                                                                      'expires at expires_at. The '
+                                                                      'Backend revalidates the '
+                                                                      'verified '
+                                                                      'release/lock/product '
+                                                                      "baseline before the plan's "
+                                                                      'first execution and rejects '
+                                                                      'stale, expired, or unknown '
+                                                                      'plans with '
+                                                                      'RUNTIME_INSTALL_PLAN_STALE. '
+                                                                      'requested_component_ids and '
+                                                                      'requested_download_source_ids '
+                                                                      'are nullable echoes of the '
+                                                                      'request: null means the '
+                                                                      'field was omitted (Backend '
+                                                                      'default), an empty array '
+                                                                      'explicitly selected no '
+                                                                      'optional components. '
+                                                                      'components is the union of '
+                                                                      'the effective closure and '
+                                                                      'the actually affected old '
+                                                                      'components; ids across all '
+                                                                      'arrays are unique and use '
+                                                                      'release-catalog stable '
+                                                                      'component ids, never pip '
+                                                                      'package graphs, local '
+                                                                      'paths, or credentials. '
+                                                                      'remove means the component '
+                                                                      'no longer belongs to the '
+                                                                      'active environment once the '
+                                                                      'candidate activates; it '
+                                                                      'never authorizes deleting '
+                                                                      'retained environments, '
+                                                                      'native models, or caches. '
+                                                                      'Native model preparation '
+                                                                      'stays with the engine '
+                                                                      'downloaders and is not part '
+                                                                      'of the known dependency '
+                                                                      'totals in cost.',
+                                                       'properties': {'accelerator': {'enum': ['cpu',
+                                                                                               'nvidia_cuda'],
+                                                                                      'type': 'string'},
+                                                                      'blockers': {'items': {'additionalProperties': False,
+                                                                                             'description': 'One '
+                                                                                                            'actual '
+                                                                                                            'known '
+                                                                                                            'blocker '
+                                                                                                            'the '
+                                                                                                            'Backend '
+                                                                                                            'honestly '
+                                                                                                            'reports '
+                                                                                                            'for '
+                                                                                                            'the '
+                                                                                                            'plan, '
+                                                                                                            'such '
+                                                                                                            'as '
+                                                                                                            'platform, '
+                                                                                                            'ABI, '
+                                                                                                            'driver, '
+                                                                                                            'disk '
+                                                                                                            'space, '
+                                                                                                            'permission, '
+                                                                                                            'source, '
+                                                                                                            'or '
+                                                                                                            'in-flight '
+                                                                                                            'task '
+                                                                                                            'conditions. '
+                                                                                                            'code '
+                                                                                                            'is '
+                                                                                                            'an '
+                                                                                                            'open '
+                                                                                                            'stable '
+                                                                                                            'machine-readable '
+                                                                                                            'string; '
+                                                                                                            'next_action '
+                                                                                                            'names '
+                                                                                                            'the '
+                                                                                                            'next '
+                                                                                                            'user '
+                                                                                                            'action '
+                                                                                                            'such '
+                                                                                                            'as '
+                                                                                                            'reselect, '
+                                                                                                            'change_source, '
+                                                                                                            'free_space, '
+                                                                                                            'or '
+                                                                                                            'close_tasks. '
+                                                                                                            'Confirming '
+                                                                                                            'a '
+                                                                                                            'plan '
+                                                                                                            'with '
+                                                                                                            'blockers '
+                                                                                                            'fails '
+                                                                                                            'closed '
+                                                                                                            'with '
+                                                                                                            'RUNTIME_INSTALL_PLAN_BLOCKED.',
+                                                                                             'properties': {'code': {'minLength': 1,
+                                                                                                                     'type': 'string'},
+                                                                                                            'component_id': {'minLength': 1,
+                                                                                                                             'type': 'string'},
+                                                                                                            'next_action': {'minLength': 1,
+                                                                                                                            'type': 'string'}},
+                                                                                             'required': ['code',
+                                                                                                          'next_action'],
+                                                                                             'type': 'object'},
+                                                                                   'type': 'array'},
+                                                                      'components': {'items': {'additionalProperties': False,
+                                                                                               'description': 'One '
+                                                                                                              'component '
+                                                                                                              'row '
+                                                                                                              'of '
+                                                                                                              'the '
+                                                                                                              'effective '
+                                                                                                              'install '
+                                                                                                              'closure '
+                                                                                                              'union. '
+                                                                                                              'action '
+                                                                                                              'describes '
+                                                                                                              'what '
+                                                                                                              'confirming '
+                                                                                                              'this '
+                                                                                                              'plan '
+                                                                                                              'does '
+                                                                                                              'to '
+                                                                                                              'the '
+                                                                                                              'component: '
+                                                                                                              'retain '
+                                                                                                              'keeps '
+                                                                                                              'it, '
+                                                                                                              'install '
+                                                                                                              'adds '
+                                                                                                              'it, '
+                                                                                                              'replace '
+                                                                                                              'upgrades '
+                                                                                                              'it '
+                                                                                                              'in '
+                                                                                                              'place, '
+                                                                                                              'and '
+                                                                                                              'remove '
+                                                                                                              'means '
+                                                                                                              'it '
+                                                                                                              'no '
+                                                                                                              'longer '
+                                                                                                              'belongs '
+                                                                                                              'to '
+                                                                                                              'the '
+                                                                                                              'active '
+                                                                                                              'environment '
+                                                                                                              'once '
+                                                                                                              'the '
+                                                                                                              'candidate '
+                                                                                                              'activates, '
+                                                                                                              'without '
+                                                                                                              'deleting '
+                                                                                                              'retained '
+                                                                                                              'environments, '
+                                                                                                              'native '
+                                                                                                              'models, '
+                                                                                                              'or '
+                                                                                                              'caches. '
+                                                                                                              'dependency_state '
+                                                                                                              'reports '
+                                                                                                              'whether '
+                                                                                                              'the '
+                                                                                                              "component's "
+                                                                                                              'dependencies '
+                                                                                                              'are '
+                                                                                                              'satisfied '
+                                                                                                              'now; '
+                                                                                                              'entries '
+                                                                                                              'shared '
+                                                                                                              'across '
+                                                                                                              'engines '
+                                                                                                              'may '
+                                                                                                              'be '
+                                                                                                              'satisfied. '
+                                                                                                              'reason_codes '
+                                                                                                              'are '
+                                                                                                              'open '
+                                                                                                              'machine-readable '
+                                                                                                              'strings, '
+                                                                                                              'and '
+                                                                                                              'entries '
+                                                                                                              'added '
+                                                                                                              'to '
+                                                                                                              'the '
+                                                                                                              'effective '
+                                                                                                              'closure '
+                                                                                                              'beyond '
+                                                                                                              'the '
+                                                                                                              'request '
+                                                                                                              'MUST '
+                                                                                                              'carry '
+                                                                                                              'at '
+                                                                                                              'least '
+                                                                                                              'one '
+                                                                                                              'reason '
+                                                                                                              'code. '
+                                                                                                              'Device, '
+                                                                                                              'scope, '
+                                                                                                              'recognition-mode, '
+                                                                                                              'and '
+                                                                                                              'tier '
+                                                                                                              'differences '
+                                                                                                              'are '
+                                                                                                              'separate '
+                                                                                                              'Backend '
+                                                                                                              'concerns '
+                                                                                                              'and '
+                                                                                                              'never '
+                                                                                                              'collapse '
+                                                                                                              'into '
+                                                                                                              'these '
+                                                                                                              'fields.',
+                                                                                               'properties': {'action': {'enum': ['retain',
+                                                                                                                                  'install',
+                                                                                                                                  'replace',
+                                                                                                                                  'remove'],
+                                                                                                                         'type': 'string'},
+                                                                                                              'component_id': {'minLength': 1,
+                                                                                                                               'type': 'string'},
+                                                                                                              'dependency_state': {'enum': ['satisfied',
+                                                                                                                                            'pending'],
+                                                                                                                                   'type': 'string'},
+                                                                                                              'reason_codes': {'items': {'minLength': 1,
+                                                                                                                                         'type': 'string'},
+                                                                                                                               'type': 'array',
+                                                                                                                               'uniqueItems': True}},
+                                                                                               'required': ['component_id',
+                                                                                                            'action',
+                                                                                                            'dependency_state',
+                                                                                                            'reason_codes'],
+                                                                                               'type': 'object'},
+                                                                                     'type': 'array'},
+                                                                      'cost': {'additionalProperties': False,
+                                                                               'allOf': [{'if': {'anyOf': [{'properties': {'download_bytes': {'type': 'null'}}},
+                                                                                                           {'properties': {'additional_disk_bytes': {'type': 'null'}}}]},
+                                                                                          'then': {'properties': {'unknown_reason_codes': {'minItems': 1}}}}],
+                                                                               'description': 'Plan-wide '
+                                                                                              'deduplicated '
+                                                                                              'cost '
+                                                                                              'totals, '
+                                                                                              'never '
+                                                                                              'per-component '
+                                                                                              'sums. '
+                                                                                              'download_bytes '
+                                                                                              'and '
+                                                                                              'additional_disk_bytes '
+                                                                                              'are '
+                                                                                              'non-negative '
+                                                                                              'integers '
+                                                                                              'or '
+                                                                                              'null; '
+                                                                                              'null '
+                                                                                              'means '
+                                                                                              'honestly '
+                                                                                              'unknown '
+                                                                                              'and '
+                                                                                              'MUST '
+                                                                                              'come '
+                                                                                              'with '
+                                                                                              'at '
+                                                                                              'least '
+                                                                                              'one '
+                                                                                              'unknown_reason_code '
+                                                                                              'instead '
+                                                                                              'of '
+                                                                                              'a '
+                                                                                              'zero '
+                                                                                              'placeholder. '
+                                                                                              'Unknown '
+                                                                                              'native '
+                                                                                              'model '
+                                                                                              'preparation '
+                                                                                              'costs '
+                                                                                              'stay '
+                                                                                              'with '
+                                                                                              'the '
+                                                                                              'engine '
+                                                                                              'downloaders '
+                                                                                              'and '
+                                                                                              'belong '
+                                                                                              'in '
+                                                                                              'the '
+                                                                                              'reason '
+                                                                                              'codes, '
+                                                                                              'not '
+                                                                                              'in '
+                                                                                              'these '
+                                                                                              'dependency '
+                                                                                              'totals.',
+                                                                               'properties': {'additional_disk_bytes': {'format': 'int64',
+                                                                                                                        'minimum': 0,
+                                                                                                                        'type': ['integer',
+                                                                                                                                 'null']},
+                                                                                              'download_bytes': {'format': 'int64',
+                                                                                                                 'minimum': 0,
+                                                                                                                 'type': ['integer',
+                                                                                                                          'null']},
+                                                                                              'unknown_reason_codes': {'items': {'minLength': 1,
+                                                                                                                                 'type': 'string'},
+                                                                                                                       'type': 'array',
+                                                                                                                       'uniqueItems': True}},
+                                                                               'required': ['download_bytes',
+                                                                                            'additional_disk_bytes',
+                                                                                            'unknown_reason_codes'],
+                                                                               'type': 'object'},
+                                                                      'effective_component_ids': {'items': {'minLength': 1,
+                                                                                                            'type': 'string'},
+                                                                                                  'type': 'array',
+                                                                                                  'uniqueItems': True},
+                                                                      'effective_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                  'type': 'string'},
+                                                                                                        'type': 'array',
+                                                                                                        'uniqueItems': True},
+                                                                      'expires_at': {'format': 'date-time',
+                                                                                     'type': 'string'},
+                                                                      'plan_id': {'minLength': 1,
+                                                                                  'type': 'string'},
+                                                                      'profile_id': {'minLength': 1,
+                                                                                     'type': 'string'},
+                                                                      'requested_component_ids': {'items': {'minLength': 1,
+                                                                                                            'type': 'string'},
+                                                                                                  'type': ['array',
+                                                                                                           'null'],
+                                                                                                  'uniqueItems': True},
+                                                                      'requested_download_source_ids': {'items': {'minLength': 1,
+                                                                                                                  'type': 'string'},
+                                                                                                        'minItems': 1,
+                                                                                                        'type': ['array',
+                                                                                                                 'null'],
+                                                                                                        'uniqueItems': True},
+                                                                      'source': {'additionalProperties': False,
+                                                                                 'properties': {'backend_source_sha': {'pattern': '^[0-9a-f]{40}$',
+                                                                                                                       'type': 'string'},
+                                                                                                'backend_version': {'minLength': 1,
+                                                                                                                    'type': 'string'},
+                                                                                                'protocol_manifest_sha256': {'pattern': '^[0-9a-f]{64}$',
+                                                                                                                             'type': 'string'},
+                                                                                                'protocol_version': {'minLength': 1,
+                                                                                                                     'type': 'string'},
+                                                                                                'runtime_manifest_sha256': {'pattern': '^[0-9a-f]{64}$',
+                                                                                                                            'type': 'string'}},
+                                                                                 'required': ['backend_version',
+                                                                                              'backend_source_sha',
+                                                                                              'runtime_manifest_sha256',
+                                                                                              'protocol_version',
+                                                                                              'protocol_manifest_sha256'],
+                                                                                 'type': 'object'}},
+                                                       'required': ['plan_id',
+                                                                    'expires_at',
+                                                                    'accelerator',
+                                                                    'profile_id',
+                                                                    'requested_component_ids',
+                                                                    'effective_component_ids',
+                                                                    'requested_download_source_ids',
+                                                                    'effective_download_source_ids',
+                                                                    'source',
+                                                                    'components',
+                                                                    'blockers',
+                                                                    'cost'],
+                                                       'type': 'object'},
+                                              'schema_version': {'const': 2}},
+                               'required': ['schema_version', 'plan', 'negotiated_capabilities'],
+                               'type': 'object'},
  'putSettings': {'additionalProperties': False,
                  'description': 'Backend settings snapshot/exchange. download_source_ids persists '
                                 'at most one selected source per kind; array order has no priority '
@@ -7649,6 +8130,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                            'verify_runtime',
                                                                                            'commit_runtime'],
                                                                                   'type': 'string'},
+                                                                        'plan_id': {'minLength': 1,
+                                                                                    'type': 'string'},
                                                                         'profile_id': {'minLength': 1,
                                                                                        'type': 'string'},
                                                                         'progress': {'anyOf': [{'additionalProperties': False,
@@ -8302,6 +8785,13 @@ ROUTE_CONTRACTS: dict[tuple[str, str], dict[str, Any]] = {('GET', '/v2/health'):
                                    'responses': {'400': {'$ref': '#/components/responses/Error'},
                                                  '401': {'$ref': '#/components/responses/Error'},
                                                  '403': {'$ref': '#/components/responses/Error'}}},
+ ('POST', '/v2/runtime/install-plan'): {'requestBody': {'content': {'application/json': {'schema': {'$ref': '#/components/schemas/RuntimeInstallPlanRequest'}}},
+                                                        'required': True},
+                                        'responses': {'400': {'$ref': '#/components/responses/Error'},
+                                                      '401': {'$ref': '#/components/responses/Error'},
+                                                      '403': {'$ref': '#/components/responses/Error'},
+                                                      '409': {'$ref': '#/components/responses/Error'},
+                                                      '426': {'$ref': '#/components/responses/Error'}}},
  ('POST', '/v2/runtime/maintenance'): {'requestBody': {'content': {'application/json': {'schema': {'$ref': '#/components/schemas/RuntimeMaintenanceRequest'}}},
                                                        'required': True},
                                        'responses': {'400': {'$ref': '#/components/responses/Error'},

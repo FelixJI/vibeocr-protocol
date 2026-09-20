@@ -211,6 +211,22 @@
       "runtime_host_code": "io_error"
     },
     {
+      "code": "RUNTIME_INSTALL_PLAN_STALE",
+      "category": "conflict",
+      "http_status": 409,
+      "retryable": false,
+      "message": "The install plan is expired, unknown, or its verified baseline changed; preview a new plan before confirming maintenance.",
+      "runtime_host_code": "invalid_request"
+    },
+    {
+      "code": "RUNTIME_INSTALL_PLAN_BLOCKED",
+      "category": "conflict",
+      "http_status": 409,
+      "retryable": false,
+      "message": "The install plan reports unresolved blockers; resolve them or preview a new plan instead of starting maintenance.",
+      "runtime_host_code": "invalid_request"
+    },
+    {
       "code": "OCR_ENGINE_UNKNOWN",
       "category": "validation",
       "http_status": 400,

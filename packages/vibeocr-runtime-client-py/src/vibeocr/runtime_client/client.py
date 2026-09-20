@@ -25,6 +25,8 @@ from vibeocr.runtime_contracts import (
     JobRef,
     JobUpdate,
     ResidencyStatus,
+    RuntimeInstallPlanRequest,
+    RuntimeInstallPlanResponse,
     RuntimeMaintenanceCommand,
     RuntimeMaintenanceCommandKind,
     RuntimeMaintenanceEvent,
@@ -52,6 +54,7 @@ from vibeocr.runtime_contracts.parser import (
     parse_job_update,
     parse_pipeline_spec,
     parse_residency_entry,
+    parse_runtime_install_plan_response,
     parse_runtime_maintenance_event,
     parse_runtime_maintenance_receipt,
     parse_runtime_maintenance_update,
@@ -266,6 +269,19 @@ class RuntimeHttpResponse:
         return rows
 
 
+def _require_install_plan_capability(health: Mapping[str, Any]) -> None:
+    capabilities = health.get("capabilities")
+    if (
+        not isinstance(capabilities, (list, tuple))
+        or "runtime.install-plan.v1" not in capabilities
+    ):
+        raise RuntimeClientError(
+            ErrorCode.RUNTIME_CAPABILITY_UNAVAILABLE,
+            "Runtime does not support runtime.install-plan.v1",
+            retryable=False,
+        )
+
+
 class RuntimeHttpClient:
     """Small synchronous stdlib transport keyed by generated operation IDs."""
 
@@ -413,9 +429,23 @@ class RuntimeHttpClient:
     def residency(self) -> WireResidencyStatus:
         return cast("WireResidencyStatus", self.request_json("getRuntimeResidency"))
 
+    def preview_runtime_install_plan(
+        self, request: RuntimeInstallPlanRequest
+    ) -> RuntimeInstallPlanResponse:
+        """Preview a read-only install plan (runtime.install-plan.v1)."""
+
+        _require_install_plan_capability(self.health())
+        return parse_runtime_install_plan_response(
+            self.request_json(
+                "previewRuntimeInstallPlan", json_body=request.to_payload()
+            )
+        )
+
     def start_runtime_maintenance(
         self, request: RuntimeMaintenanceRequest
     ) -> RuntimeMaintenanceReceipt:
+        if request.plan_id is not None:
+            _require_install_plan_capability(self.health())
         return parse_runtime_maintenance_receipt(
             self.request_json(
                 "startRuntimeMaintenance", json_body=request.to_payload(), timeout=600.0
@@ -425,6 +455,8 @@ class RuntimeHttpClient:
     def command_runtime_maintenance(
         self, command: RuntimeMaintenanceCommand
     ) -> RuntimeMaintenanceReceipt:
+        if command.plan_id is not None:
+            _require_install_plan_capability(self.health())
         return parse_runtime_maintenance_receipt(
             self.request_json(
                 "commandRuntimeMaintenance", json_body=command.to_payload()
@@ -923,10 +955,29 @@ class SupervisorClient:
         value = await asyncio.to_thread(self._require_transport().residency)
         return _parse_residency(value)
 
+    async def preview_runtime_install_plan(
+        self, request: RuntimeInstallPlanRequest
+    ) -> RuntimeInstallPlanResponse:
+        """Preview a read-only install plan (runtime.install-plan.v1)."""
+
+        if self._client is not None:
+            _require_install_plan_capability(await self.health())
+            response = await self._client.post(
+                operation_path("previewRuntimeInstallPlan"),
+                json=request.to_payload(),
+            )
+            value = self._async_response_object(response, "previewRuntimeInstallPlan")
+            return parse_runtime_install_plan_response(value)
+        return await asyncio.to_thread(
+            self._require_transport().preview_runtime_install_plan, request
+        )
+
     async def start_runtime_maintenance(
         self, request: RuntimeMaintenanceRequest
     ) -> RuntimeMaintenanceReceipt:
         if self._client is not None:
+            if request.plan_id is not None:
+                _require_install_plan_capability(await self.health())
             response = await self._client.post(
                 operation_path("startRuntimeMaintenance"),
                 json=request.to_payload(),
@@ -942,6 +993,8 @@ class SupervisorClient:
         self, command: RuntimeMaintenanceCommand
     ) -> RuntimeMaintenanceReceipt:
         if self._client is not None:
+            if command.plan_id is not None:
+                _require_install_plan_capability(await self.health())
             response = await self._client.post(
                 operation_path("commandRuntimeMaintenance"),
                 json=command.to_payload(),

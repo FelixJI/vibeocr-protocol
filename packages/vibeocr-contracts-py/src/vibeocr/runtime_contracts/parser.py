@@ -61,6 +61,14 @@ from .dtos import (
     RuntimeComponentState,
     RuntimeComponentStatus,
     RuntimeDriftReason,
+    RuntimeInstallPlan,
+    RuntimeInstallPlanAction,
+    RuntimeInstallPlanBlocker,
+    RuntimeInstallPlanComponent,
+    RuntimeInstallPlanCost,
+    RuntimeInstallPlanDependencyState,
+    RuntimeInstallPlanRequest,
+    RuntimeInstallPlanResponse,
     RuntimeMaintenanceEvent,
     RuntimeMaintenanceEventType,
     RuntimeMaintenanceOperation,
@@ -928,6 +936,7 @@ def _parse_runtime_maintenance_status(payload: Any) -> RuntimeMaintenanceStatus:
             if payload.get("source") is not None
             else None
         ),
+        plan_id=payload.get("plan_id"),
     )
 
 
@@ -1189,6 +1198,273 @@ def parse_runtime_maintenance_update(
     )
 
 
+def _parse_date_time(value: Any, label: str) -> str:
+    if not isinstance(value, str):
+        raise ContractError(f"{label} must be an ISO-8601 date-time string")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ContractError(f"{label} must be an ISO-8601 date-time string") from exc
+    if parsed.tzinfo is None:
+        raise ContractError(f"{label} must carry a timezone offset")
+    return value
+
+
+def _parse_nullable_component_ids(
+    payload: Any, field: str, *, allow_empty: bool
+) -> tuple[str, ...] | None:
+    if payload is None:
+        return None
+    parsed = _parse_component_ids(payload, field)
+    if not allow_empty and not parsed:
+        raise ContractError(f"{field} must be non-empty when not null")
+    return parsed
+
+
+def _require_plan_text(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ContractError(f"{field} must be a non-empty string")
+    return value
+
+
+def _parse_runtime_install_plan_component(payload: Any) -> RuntimeInstallPlanComponent:
+    if not isinstance(payload, dict):
+        raise ContractError("install plan component must be a JSON object")
+    _require_fields(
+        payload,
+        ("component_id", "action", "dependency_state", "reason_codes"),
+        "install plan component",
+    )
+    reason_codes = _parse_component_ids(payload["reason_codes"], "reason_codes")
+    return RuntimeInstallPlanComponent(
+        component_id=_require_plan_text(payload["component_id"], "component_id"),
+        action=_require_enum(
+            RuntimeInstallPlanAction, payload["action"], "install plan action"
+        ),
+        dependency_state=_require_enum(
+            RuntimeInstallPlanDependencyState,
+            payload["dependency_state"],
+            "install plan dependency state",
+        ),
+        reason_codes=reason_codes,
+    )
+
+
+def _parse_runtime_install_plan_blocker(payload: Any) -> RuntimeInstallPlanBlocker:
+    if not isinstance(payload, dict):
+        raise ContractError("install plan blocker must be a JSON object")
+    _require_fields(payload, ("code", "next_action"), "install plan blocker")
+    component_id = payload.get("component_id")
+    if component_id is not None and (
+        not isinstance(component_id, str) or not component_id
+    ):
+        raise ContractError(
+            "install plan blocker component_id must be a non-empty string"
+        )
+    return RuntimeInstallPlanBlocker(
+        code=_require_plan_text(payload["code"], "blocker code"),
+        next_action=_require_plan_text(payload["next_action"], "next_action"),
+        component_id=component_id,
+    )
+
+
+def _parse_runtime_install_plan_cost(payload: Any) -> RuntimeInstallPlanCost:
+    if not isinstance(payload, dict):
+        raise ContractError("install plan cost must be a JSON object")
+    # Totals are required but explicitly nullable.
+    _require_present_fields(
+        payload,
+        ("download_bytes", "additional_disk_bytes", "unknown_reason_codes"),
+        "install plan cost",
+    )
+    _require_fields(payload, ("unknown_reason_codes",), "install plan cost")
+    totals: dict[str, int | None] = {}
+    for field in ("download_bytes", "additional_disk_bytes"):
+        value = payload[field]
+        if value is not None and (type(value) is not int or value < 0):
+            raise ContractError(
+                f"install plan cost {field} must be a non-negative integer or null"
+            )
+        totals[field] = value
+    unknown_reason_codes = _parse_component_ids(
+        payload["unknown_reason_codes"], "unknown_reason_codes"
+    )
+    if (
+        totals["download_bytes"] is None or totals["additional_disk_bytes"] is None
+    ) and not unknown_reason_codes:
+        raise ContractError(
+            "install plan cost unknown totals require unknown_reason_codes"
+        )
+    return RuntimeInstallPlanCost(
+        download_bytes=totals["download_bytes"],
+        additional_disk_bytes=totals["additional_disk_bytes"],
+        unknown_reason_codes=unknown_reason_codes,
+    )
+
+
+def _parse_runtime_install_plan(payload: Any) -> RuntimeInstallPlan:
+    if not isinstance(payload, dict):
+        raise ContractError("install plan must be a JSON object")
+    # requested_* echo fields are required but explicitly nullable, so only
+    # presence is checked here; the per-field parses reject other holes.
+    _require_present_fields(
+        payload,
+        (
+            "plan_id",
+            "expires_at",
+            "accelerator",
+            "profile_id",
+            "requested_component_ids",
+            "effective_component_ids",
+            "requested_download_source_ids",
+            "effective_download_source_ids",
+            "source",
+            "components",
+            "blockers",
+            "cost",
+        ),
+        "install plan",
+    )
+    _require_fields(
+        payload,
+        (
+            "plan_id",
+            "profile_id",
+            "expires_at",
+            "accelerator",
+            "source",
+            "cost",
+            "components",
+            "blockers",
+            "effective_component_ids",
+            "effective_download_source_ids",
+        ),
+        "install plan",
+    )
+    if not isinstance(payload["components"], list):
+        raise ContractError("install plan components must be a list")
+    if not isinstance(payload["blockers"], list):
+        raise ContractError("install plan blockers must be a list")
+    components = tuple(
+        _parse_runtime_install_plan_component(item) for item in payload["components"]
+    )
+    if len({item.component_id for item in components}) != len(components):
+        raise ContractError("install plan component_id values must be unique")
+    cost = _parse_runtime_install_plan_cost(payload["cost"])
+    return RuntimeInstallPlan(
+        plan_id=_require_plan_text(payload["plan_id"], "plan_id"),
+        expires_at=_parse_date_time(payload["expires_at"], "install plan expires_at"),
+        accelerator=_require_enum(
+            RuntimeAccelerator, payload["accelerator"], "install plan accelerator"
+        ),
+        profile_id=_require_plan_text(payload["profile_id"], "profile_id"),
+        requested_component_ids=_parse_nullable_component_ids(
+            payload["requested_component_ids"],
+            "requested_component_ids",
+            allow_empty=True,
+        ),
+        effective_component_ids=_parse_component_ids(
+            payload["effective_component_ids"], "effective_component_ids"
+        ),
+        requested_download_source_ids=_parse_nullable_component_ids(
+            payload["requested_download_source_ids"],
+            "requested_download_source_ids",
+            allow_empty=False,
+        ),
+        effective_download_source_ids=_parse_component_ids(
+            payload["effective_download_source_ids"], "effective_download_source_ids"
+        ),
+        source=_parse_runtime_source_identity(payload["source"]),
+        components=components,
+        blockers=tuple(
+            _parse_runtime_install_plan_blocker(item) for item in payload["blockers"]
+        ),
+        cost=cost,
+    )
+
+
+def parse_runtime_install_plan_response(
+    payload: dict[str, Any],
+) -> RuntimeInstallPlanResponse:
+    if not isinstance(payload, dict):
+        raise ContractError("install plan response must be a JSON object")
+    _require_fields(
+        payload,
+        ("schema_version", "plan", "negotiated_capabilities"),
+        "install plan response",
+    )
+    if payload["schema_version"] != SCHEMA_VERSION:
+        raise ContractError("install plan response schema_version mismatch")
+    negotiated = _parse_component_ids(
+        payload["negotiated_capabilities"], "negotiated_capabilities"
+    )
+    return RuntimeInstallPlanResponse(
+        plan=_parse_runtime_install_plan(payload["plan"]),
+        negotiated_capabilities=negotiated,
+    )
+
+
+def parse_runtime_install_plan_request(
+    payload: dict[str, Any],
+) -> RuntimeInstallPlanRequest:
+    """Strictly parse an install plan preview request (server/test facing)."""
+
+    if not isinstance(payload, dict):
+        raise ContractError("install plan request must be a JSON object")
+    _reject_unknown_fields(
+        payload,
+        frozenset(
+            {
+                "accelerator",
+                "install_component_ids",
+                "download_source_ids",
+                "required_capabilities",
+            }
+        ),
+        "install plan request",
+    )
+    _require_fields(payload, ("required_capabilities",), "install plan request")
+    required_capabilities = _parse_component_ids(
+        payload["required_capabilities"], "required_capabilities"
+    )
+    if "runtime.install-plan.v1" not in required_capabilities:
+        raise ContractError(
+            "install plan request required_capabilities must contain "
+            "runtime.install-plan.v1"
+        )
+    accelerator = None
+    if "accelerator" in payload:
+        accelerator = _require_enum(
+            RuntimeAccelerator,
+            payload["accelerator"],
+            "install plan request accelerator",
+        )
+    install_component_ids = None
+    if "install_component_ids" in payload:
+        if payload["install_component_ids"] is None:
+            raise ContractError("install_component_ids must be an array, not null")
+        install_component_ids = _parse_component_ids(
+            payload["install_component_ids"], "install_component_ids"
+        )
+    download_source_ids = None
+    if "download_source_ids" in payload:
+        if payload["download_source_ids"] is None:
+            raise ContractError(
+                "install plan request download_source_ids must be an array, not null"
+            )
+        download_source_ids = _parse_component_ids(
+            payload["download_source_ids"], "download_source_ids"
+        )
+        if not download_source_ids:
+            raise ContractError("download_source_ids must be non-empty when provided")
+    return RuntimeInstallPlanRequest(
+        required_capabilities=required_capabilities,
+        accelerator=accelerator,
+        install_component_ids=install_component_ids,
+        download_source_ids=download_source_ids,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SchemaValidator:
     """Bundles the parse helpers so callers can inject a fake clock etc."""
@@ -1217,6 +1493,8 @@ __all__ = [
     "parse_job_update",
     "parse_pipeline_selection",
     "parse_pipeline_spec",
+    "parse_runtime_install_plan_request",
+    "parse_runtime_install_plan_response",
     "parse_residency_entry",
     "parse_runtime_maintenance_event",
     "parse_runtime_maintenance_receipt",

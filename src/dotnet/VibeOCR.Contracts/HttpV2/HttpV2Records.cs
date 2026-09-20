@@ -263,6 +263,14 @@ public sealed record RuntimeMaintenanceRequest
     public required RuntimeMaintenanceOperation Operation { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ProfileId { get; init; }
+    /// <summary>
+    /// Confirmed install plan id (runtime.install-plan.v1). Valid for ensure
+    /// only, requires an explicit OperationId, and is mutually exclusive with
+    /// ProfileId, ComponentIds, InstallComponentIds and DownloadSourceIds.
+    /// Null keeps the legacy semantics without plan confirmation.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanId { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? ComponentIds { get; init; }
     /// <summary>
@@ -292,6 +300,14 @@ public sealed record RuntimeMaintenanceCommand
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ExpectedSequence { get; init; }
     /// <summary>
+    /// Fresh install plan id (runtime.install-plan.v1) for a retry that
+    /// replaces the source operation's plan confirmation. Invalid for cancel
+    /// and mutually exclusive with the selection overrides; when present,
+    /// RequiredCapabilities must contain runtime.install-plan.v1.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanId { get; init; }
+    /// <summary>
     /// On retry, explicitly re-selects a still-compatible install scope
     /// (runtime.component-selection.v1). Null omits the wire field and reuses
     /// the source operation's normalized intent.
@@ -304,6 +320,8 @@ public sealed record RuntimeMaintenanceCommand
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RequiredCapabilities { get; init; }
 }
 
 public sealed record RuntimeComponentStatus
@@ -355,6 +373,154 @@ public sealed record RuntimeMaintenanceStatus
     public IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? EffectiveDownloadSourceIds { get; init; }
+    /// <summary>Install plan id echo when this operation confirmed a previewed plan.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlanId { get; init; }
+}
+
+[JsonConverter(typeof(RuntimeInstallPlanRequestJsonConverter))]
+public sealed record RuntimeInstallPlanRequest
+{
+    public required IReadOnlyList<string> RequiredCapabilities { get; init; }
+    /// <summary>Null keeps the persistent preference or product default.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RuntimeAccelerator? Accelerator { get; init; }
+    /// <summary>
+    /// Manual install scope (runtime.component-selection.v1): null omits the
+    /// wire field (Backend default), an empty list explicitly selects no
+    /// optional components.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
+    /// <summary>
+    /// Download source selection (runtime.download-sources.v1); must be
+    /// non-empty when present, null omits the field.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+}
+
+public sealed record RuntimeInstallPlanResponse : IJsonOnDeserialized
+{
+    [JsonRequired]
+    public int SchemaVersion { get; init; } = HttpV2Schema.Version;
+    [JsonRequired]
+    public required RuntimeInstallPlan Plan { get; init; }
+    [JsonRequired]
+    public IReadOnlyList<string> NegotiatedCapabilities { get; init; } = Array.Empty<string>();
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        if (SchemaVersion != 2 || Plan is null)
+            throw new JsonException("Invalid install plan response.");
+        InstallPlanResponseValidation.Ids(NegotiatedCapabilities);
+    }
+}
+
+public sealed record RuntimeInstallPlan : IJsonOnDeserialized
+{
+    [JsonRequired]
+    public required string PlanId { get; init; }
+    [JsonRequired]
+    public required string ExpiresAt { get; init; }
+    [JsonRequired]
+    public required RuntimeAccelerator Accelerator { get; init; }
+    [JsonRequired]
+    public required string ProfileId { get; init; }
+    /// <summary>Nullable request echo: null means omitted, empty means explicit empty selection.</summary>
+    [JsonRequired]
+    public required IReadOnlyList<string>? RequestedComponentIds { get; init; }
+    [JsonRequired]
+    public IReadOnlyList<string> EffectiveComponentIds { get; init; } = Array.Empty<string>();
+    /// <summary>Nullable request echo: null means omitted, never an empty list.</summary>
+    [JsonRequired]
+    public required IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
+    [JsonRequired]
+    public IReadOnlyList<string> EffectiveDownloadSourceIds { get; init; } = Array.Empty<string>();
+    [JsonRequired]
+    public required RuntimeSourceIdentity Source { get; init; }
+    [JsonRequired]
+    public IReadOnlyList<RuntimeInstallPlanComponent> Components { get; init; } =
+        Array.Empty<RuntimeInstallPlanComponent>();
+    [JsonRequired]
+    public IReadOnlyList<RuntimeInstallPlanBlocker> Blockers { get; init; } =
+        Array.Empty<RuntimeInstallPlanBlocker>();
+    [JsonRequired]
+    public required RuntimeInstallPlanCost Cost { get; init; }
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Text(PlanId);
+        InstallPlanResponseValidation.Text(ProfileId);
+        if (!DateTimeOffset.TryParse(ExpiresAt, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out _)
+            || Source is null || Cost is null || Components is null || Blockers is null
+            || Components.Any(item => item is null) || Blockers.Any(item => item is null))
+            throw new JsonException("Invalid install plan fields.");
+        InstallPlanResponseValidation.Ids(Components.Select(item => item.ComponentId).ToArray());
+        InstallPlanResponseValidation.Ids(EffectiveComponentIds);
+        InstallPlanResponseValidation.Ids(EffectiveDownloadSourceIds);
+        if (RequestedComponentIds is not null)
+            InstallPlanResponseValidation.Ids(RequestedComponentIds);
+        if (RequestedDownloadSourceIds is not null)
+            InstallPlanResponseValidation.Ids(RequestedDownloadSourceIds, allowEmpty: false);
+    }
+}
+
+public sealed record RuntimeInstallPlanComponent : IJsonOnDeserialized
+{
+    [JsonRequired]
+    public required string ComponentId { get; init; }
+    [JsonRequired]
+    public required RuntimeInstallPlanAction Action { get; init; }
+    [JsonRequired]
+    public required RuntimeInstallPlanDependencyState DependencyState { get; init; }
+    [JsonRequired]
+    public IReadOnlyList<string> ReasonCodes { get; init; } = Array.Empty<string>();
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Text(ComponentId);
+        InstallPlanResponseValidation.Ids(ReasonCodes);
+    }
+}
+
+public sealed record RuntimeInstallPlanBlocker : IJsonOnDeserialized
+{
+    [JsonRequired]
+    public required string Code { get; init; }
+    /// <summary>Optional stable component id the blocker is about.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ComponentId { get; init; }
+    [JsonRequired]
+    public required string NextAction { get; init; }
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Text(Code);
+        InstallPlanResponseValidation.Text(NextAction);
+        if (ComponentId is not null) InstallPlanResponseValidation.Text(ComponentId);
+    }
+}
+
+public sealed record RuntimeInstallPlanCost : IJsonOnDeserialized
+{
+    /// <summary>Plan-wide deduplicated total; null means honestly unknown.</summary>
+    [JsonRequired]
+    public required long? DownloadBytes { get; init; }
+    /// <summary>Plan-wide deduplicated total; null means honestly unknown.</summary>
+    [JsonRequired]
+    public required long? AdditionalDiskBytes { get; init; }
+    [JsonRequired]
+    public IReadOnlyList<string> UnknownReasonCodes { get; init; } = Array.Empty<string>();
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        InstallPlanResponseValidation.Ids(UnknownReasonCodes);
+        if (DownloadBytes < 0 || AdditionalDiskBytes < 0
+            || ((DownloadBytes is null || AdditionalDiskBytes is null) && UnknownReasonCodes.Count == 0))
+            throw new JsonException("Unknown install cost requires a reason; known cost must be non-negative.");
+    }
 }
 
 public sealed record RuntimeMaintenanceReceipt
@@ -450,4 +616,24 @@ public sealed record HttpV2ErrorPayload
     /// <summary>Typed error detail. Defaults to an empty object on the wire.</summary>
     public IDictionary<string, JsonElement> Detail { get; init; } = new Dictionary<string, JsonElement>();
     public string? JobId { get; init; }
+}
+
+
+internal static class InstallPlanResponseValidation
+{
+    internal static void Text(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            throw new JsonException("Install plan text fields must be non-empty strings.");
+    }
+
+    internal static void Ids(IReadOnlyList<string>? values, bool allowEmpty = true)
+    {
+        if (values is null || (!allowEmpty && values.Count == 0))
+            throw new JsonException("Invalid install plan id array.");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string item in values)
+            if (string.IsNullOrEmpty(item) || !seen.Add(item))
+                throw new JsonException("Install plan ids must be unique non-empty strings.");
+    }
 }

@@ -286,6 +286,8 @@ public enum HttpV2ErrorCode
     [JsonStringEnumMemberName("RUNTIME_BUSY")] RuntimeBusy,
     [JsonStringEnumMemberName("RUNTIME_INSTALL_FAILED")] RuntimeInstallFailed,
     [JsonStringEnumMemberName("RUNTIME_IO_ERROR")] RuntimeIoError,
+    [JsonStringEnumMemberName("RUNTIME_INSTALL_PLAN_STALE")] RuntimeInstallPlanStale,
+    [JsonStringEnumMemberName("RUNTIME_INSTALL_PLAN_BLOCKED")] RuntimeInstallPlanBlocked,
     [JsonStringEnumMemberName("OCR_ENGINE_UNKNOWN")] OcrEngineUnknown,
     [JsonStringEnumMemberName("OCR_ENGINE_UNAVAILABLE")] OcrEngineUnavailable,
     [JsonStringEnumMemberName("OCR_ENGINE_PREPARATION_REQUIRED")] OcrEnginePreparationRequired,
@@ -343,6 +345,24 @@ public enum RuntimeDriftReason
     [JsonStringEnumMemberName("identity_mismatch")] IdentityMismatch,
     [JsonStringEnumMemberName("integrity_failed")] IntegrityFailed,
     [JsonStringEnumMemberName("unexpected")] Unexpected,
+}
+
+/// <summary>What confirming an install plan does to one component row.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeInstallPlanAction>))]
+public enum RuntimeInstallPlanAction
+{
+    [JsonStringEnumMemberName("retain")] Retain,
+    [JsonStringEnumMemberName("install")] Install,
+    [JsonStringEnumMemberName("replace")] Replace,
+    [JsonStringEnumMemberName("remove")] Remove,
+}
+
+/// <summary>Whether one install plan component's dependencies are satisfied now.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<RuntimeInstallPlanDependencyState>))]
+public enum RuntimeInstallPlanDependencyState
+{
+    [JsonStringEnumMemberName("satisfied")] Satisfied,
+    [JsonStringEnumMemberName("pending")] Pending,
 }
 
 public sealed class MineruTierJsonConverter : JsonConverter<MineruTier>

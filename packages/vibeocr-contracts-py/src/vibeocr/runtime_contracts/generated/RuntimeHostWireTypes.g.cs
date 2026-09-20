@@ -727,6 +727,9 @@ public sealed record RuntimeHostRequest
     [JsonPropertyName("operation_id")]
     public string? OperationId { get; init; }
 
+    [JsonPropertyName("plan_id")]
+    public string? PlanId { get; init; }
+
     [JsonPropertyName("component_ids")]
     public IReadOnlyList<string>? ComponentIds { get; init; }
 
@@ -773,6 +776,132 @@ public sealed record RuntimeHostSuccess
     public IReadOnlyList<CapabilityDescriptor>? CapabilityDescriptors { get; init; }
 }
 
+public sealed record RuntimeInstallPlan
+{
+    [JsonPropertyName("plan_id")]
+    public required string PlanId { get; init; }
+
+    [JsonPropertyName("expires_at")]
+    public required string ExpiresAt { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public required Accelerator Accelerator { get; init; }
+
+    [JsonPropertyName("profile_id")]
+    public required string ProfileId { get; init; }
+
+    [JsonPropertyName("requested_component_ids")]
+    public required IReadOnlyList<string>? RequestedComponentIds { get; init; }
+
+    [JsonPropertyName("effective_component_ids")]
+    public required IReadOnlyList<string> EffectiveComponentIds { get; init; }
+
+    [JsonPropertyName("requested_download_source_ids")]
+    public required IReadOnlyList<string>? RequestedDownloadSourceIds { get; init; }
+
+    [JsonPropertyName("effective_download_source_ids")]
+    public required IReadOnlyList<string> EffectiveDownloadSourceIds { get; init; }
+
+    [JsonPropertyName("source")]
+    public required RuntimeSourceIdentity Source { get; init; }
+
+    [JsonPropertyName("components")]
+    public required IReadOnlyList<RuntimeInstallPlanComponent> Components { get; init; }
+
+    [JsonPropertyName("blockers")]
+    public required IReadOnlyList<RuntimeInstallPlanBlocker> Blockers { get; init; }
+
+    [JsonPropertyName("cost")]
+    public required RuntimeInstallPlanCost Cost { get; init; }
+}
+
+public sealed record RuntimeInstallPlanBlocker
+{
+    [JsonPropertyName("code")]
+    public required string Code { get; init; }
+
+    [JsonPropertyName("component_id")]
+    public string? ComponentId { get; init; }
+
+    [JsonPropertyName("next_action")]
+    public required string NextAction { get; init; }
+}
+
+public sealed record RuntimeInstallPlanComponent
+{
+    [JsonPropertyName("component_id")]
+    public required string ComponentId { get; init; }
+
+    [JsonPropertyName("action")]
+    public required string Action { get; init; }
+
+    [JsonPropertyName("dependency_state")]
+    public required string DependencyState { get; init; }
+
+    [JsonPropertyName("reason_codes")]
+    public required IReadOnlyList<string> ReasonCodes { get; init; }
+}
+
+public sealed record RuntimeInstallPlanCost
+{
+    [JsonPropertyName("download_bytes")]
+    public required long? DownloadBytes { get; init; }
+
+    [JsonPropertyName("additional_disk_bytes")]
+    public required long? AdditionalDiskBytes { get; init; }
+
+    [JsonPropertyName("unknown_reason_codes")]
+    public required IReadOnlyList<string> UnknownReasonCodes { get; init; }
+}
+
+public sealed record RuntimeInstallPlanRequest
+{
+    [JsonPropertyName("protocol_version")]
+    public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("request_kind")]
+    public required string RequestKind { get; init; }
+
+    [JsonPropertyName("product_root")]
+    public required string ProductRoot { get; init; }
+
+    [JsonPropertyName("component_lock")]
+    public required string ComponentLock { get; init; }
+
+    [JsonPropertyName("runtime_manifest")]
+    public required string RuntimeManifest { get; init; }
+
+    [JsonPropertyName("layout_manifest")]
+    public string? LayoutManifest { get; init; }
+
+    [JsonPropertyName("product_id")]
+    public string? ProductId { get; init; }
+
+    [JsonPropertyName("accelerator")]
+    public Accelerator? Accelerator { get; init; }
+
+    [JsonPropertyName("install_component_ids")]
+    public IReadOnlyList<string>? InstallComponentIds { get; init; }
+
+    [JsonPropertyName("download_source_ids")]
+    public IReadOnlyList<string>? DownloadSourceIds { get; init; }
+
+    [JsonPropertyName("required_capabilities")]
+    public required IReadOnlyList<string> RequiredCapabilities { get; init; }
+}
+
+public sealed record RuntimeInstallPlanResponse
+{
+    [JsonPropertyName("protocol_version")]
+    public required int ProtocolVersion { get; init; }
+
+    [JsonPropertyName("response_kind")]
+    public required string ResponseKind { get; init; }
+
+    [JsonPropertyName("plan")]
+    public required RuntimeInstallPlan Plan { get; init; }
+}
+
 public sealed record RuntimeLaunch
 {
     [JsonPropertyName("python_executable")]
@@ -814,6 +943,9 @@ public sealed record RuntimeMaintenanceCommandRequest
     [JsonPropertyName("expected_sequence")]
     public int? ExpectedSequence { get; init; }
 
+    [JsonPropertyName("plan_id")]
+    public string? PlanId { get; init; }
+
     [JsonPropertyName("product_root")]
     public required string ProductRoot { get; init; }
 
@@ -837,6 +969,9 @@ public sealed record RuntimeMaintenanceCommandRequest
 
     [JsonPropertyName("install_component_ids")]
     public IReadOnlyList<string>? InstallComponentIds { get; init; }
+
+    [JsonPropertyName("required_capabilities")]
+    public IReadOnlyList<string>? RequiredCapabilities { get; init; }
 
     [JsonPropertyName("accepted_event_streams")]
     public IReadOnlyList<RuntimeHostEventStream>? AcceptedEventStreams { get; init; }
@@ -945,6 +1080,9 @@ public sealed record RuntimeMaintenanceSnapshot
 
     [JsonPropertyName("source")]
     public RuntimeSourceIdentity? Source { get; init; }
+
+    [JsonPropertyName("plan_id")]
+    public string? PlanId { get; init; }
 
     [JsonPropertyName("updated_at")]
     public required string UpdatedAt { get; init; }
