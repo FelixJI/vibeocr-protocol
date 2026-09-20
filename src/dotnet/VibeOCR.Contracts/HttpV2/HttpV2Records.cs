@@ -457,6 +457,7 @@ public sealed record RuntimeInstallPlan : IJsonOnDeserialized
             || Source is null || Cost is null || Components is null || Blockers is null
             || Components.Any(item => item is null) || Blockers.Any(item => item is null))
             throw new JsonException("Invalid install plan fields.");
+        InstallPlanResponseValidation.Ids(Components.Select(item => item.ComponentId).ToArray());
         InstallPlanResponseValidation.Ids(EffectiveComponentIds);
         InstallPlanResponseValidation.Ids(EffectiveDownloadSourceIds);
         if (RequestedComponentIds is not null)

@@ -977,3 +977,23 @@ def test_large_plan_cost_and_future_optional_response_fields_round_trip() -> Non
         required_capabilities=(RUNTIME_INSTALL_PLAN_V1,),
     )
     assert request.to_payload()["plan_id"] == plan["plan_id"]
+
+
+@pytest.mark.parametrize("transport", ["http", "host"])
+def test_plan_rejects_duplicate_component_ids_with_conflicting_actions(
+    transport,
+) -> None:
+    plan = _golden()["install_plan"]
+    plan["components"].append({**plan["components"][0], "action": "remove"})
+    response = {
+        "plan": plan,
+        "negotiated_capabilities": [RUNTIME_INSTALL_PLAN_V1],
+    }
+    if transport == "http":
+        response["schema_version"] = 2
+        with pytest.raises(parser.ContractError, match="component_id.*unique"):
+            parser.parse_runtime_install_plan_response(response)
+    else:
+        response.update(protocol_version=2, response_kind="install_plan")
+        with pytest.raises(RuntimeHostValidationError, match="component_id.*unique"):
+            parse_runtime_host_response(json.dumps(response))

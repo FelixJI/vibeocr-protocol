@@ -83,7 +83,14 @@ def validate_runtime_host_response(value: object) -> RuntimeHostResponse:
             "runtime response violates Runtime Host schema "
             f"at {instance_path} (schema {schema_path}): {exc.message}"
         ) from exc
-    return cast("RuntimeHostResponse", value)
+    response = cast("RuntimeHostResponse", value)
+    if response.get("response_kind") == "install_plan":
+        components = response["plan"]["components"]
+        if len({item["component_id"] for item in components}) != len(components):
+            raise RuntimeHostValidationError(
+                "install plan component_id values must be unique"
+            )
+    return response
 
 
 def parse_runtime_host_response(

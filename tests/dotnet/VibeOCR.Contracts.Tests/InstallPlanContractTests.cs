@@ -19,6 +19,17 @@ public sealed class InstallPlanContractTests
     private static readonly string V2Directory = FindV2Directory();
 
     [Fact]
+    public void PlanRejectsDuplicateComponentIdsWithConflictingActions()
+    {
+        JsonObject plan = JsonNode.Parse(LoadGolden().RootElement.GetProperty("install_plan").GetRawText())!.AsObject();
+        JsonArray components = plan["components"]!.AsArray();
+        JsonNode duplicate = components[0]!.DeepClone();
+        duplicate["action"] = "remove";
+        components.Add(duplicate);
+        Assert.Throws<JsonException>(() => HttpV2Json.Deserialize<RuntimeInstallPlan>(plan.ToJsonString()));
+    }
+
+    [Fact]
     public void LargeCostsRoundTripAcrossHandwrittenAndGeneratedBindings()
     {
         const string json = "{\"download_bytes\":3221225472,\"additional_disk_bytes\":4294967296,\"unknown_reason_codes\":[]}";

@@ -1345,6 +1345,11 @@ def _parse_runtime_install_plan(payload: Any) -> RuntimeInstallPlan:
         raise ContractError("install plan components must be a list")
     if not isinstance(payload["blockers"], list):
         raise ContractError("install plan blockers must be a list")
+    components = tuple(
+        _parse_runtime_install_plan_component(item) for item in payload["components"]
+    )
+    if len({item.component_id for item in components}) != len(components):
+        raise ContractError("install plan component_id values must be unique")
     cost = _parse_runtime_install_plan_cost(payload["cost"])
     return RuntimeInstallPlan(
         plan_id=_require_plan_text(payload["plan_id"], "plan_id"),
@@ -1370,10 +1375,7 @@ def _parse_runtime_install_plan(payload: Any) -> RuntimeInstallPlan:
             payload["effective_download_source_ids"], "effective_download_source_ids"
         ),
         source=_parse_runtime_source_identity(payload["source"]),
-        components=tuple(
-            _parse_runtime_install_plan_component(item)
-            for item in payload["components"]
-        ),
+        components=components,
         blockers=tuple(
             _parse_runtime_install_plan_blocker(item) for item in payload["blockers"]
         ),
