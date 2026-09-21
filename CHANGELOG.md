@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.4
+
+### Bug Fixes
+
+- **contracts:** 修复大文件字节进度的整数溢出 (#56) (42fce4d)
+
 ## 2.8.3
 
 ### Features
