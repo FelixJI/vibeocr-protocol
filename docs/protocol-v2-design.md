@@ -44,6 +44,7 @@ Protocol wheel 也不是客户端 SDK 的版本上限。Backend 的精确绑定�
   功能依赖分组及当前 maintenance snapshot 的权威快照。`health` 保持轻量探针，
   `runtime/residency` 继续只负责已加载 pipeline/显存信息。
 - `ProgressSnapshot.total` 可省略；省略代表 indeterminate，客户端不得伪造百分比。
+- `ProgressSnapshot.current/total` 按非负 64 位整数承载，避免实际字节数超过 2 GiB 时溢出；零总量仍是已知零值，不等于省略。JSON 字段和现有验证语义不变，.NET SDK 使用 `long`/`long?`，升级 SDK 的调用方需重新编译并避免收窄为 `int`。
   `StageEvent` 与 `JobSnapshot` 的 typed progress 是可选扩展，旧字段继续保留。
 - 原始安装日志不属于 wire contract。UI 使用稳定 `message_code`、功能 `component_id` 和
   可选脱敏 fallback，不能解析 pip 输出、索引 URL 或本地路径。

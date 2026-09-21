@@ -521,5 +521,8 @@
       "ch",
       "en"
     ]
-  }
+  },
+  "progress_bytes_large": {"unit": "bytes", "current": 3221225472, "total": 4294967296, "estimated_remaining_seconds": 12.5},
+  "progress_bytes_unknown": {"unit": "bytes", "current": 3221225472},
+  "progress_bytes_zero": {"unit": "bytes", "current": 0, "total": 0}
 }

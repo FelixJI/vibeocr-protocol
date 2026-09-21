@@ -997,3 +997,22 @@ def test_plan_rejects_duplicate_component_ids_with_conflicting_actions(
         response.update(protocol_version=2, response_kind="install_plan")
         with pytest.raises(RuntimeHostValidationError, match="component_id.*unique"):
             parse_runtime_host_response(json.dumps(response))
+
+
+@pytest.mark.parametrize(
+    "key", ["progress_bytes_large", "progress_bytes_unknown", "progress_bytes_zero"]
+)
+def test_measured_byte_progress_keeps_large_zero_and_unknown_totals(key: str) -> None:
+    payload = _golden()[key]
+    _schema_validator("ProgressSnapshot").validate(payload)
+    host = _host_schema()
+    jsonschema.Draft202012Validator(
+        {"$ref": "#/$defs/ProgressSnapshot", "$defs": host["$defs"]}
+    ).validate(payload)
+    progress = dtos.ProgressSnapshot(
+        unit=dtos.ProgressUnit(payload["unit"]),
+        current=payload["current"],
+        total=payload.get("total"),
+        estimated_remaining_seconds=payload.get("estimated_remaining_seconds"),
+    )
+    assert progress.to_payload() == payload
