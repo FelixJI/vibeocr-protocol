@@ -29,9 +29,9 @@ public sealed record JobSummary
 public sealed record ProgressSnapshot
 {
     public required ProgressUnit Unit { get; init; }
-    public required int Current { get; init; }
+    public required long Current { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? Total { get; init; }
+    public long? Total { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? EstimatedRemainingSeconds { get; init; }
 }

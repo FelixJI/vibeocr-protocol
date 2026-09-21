@@ -656,8 +656,8 @@
       "required": ["unit", "current"],
       "properties": {
         "unit": { "$ref": "#/$defs/ProgressUnit" },
-        "current": { "type": "integer", "minimum": 0 },
-        "total": { "type": "integer", "minimum": 0 },
+        "current": { "type": "integer", "format": "int64", "minimum": 0 },
+        "total": { "type": "integer", "format": "int64", "minimum": 0 },
         "estimated_remaining_seconds": { "type": "number", "minimum": 0 }
       },
       "allOf": [

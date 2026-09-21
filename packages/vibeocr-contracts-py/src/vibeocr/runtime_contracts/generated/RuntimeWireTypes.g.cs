@@ -1201,10 +1201,10 @@ public sealed record ProgressSnapshot
     public required string Unit { get; init; }
 
     [JsonPropertyName("current")]
-    public required int Current { get; init; }
+    public required long Current { get; init; }
 
     [JsonPropertyName("total")]
-    public int? Total { get; init; }
+    public long? Total { get; init; }
 
     [JsonPropertyName("estimated_remaining_seconds")]
     public double? EstimatedRemainingSeconds { get; init; }
