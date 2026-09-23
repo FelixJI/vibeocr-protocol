@@ -78,9 +78,3 @@
 - `vibeocr-backend` 通过固定 release lock 消费一个已证明的 Protocol v2 正式 Release；升级由 Backend 自己的 PR 明确完成。
 - `vibeocr-classic` 与 `vibeocr-next` 在各自 CI 解析最新正式 Backend，并验证其绑定的 Protocol major/minor 兼容性。前端不得直接假设未发布的 Protocol 源码。
 - `file-toolbox` 与 `vibetable` 不依赖本仓运行时；六仓仅共享自动化与治理实践。
-
-<!-- AI-FLOW-V4:START -->
-## AI Flow v4.0
-
-执行 AI Flow 任务前，读取 `.ai-flow/AGENTS.md`、`.ai-flow/AI_CODING_PLAYBOOK.md`、`.ai-flow/project.json` 和对应 GitHub Issue。工作流补充而不覆盖上面的工程规则；Issue-first、balanced、人工跨工具交接、Codex 只读 reviewer 子代理、人工合并。
-<!-- AI-FLOW-V4:END -->
