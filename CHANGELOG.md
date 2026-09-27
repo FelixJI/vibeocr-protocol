@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.0
+
+### Features
+
+- **mineru:** 声明远程解析连接能力契约 (#60) (a5cb413)
+
 ## 2.8.4
 
 ### Bug Fixes
