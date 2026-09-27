@@ -18,7 +18,8 @@
     "runtime.component-selection.v1",
     "ocr.recognition-modes.v1",
     "ocr.mineru-config.v1",
-    "runtime.install-plan.v1"
+    "runtime.install-plan.v1",
+    "ocr.mineru-remote-api.v1"
   ],
   "definitions": {
     "ocr.recognition.v2": {
@@ -153,6 +154,14 @@
       "description": "Select the typed MinerU 4 tier, OCR mode, canonical page range and language on mineru_parse jobs, negotiated against the Backend-declared tier and language catalog carried by capability descriptors.",
       "lifecycle": "active",
       "introduced_in": "2.8.1",
+      "deprecated_in": null,
+      "sunset_at": null,
+      "replacement": null
+    },
+    "ocr.mineru-remote-api.v1": {
+      "description": "Configure a self-hosted MinerU 4 V1 parsing service through SettingsSnapshot.extra.mineru_connection without installing local MinerU dependencies or models; retain local mode and never fall back from a failed remote request to local execution.",
+      "lifecycle": "active",
+      "introduced_in": "2.9.0",
       "deprecated_in": null,
       "sunset_at": null,
       "replacement": null

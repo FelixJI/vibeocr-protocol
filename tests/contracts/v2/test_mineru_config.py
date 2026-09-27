@@ -39,7 +39,10 @@ from vibeocr.runtime_contracts import (
 from vibeocr.runtime_contracts.contracts.mineru import MINERU_TIER_CHAIN
 from vibeocr.runtime_contracts.errors import ErrorCode
 from vibeocr.runtime_contracts.generated import ALL_CAPABILITIES, wire_types
-from vibeocr.runtime_contracts.generated.capabilities import OCR_MINERU_CONFIG_V1
+from vibeocr.runtime_contracts.generated.capabilities import (
+    OCR_MINERU_CONFIG_V1,
+    OCR_MINERU_REMOTE_API_V1,
+)
 from vibeocr.runtime_contracts.generated.error_codes import (
     ERROR_REGISTRY,
     RuntimeErrorCode,
@@ -366,15 +369,21 @@ def test_mineru_parse_submit_manifest_round_trips() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_mineru_config_capability_is_registered_everywhere() -> None:
+@pytest.mark.parametrize(
+    ("capability", "introduced_in"),
+    [(OCR_MINERU_CONFIG_V1, "2.8.1"), (OCR_MINERU_REMOTE_API_V1, "2.9.0")],
+)
+def test_mineru_config_capability_is_registered_everywhere(
+    capability: str, introduced_in: str
+) -> None:
     registry = json.loads((V2 / "capabilities.json").read_text(encoding="utf-8"))
-    assert "ocr.mineru-config.v1" in registry["capabilities"]
-    definition = registry["definitions"]["ocr.mineru-config.v1"]
+    assert capability in registry["capabilities"]
+    definition = registry["definitions"][capability]
     assert definition["lifecycle"] == "active"
-    assert definition["introduced_in"] == "2.8.1"
+    assert definition["introduced_in"] == introduced_in
 
     assert OCR_MINERU_CONFIG_V1 == "ocr.mineru-config.v1"
-    assert OCR_MINERU_CONFIG_V1 in ALL_CAPABILITIES
+    assert capability in ALL_CAPABILITIES
 
     spec = _spec()
     health_values = spec["components"]["schemas"]["Health"]["properties"][
@@ -385,7 +394,7 @@ def test_mineru_config_capability_is_registered_everywhere() -> None:
         "x-vibeocr-known-values"
     ]
     for known_values in (health_values, bootstrap_values):
-        assert "ocr.mineru-config.v1" in known_values
+        assert capability in known_values
 
 
 def test_capability_descriptor_carries_optional_mineru_catalog() -> None:

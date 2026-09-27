@@ -509,7 +509,41 @@ REQUEST_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'AddTextLayerRequest': {'addi
                                                              'minItems': 1,
                                                              'type': 'array',
                                                              'uniqueItems': True},
-                                     'extra': {'additionalProperties': True, 'type': 'object'},
+                                     'extra': {'additionalProperties': True,
+                                               'description': 'When ocr.mineru-remote-api.v1 is '
+                                                              'advertised, mineru_connection '
+                                                              'selects the instance-wide MinerU '
+                                                              'connection: an object with mode '
+                                                              'local or remote, api_url (HTTP(S) '
+                                                              'service root, optional '
+                                                              'reverse-proxy path; no userinfo, '
+                                                              'query or fragment), and optional '
+                                                              'api_key (Bearer credential without '
+                                                              'CR/LF). Omission selects local '
+                                                              'mode. Remote mode requires a '
+                                                              'nonempty api_url and uses the '
+                                                              'complete MinerU 4 V1 parsing API '
+                                                              'without local MinerU dependencies '
+                                                              'or models. Clients MUST NOT send '
+                                                              'mineru_connection to runtimes '
+                                                              'lacking this capability. Invalid '
+                                                              'settings MUST be rejected without '
+                                                              'replacing the prior configuration. '
+                                                              'Active jobs MUST retain their '
+                                                              'original connection; servers may '
+                                                              'reject connection changes while '
+                                                              'jobs are active. Remote failures '
+                                                              'MUST NOT fall back to local '
+                                                              'execution. Credentials MUST NOT '
+                                                              'appear in logs or diagnostics or be '
+                                                              'forwarded to another origin. Remote '
+                                                              'service processes and model '
+                                                              'residency are owned by the remote '
+                                                              'deployment, not by local '
+                                                              'preload/release or TTL settings. '
+                                                              'Other extra keys retain their '
+                                                              'existing semantics.',
+                                               'type': 'object'},
                                      'residency': {'additionalProperties': False,
                                                    'properties': {'default_ttl_seconds': {'minimum': 0,
                                                                                           'type': 'integer'},
@@ -2062,7 +2096,8 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                                                            'runtime.download-sources.v1',
                                                                                            'runtime.component-selection.v1',
                                                                                            'ocr.recognition-modes.v1',
-                                                                                           'ocr.mineru-config.v1']},
+                                                                                           'ocr.mineru-config.v1',
+                                                                                           'ocr.mineru-remote-api.v1']},
                                                       'type': 'array',
                                                       'uniqueItems': True},
                                      'capability_descriptors': {'items': {'additionalProperties': False,
@@ -3686,7 +3721,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                         'minItems': 1,
                                                         'type': 'array',
                                                         'uniqueItems': True},
-                                'extra': {'additionalProperties': True, 'type': 'object'},
+                                'extra': {'additionalProperties': True,
+                                          'description': 'When ocr.mineru-remote-api.v1 is '
+                                                         'advertised, mineru_connection selects '
+                                                         'the instance-wide MinerU connection: an '
+                                                         'object with mode local or remote, '
+                                                         'api_url (HTTP(S) service root, optional '
+                                                         'reverse-proxy path; no userinfo, query '
+                                                         'or fragment), and optional api_key '
+                                                         '(Bearer credential without CR/LF). '
+                                                         'Omission selects local mode. Remote mode '
+                                                         'requires a nonempty api_url and uses the '
+                                                         'complete MinerU 4 V1 parsing API without '
+                                                         'local MinerU dependencies or models. '
+                                                         'Clients MUST NOT send mineru_connection '
+                                                         'to runtimes lacking this capability. '
+                                                         'Invalid settings MUST be rejected '
+                                                         'without replacing the prior '
+                                                         'configuration. Active jobs MUST retain '
+                                                         'their original connection; servers may '
+                                                         'reject connection changes while jobs are '
+                                                         'active. Remote failures MUST NOT fall '
+                                                         'back to local execution. Credentials '
+                                                         'MUST NOT appear in logs or diagnostics '
+                                                         'or be forwarded to another origin. '
+                                                         'Remote service processes and model '
+                                                         'residency are owned by the remote '
+                                                         'deployment, not by local preload/release '
+                                                         'or TTL settings. Other extra keys retain '
+                                                         'their existing semantics.',
+                                          'type': 'object'},
                                 'residency': {'additionalProperties': False,
                                               'properties': {'default_ttl_seconds': {'minimum': 0,
                                                                                      'type': 'integer'},
@@ -6500,7 +6564,36 @@ RESPONSE_JSON_SCHEMAS: dict[str, dict[str, Any]] = {'addPdfTextLayer': {'additio
                                                         'minItems': 1,
                                                         'type': 'array',
                                                         'uniqueItems': True},
-                                'extra': {'additionalProperties': True, 'type': 'object'},
+                                'extra': {'additionalProperties': True,
+                                          'description': 'When ocr.mineru-remote-api.v1 is '
+                                                         'advertised, mineru_connection selects '
+                                                         'the instance-wide MinerU connection: an '
+                                                         'object with mode local or remote, '
+                                                         'api_url (HTTP(S) service root, optional '
+                                                         'reverse-proxy path; no userinfo, query '
+                                                         'or fragment), and optional api_key '
+                                                         '(Bearer credential without CR/LF). '
+                                                         'Omission selects local mode. Remote mode '
+                                                         'requires a nonempty api_url and uses the '
+                                                         'complete MinerU 4 V1 parsing API without '
+                                                         'local MinerU dependencies or models. '
+                                                         'Clients MUST NOT send mineru_connection '
+                                                         'to runtimes lacking this capability. '
+                                                         'Invalid settings MUST be rejected '
+                                                         'without replacing the prior '
+                                                         'configuration. Active jobs MUST retain '
+                                                         'their original connection; servers may '
+                                                         'reject connection changes while jobs are '
+                                                         'active. Remote failures MUST NOT fall '
+                                                         'back to local execution. Credentials '
+                                                         'MUST NOT appear in logs or diagnostics '
+                                                         'or be forwarded to another origin. '
+                                                         'Remote service processes and model '
+                                                         'residency are owned by the remote '
+                                                         'deployment, not by local preload/release '
+                                                         'or TTL settings. Other extra keys retain '
+                                                         'their existing semantics.',
+                                          'type': 'object'},
                                 'residency': {'additionalProperties': False,
                                               'properties': {'default_ttl_seconds': {'minimum': 0,
                                                                                      'type': 'integer'},
