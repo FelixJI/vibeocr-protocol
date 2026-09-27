@@ -23,6 +23,7 @@ public static class RuntimeProtocol
     public const string OCR_RECOGNITION_MODES_V1 = "ocr.recognition-modes.v1";
     public const string OCR_MINERU_CONFIG_V1 = "ocr.mineru-config.v1";
     public const string RUNTIME_INSTALL_PLAN_V1 = "runtime.install-plan.v1";
+    public const string OCR_MINERU_REMOTE_API_V1 = "ocr.mineru-remote-api.v1";
     public const int ReadyEnvelopeVersion = 1;
     public const int ProtocolVersion = 2;
     public const int SchemaVersion = 2;
@@ -46,7 +47,8 @@ public static class RuntimeProtocol
         "runtime.component-selection.v1",
         "ocr.recognition-modes.v1",
         "ocr.mineru-config.v1",
-        "runtime.install-plan.v1"
+        "runtime.install-plan.v1",
+        "ocr.mineru-remote-api.v1"
         };
     public static IReadOnlyList<RuntimeOperation> Operations { get; } =
         new RuntimeOperation[]
