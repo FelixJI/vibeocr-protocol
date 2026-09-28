@@ -18,8 +18,10 @@ VibeOCR Protocol 是 VibeOCR 多仓协作的协议单一事实源。它维护 Pr
 bootstrap/capabilities 约定，并从这些输入生成 Python 与 .NET 契约、HTTP 客户端、schema 和 golden fixtures。
 
 > [!IMPORTANT]
-> 这个仓库不是可运行的 OCR 服务，也不包含桌面 UI。VibeOCR Backend 实现运行时，Classic 与 Next
-> 消费这里发布的客户端和契约。
+> **维护入口已迁至 [VibeOCR Next](https://github.com/FelixJI/vibeocr-next)。** 本仓的协议定义已内化到 VibeOCR Next；跨进程契约继续维护，但不再作为独立 SDK/协议产品发版。
+> 新功能、修复和问题反馈请使用 [Next Issues](https://github.com/FelixJI/vibeocr-next/issues)；开发入口见 [贡献指南](https://github.com/FelixJI/vibeocr-next/blob/main/CONTRIBUTING.md) 和 [源码导读](https://github.com/FelixJI/vibeocr-next/blob/main/docs/source-reading-guide.md)。
+> 当前实现：[内部通信契约](https://github.com/FelixJI/vibeocr-next/tree/main/contracts/runtime/python/vibeocr/runtime_contracts)。
+> 本仓保留历史提交、许可证、tag 与 [正式 Release/资产](https://github.com/FelixJI/vibeocr-protocol/releases)，供旧版本追溯和下载；下文是历史架构与发布说明，不代表当前 Next 的依赖方式。未完成事项迁移后继续跟踪，不视为已验收。
 
 ## 项目定位
 
